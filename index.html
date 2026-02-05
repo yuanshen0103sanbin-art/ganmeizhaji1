@@ -23832,33 +23832,7 @@ body, #screen {
     -webkit-overflow-scrolling: touch; /* iOS 丝滑滚动 */
 }
 
-/* === 修复补丁：日记页滑动 === */
-.diary-page {
-    overflow-y: auto !important; /* 强制开启垂直滚动 */
-    -webkit-overflow-scrolling: touch !important; /* iOS 优化 */
-    touch-action: pan-y !important; /* 允许手指垂直拖动 */
-    height: 100% !important; /* 确保占满高度 */
-    padding-bottom: 100px !important; /* 底部留白，防止被按钮遮挡 */
-}
 
-/* 修复日记本容器的高度，防止被卡住 */
-.diary-book-container {
-    height: 80vh !important; /* 增加高度 */
-    overflow: hidden; /* 防止外层滚动条冲突 */
-}
-
-/* 手机端特别优化 */
-@media (max-width: 600px) {
-    .diary-book-container {
-        height: 90vh !important;
-        overflow-y: auto !important; /* 手机端允许整本书滚动 */
-    }
-    .diary-page {
-        height: auto !important; /* 手机端让内容自然撑开 */
-        min-height: 500px;
-        overflow-y: visible !important; /* 内部不再滚动，由外层滚 */
-    }
-}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
