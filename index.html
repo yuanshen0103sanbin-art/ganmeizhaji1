@@ -177,10 +177,24 @@ canvas {
             position: relative; overflow: hidden;
             display: flex; justify-content: center; align-items: center;
         }
-        .tv-content { 
-            width: 100%; height: 100%; object-fit: cover; display: block; 
-            filter: contrast(1.1) brightness(1.1);
-        }
+      .tv-content { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: fill; /* 强制拉伸填满屏幕，如果想保持比例可用 contain 或 cover */
+    display: block; 
+    position: absolute; /* 绝对定位防止被挤压 */
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+/* 同时也确保屏幕容器是相对定位 */
+.tv-screen {
+    width: 100%; height: 100%; 
+    background: #111;
+    position: relative; /* 关键 */
+    overflow: hidden;
+    display: flex; justify-content: center; align-items: center;
+}
         .crt-scanlines {
             position: absolute; inset: 0; pointer-events: none; z-index: 5;
             background:
@@ -188,13 +202,25 @@ canvas {
                 repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 3px);
             box-shadow: inset 0 0 30px rgba(0,0,0,0.6);
         }
-        .tv-control-panel {
-            height: 40px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 10px; 
-            background: linear-gradient(to bottom, #2b150a, #3e1e0f); 
-            border-radius: 4px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
+       /* 搜索 .tv-control-panel 并替换为以下内容 */
+.tv-control-panel {
+    height: 40px; 
+    margin-top: 10px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    padding: 0 10px; 
+    
+    /* 👇 修改这里：将原来的 hex 颜色改为 rgba，最后一位 0.8 表示 80%不透明度 */
+    background: linear-gradient(to bottom, rgba(43, 21, 10, 0.8), rgba(62, 30, 15, 0.2)); 
+    
+    /* 👇 建议加上这一行，让透过背景的部分有模糊感，更像玻璃/亚克力 */
+    backdrop-filter: blur(3px); 
+    -webkit-backdrop-filter: blur(3px);
+
+    border-radius: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
         .tv-logo-badge { 
             background: linear-gradient(to right, #d4af37, #f9e076); 
             padding: 2px 8px; font-family: serif; font-weight: bold; font-size: 0.7rem; color: #3e1e0f; 
@@ -520,13 +546,18 @@ canvas {
             width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
             font-size: 1.4rem; cursor: pointer; color: #555; background: none; border: none; padding: 0;
         }
-        #chat-input-text { 
-            flex: 1; padding: 10px; border-radius: 18px; 
-            border: 1px solid rgba(255,255,255,0.4); 
-            background: rgba(255,255,255,0.5); 
-            font-size: 1rem; outline: none; height: 38px; 
-            backdrop-filter: blur(5px);
-        }
+       #chat-input-text {
+    flex: 1; /* 占据剩余空间 */
+    width: 0; /* 配合flex:1使用，防止内容过多撑破容器 */
+    padding: 10px; 
+    border-radius: 18px; 
+    border: 1px solid rgba(255,255,255,0.4); 
+    background: rgba(255,255,255,0.5); 
+    font-size: 1rem; 
+    outline: none; 
+    height: 38px; 
+    backdrop-filter: blur(5px);
+}
         .chat-send-btn {
             background: transparent !important; 
             border: none;
@@ -537,7 +568,27 @@ canvas {
             transition: transform 0.2s;
             text-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .chat-send-btn:active { transform: scale(0.8); }
+        .chat-send-btn {
+    background: transparent !important; 
+    border: none;
+    padding: 0; 
+    
+    /* 👇 核心修复：强制固定宽度，禁止缩小/放大 */
+    width: 40px !important; 
+    min-width: 40px !important; 
+    flex-shrink: 0 !important; 
+    /* 👆 核心修复结束 */
+
+    height: 36px; 
+    color: #E6CAFF; 
+    font-size: 1.8rem; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    transition: transform 0.2s;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
         .quote-preview-bar {
             display: none; 
             width: 100%; 
@@ -2984,7 +3035,7 @@ canvas {
                     <div class="date-widget" id="date">JAN 24</div>
                 </div>
                 <div class="tv-container">
-                    <div class="tv-case">
+           <div id="tv-shell-case" class="tv-case">
                         <div class="add-btn-trigger" onclick="document.getElementById('tv-file-input').click()"></div>
                         <div class="tv-bezel-wrapper">
                             <div class="tv-screen-frame">
@@ -3103,8 +3154,7 @@ canvas {
         <div class="app-icon" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%); color:#fff; font-size:1.6rem; border:1px solid #fff;">🎨</div>
         <span class="app-name">美化</span>
     </div>
-
-<div class="game-console-widget" onclick="openGameApp()">
+<div id="console-widget-p2" class="game-console-widget" onclick="openGameApp()">
     <div class="gc-dpad"></div>
     <div class="gc-screen-area">
         <div class="gc-scanline"></div>
@@ -3124,6 +3174,18 @@ canvas {
             <div class="app-icon" style="background:#2c6e49; color:#fff; font-size:1.6rem; font-family:serif; font-weight:bold;">Lf</div>
             <span class="app-name">老福特</span>
         </div>
+<!-- 🧙‍♀️ 新增：女巫 APP 图标 -->
+<div class="app-item" onclick="openWitchApp()">
+    <div class="app-icon" style="background: #2d3436; color:#a29bfe; font-size:1.6rem; border:2px solid #6c5ce7; box-shadow: 0 0 10px rgba(108, 92, 231, 0.6);">🧙‍♀️</div>
+    <span class="app-name">女巫</span>
+</div>
+<!-- ... 在 Page 3 的 grid 里 ... -->
+
+<!-- ❤️ 新增：默契大挑战 APP 图标 -->
+<div class="app-item" onclick="openTacitApp()">
+    <div class="app-icon" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%); color:#fff; font-size:1.6rem; border:2px solid #fff; box-shadow: 0 4px 15px rgba(255, 105, 135, 0.4);">💞</div>
+    <span class="app-name">默契挑战</span>
+</div>
        <!-- 🌸 新增：香片 APP 图标 -->
 <div class="app-item" onclick="openScentApp()">
     <div class="app-icon" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color:#fff; font-size:1.6rem; border:2px solid #fff; box-shadow: 0 4px 15px rgba(255, 192, 203, 0.4);">🧴</div>
@@ -3134,6 +3196,7 @@ canvas {
     <div class="app-icon" style="background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%); color:#fff; font-size:1.6rem; border:2px solid #fff; box-shadow: 0 4px 10px rgba(116, 235, 213, 0.4);">🧩</div>
     <span class="app-name">记忆拼图</span>
 </div>
+
         <!-- 🔥 新增：关于痛苦 APP -->
         <div class="app-item" onclick="openPainApp()">
             <div class="app-icon" style="background:#636e72; color:#fff; font-size:1.6rem; border:1px solid #b2bec3;">💊</div>
@@ -3182,8 +3245,7 @@ canvas {
     <div class="app-icon" style="background:#273c75; color:#fff; font-size:1.6rem; border:2px solid #fff; box-shadow: 0 4px 10px rgba(39, 60, 117, 0.4);">🍎</div>
     <span class="app-name">教导</span>
 </div>
-<!-- === 新增：RPG 像素生活组件 === -->
-<div class="game-console-widget" onclick="openRpgApp()" style="grid-column: span 4; grid-row: span 2; background: #2d3436; border:4px solid #57606f;">
+<div id="console-widget-p3" class="game-console-widget" onclick="openRpgApp()" style="grid-column: span 4; grid-row: span 2; background: #2d3436; border:4px solid #57606f;">
     <div class="gc-dpad" style="left:10px; width:50px; height:50px;"></div>
     <div class="gc-screen-area" style="width: 65%; height: 85%; border: 2px solid #111;">
         <!-- 这里放你提供的显示屏背景图 -->
@@ -9719,15 +9781,15 @@ const APP_MAP = [
     { id: 'summary', name: '学习总结', selector: 'div[onclick="openSummaryApp()"]' },
     { id: 'companion', name: '陪伴', selector: 'div[onclick="openCompanionApp()"]' },
     { id: 'teaching', name: '教导', selector: 'div[onclick="openTeachingApp()"]' },
-    // 🔥 新增/补全以下部分 🔥
     { id: 'work', name: '工作日报', selector: 'div[onclick="openWorkApp()"]' },
     { id: 'puzzle', name: '记忆拼图', selector: 'div[onclick="openPuzzleApp()"]' },
     { id: 'moving', name: '搬家日记', selector: 'div[onclick="openMovingApp()"]' },
     { id: 'galgame', name: '旮旯Game', selector: 'div[onclick="openGalgameApp()"]' },
-    { id: 'scent', name: '香片收集', selector: 'div[onclick="openScentApp()"]' }
+    { id: 'scent', name: '香片收集', selector: 'div[onclick="openScentApp()"]' },
+    // 🔥 新增部分：确保女巫和默契挑战在这里
+    { id: 'witch', name: '女巫', selector: 'div[onclick="openWitchApp()"]' },
+    { id: 'tacit', name: '默契挑战', selector: 'div[onclick="openTacitApp()"]' }
 ];
-// === 新增代码 START ===
-
 // 定义哪些 App 可以换背景，以及它们对应的 Modal ID
 const APP_BG_MAP = [
     { id: 'study', name: '学习计划', modalId: 'study-modal' },
@@ -9748,7 +9810,17 @@ const APP_BG_MAP = [
     { id: 'petdiary', name: '宠物日记', modalId: 'pet-diary-app-modal' },
     { id: 'gashapon', name: '扭蛋机', modalId: 'gashapon-app-modal' },
     { id: 'shadow', name: '阴暗面', modalId: 'shadow-app-modal' },
-    { id: 'summary', name: '学习总结', modalId: 'summary-app-modal' }
+    { id: 'summary', name: '学习总结', modalId: 'summary-app-modal' },
+    // 🔥 新增部分：确保后续增加的APP都能换背景
+    { id: 'work', name: '工作日报', modalId: 'work-app-modal' },
+    { id: 'moving', name: '搬家日记', modalId: 'moving-app-modal' },
+    { id: 'teaching', name: '教导', modalId: 'teaching-app-modal' },
+    { id: 'companion', name: '陪伴', modalId: 'companion-app-modal' },
+    { id: 'galgame', name: '旮旯Game', modalId: 'galgame-app-modal' },
+    { id: 'scent', name: '香片收集', modalId: 'scent-app-modal' },
+    { id: 'puzzle', name: '记忆拼图', modalId: 'puzzle-app-modal' },
+    { id: 'witch', name: '女巫', modalId: 'witch-app-modal' },
+    { id: 'tacit', name: '默契挑战', modalId: 'tacit-app-modal' }
 ];
 
 // 渲染背景上传列表
@@ -9932,7 +10004,7 @@ function injectCustomFont(appId, url) {
     }
     const fontName = `CustomFont${appId}`;
 
-    const idMap = {
+        const idMap = {
         'settings': 'settings-modal',
         'worldbook': 'wb-modal',
         'camera': 'camera-modal',
@@ -9950,7 +10022,23 @@ function injectCustomFont(appId, url) {
         'fan': 'fan-modal',
         'chat': 'chat-modal',
         'tarot': 'tarot-app-modal',       
-        'letter': 'letter-app-modal'      
+        'letter': 'letter-app-modal',
+        // 🔥 补全以下映射
+        'lofter': 'lofter-modal',
+        'pain': 'pain-app-modal',
+        'petdiary': 'pet-diary-app-modal',
+        'gashapon': 'gashapon-app-modal',
+        'shadow': 'shadow-app-modal',
+        'summary': 'summary-app-modal',
+        'work': 'work-app-modal',
+        'moving': 'moving-app-modal',
+        'teaching': 'teaching-app-modal',
+        'companion': 'companion-app-modal',
+        'galgame': 'galgame-app-modal',
+        'scent': 'scent-app-modal',
+        'puzzle': 'puzzle-app-modal',
+        'witch': 'witch-app-modal',
+        'tacit': 'tacit-app-modal'
     };
     let targetId = idMap[appId] || `${appId}-modal`; // 默认兜底
     let modalSelector = `#${targetId}`;
@@ -10018,12 +10106,12 @@ async function deleteStamp(index) {
     await idb.put('settings_heavy', { key: 'reply_stamps', data: stamps.data });
     renderStampList();
 }
-// === 修复版：美化应用逻辑 (含香片背面) ===
+// === 🎨 终极美化应用函数 (修复字体/背景/外壳/牌背) ===
 async function applyAllThemeSettings() {
     try {
-        console.log("正在应用美化设置...");
+        console.log("🎨 正在应用全系统美化...");
         
-        // 1. 应用 App 图标
+        // 1. 应用 APP 图标 (保持原逻辑)
         if (typeof APP_MAP !== 'undefined') {
             for (let app of APP_MAP) {
                 try {
@@ -10046,15 +10134,15 @@ async function applyAllThemeSettings() {
             }
         }
 
-        // 2. 读取所有图片资源 (新增了 scent_back)
+        // 2. 读取图片资源 (新增了 shell_tv, shell_console_p2, shell_console_p3, scent_back)
         const imgKeys = [
             'main_bg', 'fridge_cover', 'news_cover', 'memo_cover', 
             'tarot_back', 'tarot_table', 'letter_paper', 
-            'game_cover', 'game_cover_p3', 
             'game_bg', 'game_char_half', 'game_user_half',
             'diary_widget_bg', 'diary_photo', 'lofter_cover',
-            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle',
-            'scent_back' // 🔥 新增：香片背面 Key
+            'scent_back', // 香片牌背
+            'shell_tv', 'shell_console_p2', 'shell_console_p3', // 新增的外壳
+            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle'
         ];
 
         const images = {};
@@ -10065,60 +10153,86 @@ async function applyAllThemeSettings() {
             } catch(e) {}
         }
 
-        // 3. 应用图片到 DOM
+        // 3. 应用外壳与封面 (新增逻辑)
         
-        // 主页壁纸
+        // 📺 电视外壳
+        if(images.shell_tv) {
+            const tv = document.getElementById('tv-shell-case');
+            if(tv) {
+                tv.style.backgroundImage = `url(${images.shell_tv})`;
+                tv.style.backgroundSize = '100% 100%'; // 强制拉伸适应
+                tv.style.border = 'none'; // 去除原有的边框
+                tv.style.backgroundColor = 'transparent'; // 去除原有的木纹色
+            }
+        }
+
+        // 🎮 游戏机 P2 外壳
+        if(images.shell_console_p2) {
+            const gp2 = document.getElementById('console-widget-p2');
+            if(gp2) {
+                gp2.style.backgroundImage = `url(${images.shell_console_p2})`;
+                gp2.style.backgroundSize = '100% 100%';
+                gp2.style.border = 'none';
+                gp2.style.backgroundColor = 'transparent';
+            }
+        }
+
+        // 🎮 游戏机 P3 外壳
+        if(images.shell_console_p3) {
+            const gp3 = document.getElementById('console-widget-p3');
+            if(gp3) {
+                gp3.style.backgroundImage = `url(${images.shell_console_p3})`;
+                gp3.style.backgroundSize = '100% 100%';
+                gp3.style.border = 'none';
+                gp3.style.backgroundColor = 'transparent';
+            }
+        }
+
+        // 🏠 主页壁纸
         if(images.main_bg) {
             const sc = document.getElementById('screen');
             if(sc) { sc.style.backgroundImage = `url(${images.main_bg})`; sc.style.backgroundSize = 'cover'; sc.style.backgroundPosition = 'center'; }
         }
-        // 冰箱封面
-        if(images.fridge_cover) {
-            const f = document.querySelector('.fridge-item-large');
-            if(f) { f.style.backgroundImage = `url(${images.fridge_cover})`; f.style.backgroundSize = 'cover'; }
-        }
-        // 报纸封面
-        if(images.news_cover) {
-            const n = document.querySelector('.newspaper-wrap');
-            if(n) { n.classList.add('custom-cover-mode'); n.style.backgroundImage = `url(${images.news_cover})`; n.style.backgroundSize = 'cover'; }
-        }
-        // 日记组件
+        
+        // 📝 日记组件
         if(images.diary_widget_bg) {
             const d = document.getElementById('diary-widget');
             if(d) {
                 d.style.backgroundImage = `url(${images.diary_widget_bg})`; d.style.backgroundSize = 'cover';
-                const preview = document.getElementById('desktop-diary-preview'); if(preview) preview.style.display = 'none';
+                const preview = document.getElementById('desktop-diary-preview'); 
+                if(preview) { preview.style.display = 'none'; } // 有图时隐藏文字预览
             }
         }
-        // 游戏机封面 Page2
-        if(images.game_cover) {
-            const g2 = document.getElementById('widget-game-bg'); 
-            if(g2) { g2.src = images.game_cover; g2.style.display='block'; g2.parentElement.querySelector('.tv-placeholder').style.display='none'; }
+
+        // 📰 报纸 & 老福特封面
+        if(images.news_cover) {
+            const n = document.querySelector('.newspaper-wrap');
+            if(n) { n.classList.add('custom-cover-mode'); n.style.backgroundImage = `url(${images.news_cover})`; n.style.backgroundSize = 'cover'; }
         }
-        // 游戏机封面 Page3
-        if(images.game_cover_p3) {
-            const g3 = document.getElementById('widget-game-bg-p3'); 
-            if(g3) { g3.src = images.game_cover_p3; g3.style.display='block'; g3.parentElement.querySelector('div[style*="position:absolute"]').style.display='none'; }
-        }
-        // 回信信纸
+        window.LOFTER_COVER_URL = images.lofter_cover || null; // 存入全局变量供Lofter渲染使用
+
+        // 📜 信纸与游戏背景
         if(images.letter_paper) {
             document.querySelectorAll('.paper-sheet').forEach(el => { el.style.backgroundImage = `url(${images.letter_paper})`; el.style.backgroundSize = 'cover'; });
         }
-        // 游戏机内部
-        if(images.game_bg) document.getElementById('game-container').style.backgroundImage = `url(${images.game_bg})`;
-        if(images.game_char_half) document.getElementById('game-img-char').src = images.game_char_half;
-        if(images.game_user_half) document.getElementById('game-img-user').src = images.game_user_half;
-        
-        // 老福特封面
-        window.LOFTER_COVER_URL = images.lofter_cover || null;
-        if (typeof renderLofterFeed === 'function') renderLofterFeed(); 
+        if(images.game_bg) {
+            const gc = document.getElementById('game-container');
+            if(gc) gc.style.backgroundImage = `url(${images.game_bg})`;
+        }
 
-        // 🔥 新增：塔罗牌背 (通用)
-        let tarotStyle = document.getElementById('dynamic-tarot-back');
-        if(!tarotStyle) { tarotStyle = document.createElement('style'); tarotStyle.id = 'dynamic-tarot-back'; document.head.appendChild(tarotStyle); }
+        // 4. 🎴 动态注入 CSS (牌背与牌桌)
+        let customStyle = document.getElementById('dynamic-theme-style');
+        if(!customStyle) { 
+            customStyle = document.createElement('style'); 
+            customStyle.id = 'dynamic-theme-style'; 
+            document.head.appendChild(customStyle); 
+        }
         
+        let cssRules = "";
+
+        // 通用塔罗牌背
         if(images.tarot_back) {
-            tarotStyle.innerHTML = `
+            cssRules += `
                 .t-card-back, .playing-card { 
                     background-image: url('${images.tarot_back}') !important;
                     background-size: cover !important;
@@ -10128,9 +10242,9 @@ async function applyAllThemeSettings() {
             `;
         }
 
-        // 🔥 新增：香片专用牌背 (覆盖通用的塔罗牌背)
+        // 🌸 香片专用牌背 (覆盖通用)
         if(images.scent_back) {
-            tarotStyle.innerHTML += `
+            cssRules += `
                 #scent-card-area .playing-card { 
                     background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
@@ -10138,24 +10252,32 @@ async function applyAllThemeSettings() {
             `;
         }
 
-        // 通用牌桌背景
+        // 牌桌背景 (应用到所有牌桌 ID)
         if(images.tarot_table) {
-            const tables = ['card-table-desk', 'diary-card-table-desk', 'game-card-table-desk', 'rpg-card-table-desk', 'shadow-card-table-desk', 'pain-card-table-desk', 'gashapon-card-table-desk', 'work-card-table-desk', 'puzzle-card-table-desk', 'moving-card-table-desk', 'scent-card-table-desk', 'teaching-card-table-desk', 'comp-card-table-desk'];
+            const tables = [
+                'card-table-desk', 'diary-card-table-desk', 'game-card-table-desk', 
+                'rpg-card-table-desk', 'shadow-card-table-desk', 'pain-card-table-desk', 
+                'gashapon-card-table-desk', 'work-card-table-desk', 'puzzle-card-table-desk', 
+                'moving-card-table-desk', 'scent-card-table-desk', 'teaching-card-table-desk', 
+                'comp-card-table-desk'
+            ];
             tables.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) { el.style.backgroundImage = `url(${images.tarot_table})`; el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center'; }
             });
         }
+        
+        customStyle.innerHTML = cssRules;
 
-        // 4. 应用字体
-        if(window.BIG_MEMORY && window.BIG_MEMORY.theme_fonts) {
-            for(let [appId, url] of Object.entries(window.BIG_MEMORY.theme_fonts)) {
-                if(typeof injectCustomFont === 'function') injectCustomFont(appId, url);
-            }
+        // 5. 应用字体 (Fonts)
+        // 必须从无限存储读取
+        const fonts = window.BIG_MEMORY.theme_fonts || {};
+        for(let [appId, url] of Object.entries(fonts)) {
+            if(typeof injectCustomFont === 'function') injectCustomFont(appId, url);
         }
 
-        // 5. 应用独立背景 & 全局 CSS & RPG皮肤
-        if (typeof renderAppBgList === 'function') {
+        // 6. 应用软件内部独立背景 (Backgrounds)
+        if (typeof APP_BG_MAP !== 'undefined') {
             for (let item of APP_BG_MAP) {
                 try {
                     const bgData = await idb.get('settings_heavy', `bg_${item.id}`);
@@ -10163,11 +10285,14 @@ async function applyAllThemeSettings() {
                     if (modal && bgData && bgData.data) {
                         modal.style.backgroundImage = `url(${bgData.data})`; 
                         modal.style.backgroundSize = 'cover';
+                        modal.style.backgroundPosition = 'center';
+                        modal.style.backgroundRepeat = 'no-repeat';
                     }
                 } catch(e) { }
             }
         }
-        if (typeof applyGlobalCSS === 'function') await applyGlobalCSS();
+
+        // 7. 加载 RPG 皮肤缓存
         if (typeof loadRpgSkins === 'function') await loadRpgSkins();
 
     } catch (e) {
@@ -11841,6 +11966,808 @@ window.addEventListener('load', function() {
         console.log("系统启动完毕！所有组件已就绪。");
     });
 });
+// ==================== 🧙‍♀️ 女巫 (Witch) APP 核心逻辑 ====================
+
+let witchDeck = [];
+let witchFlipped = [];
+let witchGameState = {
+    myTrap: -1, // 用户选的陷阱索引
+    charTrap: -1, // 角色选的陷阱索引 (API生成)
+    charPunishment: "", // 角色给用户的惩罚 (API生成)
+    charMoves: [], // 角色吃饼干的优先级顺序 (API生成)
+    reactions: {}, // 各种情况的反应文案 (API生成)
+    eatenCookies: [], // 已经被吃掉的饼干索引
+    isMyTurn: true,
+    isPlaying: false,
+    history: []
+};
+
+// 1. 无限存储初始化
+if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+if (!window.BIG_MEMORY.witch_data) window.BIG_MEMORY.witch_data = []; // 历史记录数组
+
+function getWitchData() { return window.BIG_MEMORY.witch_data || []; }
+function saveWitchData(list) {
+    window.BIG_MEMORY.witch_data = list;
+    if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'witch_data', data: list });
+}
+
+// 2. 打开/关闭 APP
+window.openWitchApp = function() {
+    document.getElementById('witch-app-modal').style.display = 'flex';
+    switchWitchView('setup');
+    initWitchBoard(); // 初始化 20 个饼干
+};
+
+window.switchWitchView = function(mode) {
+    const gameEl = document.getElementById('witch-game-view');
+    const histEl = document.getElementById('witch-history-view');
+    const btnGame = document.getElementById('btn-witch-setup');
+    const btnHist = document.getElementById('btn-witch-history');
+
+    if (mode === 'setup' || mode === 'game') {
+        gameEl.style.display = 'block';
+        histEl.style.display = 'none';
+        btnGame.style.background = '#6c5ce7'; btnGame.style.color = '#fff';
+        btnHist.style.background = '#30336b'; btnHist.style.color = '#ccc';
+    } else {
+        gameEl.style.display = 'none';
+        histEl.style.display = 'block';
+        btnGame.style.background = '#30336b'; btnGame.style.color = '#ccc';
+        btnHist.style.background = '#6c5ce7'; btnHist.style.color = '#fff';
+        renderWitchHistory();
+    }
+};
+
+// 3. 初始化棋盘
+// === 🧙‍♀️ 初始化/重绘棋盘 (增强版：支持 新开/回放/重玩) ===
+window.initWitchBoard = function(mode = 'new', data = null) {
+    const grid = document.getElementById('witch-board-container');
+    grid.innerHTML = '';
+    
+    // 1. 新游戏 (New)
+    if (mode === 'new') {
+        witchGameState = {
+            myTrap: -1, charTrap: -1, charPunishment: "",
+            charMoves: [], reactions: {}, stories: {},
+            eatenCookies: [], isMyTurn: true, isPlaying: false, history: []
+        };
+        // UI重置
+        document.getElementById('witch-setup-panel').style.display = 'block';
+        document.getElementById('btn-witch-start').style.display = 'block';
+        document.getElementById('witch-log-panel').style.display = 'none';
+        document.getElementById('witch-user-punishment').value = "";
+        document.getElementById('witch-trap-display').innerText = "未选择";
+    }
+    // 2. 历史回放 (Replay - 只读)
+    else if (mode === 'replay') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.isPlaying = false; // 锁定
+        
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "📚 历史回放模式";
+        document.getElementById('witch-game-log').innerHTML = "--- 历史回放 ---";
+    }
+    // 3. 重新挑战 (Retry - 可操作，但沿用设定)
+    else if (mode === 'retry') {
+        // 深拷贝历史数据，但重置进度
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.eatenCookies = []; // 清空吃掉的饼干
+        witchGameState.isPlaying = true;  // 激活游戏
+        witchGameState.isMyTurn = true;   // 轮到你
+        
+        // UI 设置为游戏进行中
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "🔄 重新挑战：命运已重置，请开始...";
+        document.getElementById('witch-game-log').innerHTML = "--- 重新开始 ---";
+    }
+
+    // 生成 20 个饼干
+    for (let i = 0; i < 20; i++) {
+        const btn = document.createElement('div');
+        btn.className = 'cookie-btn';
+        btn.id = `cookie-${i}`;
+        
+        if (mode === 'replay') {
+            // 回放模式：显示已吃掉的
+            if (witchGameState.eatenCookies.includes(i)) {
+                btn.classList.add('eaten');
+                btn.innerText = '';
+                if (i === witchGameState.myTrap) { btn.innerText = '😈'; btn.style.background = '#00cec9'; }
+                if (i === witchGameState.charTrap) { btn.innerText = '💀'; btn.style.background = '#d63031'; }
+            } else {
+                btn.innerText = '🐻';
+            }
+        } 
+        else if (mode === 'retry') {
+            // 重玩模式：全部重置为没吃，绑定点击事件
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+            
+            // 如果是自己的陷阱，稍微标记一下让自己知道（可选，这里我做成高亮边框）
+            if (i === witchGameState.myTrap) {
+                btn.classList.add('selected'); 
+            }
+        }
+        else {
+            // 新游戏模式
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+        }
+        grid.appendChild(btn);
+    }
+};
+
+// 4. 处理饼干点击
+window.handleCookieClick = function(index) {
+    // A. 设置阶段：选自己的陷阱
+    if (!witchGameState.isPlaying) {
+        // 清除旧选择
+        if (witchGameState.myTrap !== -1) {
+            document.getElementById(`cookie-${witchGameState.myTrap}`).classList.remove('selected');
+        }
+        witchGameState.myTrap = index;
+        document.getElementById(`cookie-${index}`).classList.add('selected');
+        document.getElementById('witch-trap-display').innerText = `饼干 #${index + 1}`;
+        return;
+    }
+
+    // B. 游戏阶段：吃饼干
+    if (witchGameState.isPlaying && witchGameState.isMyTurn) {
+        if (witchGameState.eatenCookies.includes(index)) return alert("这块已经被吃掉了！");
+        
+        processTurn(index, 'user');
+    }
+};
+
+// 5. 启动抽牌
+window.startWitchDraw = function() {
+    if (witchGameState.myTrap === -1) return alert("请先选择一个饼干作为你的陷阱！");
+    const punish = document.getElementById('witch-user-punishment').value;
+    if (!punish) return alert("请填写给Ta的惩罚内容！");
+
+    const modal = document.getElementById('witch-card-table-modal');
+    const area = document.getElementById('witch-card-area');
+    
+    // 应用美化
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) document.getElementById('witch-card-table-desk').style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
+    area.innerHTML = '';
+    witchDeck = []; witchFlipped = [];
+    document.getElementById('witch-flipped-count').innerText = '0';
+
+    // 114张牌库
+    for(let i=0; i<=77; i++) witchDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) witchDeck.push({ type:'lenormand', id:i, isReversed:false });
+    witchDeck.sort(()=>Math.random()-0.5);
+
+    // 布局
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    witchDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped');
+                witchFlipped = witchFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+            } else {
+                el.classList.add('flipped');
+                witchFlipped.push(card);
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ 
+                    if(res && res.data) front.style.backgroundImage=`url(${res.data})`;
+                    else { front.style.background="#fff"; front.innerText=card.id; }
+                });
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('witch-flipped-count').innerText = witchFlipped.length;
+        };
+        area.appendChild(el);
+    });
+
+    modal.style.display = 'flex';
+};
+// === 🧙‍♀️ 女巫 APP：生成剧本 (修改版：多语音 + 强牌意) ===
+window.finishWitchDraw = async function() {
+    if(witchFlipped.length === 0) return alert("请至少抽一张牌！");
+
+    const btn = document.querySelector('#witch-card-table-modal .primary');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "🔮 正在编织惩罚剧本...";
+
+    // 数据准备
+    const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const userPunish = document.getElementById('witch-user-punishment').value;
+    const userTrapIdx = witchGameState.myTrap;
+
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+    if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
+
+    // 🔥🔥🔥 核心修改：提示词 (Prompt) 更新 🔥🔥🔥
+    const prompt = `
+你是一个擅长写“惩罚游戏”剧情的小说家。
+【游戏规则】：用户(我)和角色(Ta)玩吃饼干，吃到陷阱的人接受惩罚。
+【世界观】：${globalCtx}
+【命运牌 (决定惩罚的尺度和氛围)】：${cardsDesc}
+【用户设定的惩罚 (如果角色输了)】：${userPunish}
+【用户陷阱位置】：#${userTrapIdx} (0-19)
+
+【⚡️ 核心原则】：
+**所有生成的内容（陷阱选择、反应台词、故事走向）必须严格遵守抽到的【命运牌】的牌意（牌面的能量波动）。**
+例如：牌意是“欺骗/隐瞒”，角色可能会假装没事；牌意是“冲动/热情”，角色可能会挑衅。
+
+【任务要求】
+请生成以下内容：
+1. **角色的陷阱**：(0-19，不能是 #${userTrapIdx})。
+2. **行动逻辑**：角色吃饼干的顺序数组。
+3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意（有的紧张，有的得意，有的平淡）。
+4. **两篇长篇小故事**：
+   - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚。**字数不少于 300 字**。
+   - **Story B (角色输)**：用户获胜。描写角色吃到陷阱后的反应。**字数不少于 300 字**。
+
+【输出格式】
+严格 JSON：
+{
+  "char_trap_index": 5,
+  "char_move_priority": [0, 1, 2, ...],
+  "user_lose_story": "长篇故事：用户输了被惩罚...",
+  "char_lose_story": "长篇故事：角色输了接受惩罚...",
+  "reactions": { 
+      "safe": ["台词1", "台词2", "台词3", "台词4", "台词5", ...], 
+      "win": "哈，你输了！", 
+      "lose": "唔...被发现了..." 
+  }
+}
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.85 
+            })
+        });
+        const json = await res.json();
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+        if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+        
+        const result = JSON.parse(raw);
+
+        // 应用数据
+        witchGameState.charTrap = result.char_trap_index;
+        witchGameState.charMoves = result.char_move_priority;
+        
+        // 兼容性处理：如果 AI 没返回数组，强制转为数组
+        if (!Array.isArray(result.reactions.safe)) {
+            result.reactions.safe = [result.reactions.safe];
+        }
+        witchGameState.reactions = result.reactions;
+        
+        witchGameState.stories = {
+            user_lose: result.user_lose_story,
+            char_lose: result.char_lose_story
+        };
+
+        witchGameState.isPlaying = true;
+        witchGameState.isMyTurn = true;
+        
+        // 界面切换
+        document.getElementById('witch-card-table-modal').style.display = 'none';
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        
+        document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
+        
+        addWitchLog(`🎮 游戏开始！命运牌意已注入...`);
+        addWitchLog(`🔮 若你输了，将触发一段长篇惩罚剧情...`);
+        document.getElementById('witch-reaction-text').innerText = "请先吃一块饼干...";
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+// 7. 回合处理逻辑 (修改版：支持随机安全语音)
+function processTurn(cookieIdx, who) {
+    const btn = document.getElementById(`cookie-${cookieIdx}`);
+    btn.classList.add('eaten');
+    btn.innerText = '';
+    witchGameState.eatenCookies.push(cookieIdx);
+
+    // 辅助函数：随机获取一条安全语音
+    const getRandomSafeReaction = () => {
+        const safeList = witchGameState.reactions.safe;
+        if (Array.isArray(safeList) && safeList.length > 0) {
+            return safeList[Math.floor(Math.random() * safeList.length)];
+        }
+        return typeof safeList === 'string' ? safeList : "（嚼嚼嚼...）";
+    };
+
+    // 1. 判断是否触发陷阱
+    if (who === 'user') {
+        // 用户吃了
+        if (cookieIdx === witchGameState.charTrap) {
+            handleGameOver('char_win'); // 用户输了
+            return;
+        }
+        // 安全：显示角色反应
+        const reaction = getRandomSafeReaction();
+        document.getElementById('witch-reaction-text').innerText = `你吃了 #${cookieIdx + 1}。Ta: “${reaction}”`;
+        addWitchLog(`👤 你吃掉了 #${cookieIdx + 1} (安全)`);
+        
+        witchGameState.isMyTurn = false;
+        setTimeout(() => charAutoTurn(), 1000); 
+    } 
+    else {
+        // 角色吃了
+        if (cookieIdx === witchGameState.myTrap) {
+            handleGameOver('user_win'); // 角色输了
+            return;
+        }
+        // 安全：显示角色反应
+        const reaction = getRandomSafeReaction();
+        document.getElementById('witch-reaction-text').innerText = `Ta吃了 #${cookieIdx + 1}。“${reaction}”`;
+        addWitchLog(`🧙‍♀️ Ta吃掉了 #${cookieIdx + 1} (安全)`);
+        
+        witchGameState.isMyTurn = true;
+    }
+}
+
+// 8. 角色自动行动
+function charAutoTurn() {
+    // 从优先级列表中找一个还没被吃的
+    let pick = -1;
+    for (let idx of witchGameState.charMoves) {
+        if (!witchGameState.eatenCookies.includes(idx)) {
+            pick = idx;
+            break;
+        }
+    }
+    // 兜底：如果列表里的都没了(极少见)，随便找一个没吃的
+    if (pick === -1) {
+        for (let i=0; i<20; i++) {
+            if (!witchGameState.eatenCookies.includes(i)) { pick = i; break; }
+        }
+    }
+    
+    if (pick !== -1) {
+        processTurn(pick, 'char');
+    }
+}
+// === 🧙‍♀️ 游戏结算 (使用新弹窗) ===
+function handleGameOver(resultType) {
+    witchGameState.isPlaying = false;
+    
+    // 亮牌：显示所有陷阱
+    const userTrapBtn = document.getElementById(`cookie-${witchGameState.myTrap}`);
+    const charTrapBtn = document.getElementById(`cookie-${witchGameState.charTrap}`);
+    if(userTrapBtn) { userTrapBtn.innerText = '😈'; userTrapBtn.style.background = '#00cec9'; userTrapBtn.classList.remove('selected'); }
+    if(charTrapBtn) { charTrapBtn.innerText = '💀'; charTrapBtn.style.background = '#d63031'; }
+
+    let title = "";
+    let content = "";
+    
+    // 容错：防止 stories 为空
+    const stories = witchGameState.stories || { user_lose: "暂无故事", char_lose: "暂无故事" };
+
+    if (resultType === 'user_win') {
+        title = "🏆 胜利！Ta 踩中了陷阱";
+        content = stories.char_lose; 
+        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.lose;
+        addWitchLog(`🎉 结局达成：角色接受惩罚`);
+    } else {
+        title = "💀 失败！你踩中了陷阱";
+        content = stories.user_lose;
+        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.win;
+        addWitchLog(`💔 结局达成：你接受惩罚`);
+    }
+    
+    // 🔥 使用新的【女巫专用弹窗】
+    const modal = document.getElementById('witch-story-modal');
+    document.getElementById('ws-title').innerText = title;
+    document.getElementById('ws-content').innerText = content.replace(/\n/g, '\n\n');
+    document.getElementById('ws-date').innerText = new Date().toLocaleString();
+    
+    modal.style.display = 'flex'; // 显示弹窗
+
+    // 自动保存到历史 (仅在新游戏时保存，重玩时不重复保存)
+    // 我们可以简单判断一下，如果 history 里已经有这个 ID 就不存了，或者简单点每次都存
+    saveWitchHistory();
+}
+
+// 10. 日志与历史保存
+function addWitchLog(text) {
+    const log = document.getElementById('witch-game-log');
+    log.innerHTML += `<div>${text}</div>`;
+    log.scrollTop = log.scrollHeight;
+}
+
+// === 🧙‍♀️ 保存历史 (确保保存故事内容) ===
+// 确认代码如下 (如果已存在可覆盖)
+function saveWitchHistory() {
+    const list = getWitchData();
+    
+    // 如果是重玩模式，我们不要重复添加同一局的记录，或者你可以选择添加。
+    // 这里为了简单，每次结算都保存一条新记录。
+    
+    const historyItem = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        userPunish: document.getElementById('witch-user-punishment').value,
+        winner: witchGameState.isPlaying ? 'Unfinished' : (witchGameState.eatenCookies.includes(witchGameState.charTrap) ? 'User' : 'Char'),
+        // 🔥 关键：深度拷贝当前状态，包括 stories 和 所有的陷阱位置
+        state: JSON.parse(JSON.stringify(witchGameState)) 
+    };
+    
+    list.unshift(historyItem);
+    saveWitchData(list);
+}
+// === 🧙‍♀️ 渲染历史 (添加重玩按钮) ===
+function renderWitchHistory() {
+    const list = getWitchData();
+    const container = document.getElementById('witch-history-list');
+    container.innerHTML = '';
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无对局记录</div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.marginBottom = '10px'; div.style.padding = '10px';
+        
+        let resultText = "进行中/未知";
+        const state = item.state;
+        if (state) {
+            if (state.eatenCookies.includes(state.charTrap)) resultText = "💀 失败 (你踩雷了)";
+            else if (state.eatenCookies.includes(state.myTrap)) resultText = "🏆 胜利 (Ta踩雷了)";
+        }
+        
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#888;">
+                <span>${item.date}</span>
+                <span style="color:red; cursor:pointer;" onclick="deleteWitchHistory(${index})">删除</span>
+            </div>
+            <div style="font-weight:bold; margin:5px 0; color:#a29bfe;">${resultText}</div>
+            <div style="font-size:0.8rem; color:#666;">惩罚设定: ${item.userPunish}</div>
+            
+            <div style="display:flex; gap:10px; margin-top:8px;">
+                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white;">🔄 重新挑战</button>
+                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#30336b; color:white;">📖 阅读结局</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// === 新增：重玩功能 ===
+window.retryWitchGame = function(index) {
+    const list = getWitchData();
+    const item = list[index];
+    if(!item || !item.state) return alert("存档损坏");
+    
+    // 切换到游戏界面
+    switchWitchView('game');
+    
+    // 以 'retry' 模式初始化，传入历史状态
+    initWitchBoard('retry', item.state);
+    
+    alert("已加载该局设定！\n陷阱位置不变，你可以尝试避开陷阱赢得比赛！");
+}
+
+// === 修改：阅读历史结局 (使用新弹窗) ===
+window.readWitchStory = function(index) {
+    const list = getWitchData();
+    const item = list[index];
+    if(!item || !item.state || !item.state.stories) return alert("该记录数据不完整");
+
+    const state = item.state;
+    // 判断是谁赢了 (简单的逻辑：看谁吃到了陷阱)
+    const userLost = state.eatenCookies.includes(state.charTrap);
+    
+    let title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
+    // 如果没有分出胜负(比如中途退出的)，默认显示用户输了的故事(或者都显示)
+    let content = userLost ? state.stories.user_lose : state.stories.char_lose;
+    if (!content) content = "（当时未分出胜负，无结局记录）";
+    
+    const modal = document.getElementById('witch-story-modal');
+    document.getElementById('ws-title').innerText = title;
+    document.getElementById('ws-content').innerText = content.replace(/\n/g, '\n\n');
+    document.getElementById('ws-date').innerText = item.date;
+    
+    modal.style.display = 'flex';
+};
+
+// 新增：直接阅读历史结局故事
+window.readWitchStory = function(index) {
+    const list = window.BIG_MEMORY.witch_data || [];
+    const item = list[index];
+    if(!item || !item.state || !item.state.stories) return alert("该记录数据不完整");
+
+    // 判断是谁赢了
+    const state = item.state;
+    const userLost = state.eatenCookies.includes(state.charTrap);
+    
+    let title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
+    let content = userLost ? state.stories.user_lose : state.stories.char_lose;
+    
+    document.getElementById('note-detail-title').innerText = title;
+    document.getElementById('note-detail-content').innerText = content.replace(/\n/g, '\n\n');
+    document.getElementById('note-detail-date').innerText = item.date;
+    document.getElementById('sticky-note-modal').style.display = 'flex';
+};
+
+function deleteWitchHistory(index) {
+    if(!confirm("删除这条记录？")) return;
+    const list = getWitchData();
+    list.splice(index, 1);
+    saveWitchData(list);
+    renderWitchHistory();
+}
+
+function replayWitchGame(index) {
+    const list = getWitchData();
+    const item = list[index];
+    switchWitchView('game');
+    initWitchBoard(true, item.state); // 开启回放模式
+}
+
+// 🔴 关键：注册到无限存储加载器
+if (typeof loadAllBigData === 'function') {
+    const _origLoad = loadAllBigData;
+    window.loadAllBigData = async function() {
+        await _origLoad(); 
+        try {
+            let res = await idb.get('universal_store', 'witch_data');
+            if(res) window.BIG_MEMORY.witch_data = res.data;
+        } catch(e){}
+    }
+}
+// === 🛠️ 强制覆盖：结束/重置按钮逻辑 ===
+window.resetWitchGame = function() {
+    // 1. 获取当前状态文字，判断是不是在看回放
+    const statusEl = document.getElementById('witch-reaction-text');
+    const isReplayMode = statusEl && statusEl.innerText.includes("历史回放");
+
+    // 2. 如果是正在玩（非回放），弹窗确认
+    if (!isReplayMode) {
+        if(!confirm("🏳️ 确定要放弃当前对局并返回准备界面吗？\n(未完成的进度将不会保存)")) {
+            return; // 用户点了取消
+        }
+    }
+
+    // 3. 执行重置
+    console.log("执行重置...");
+    initWitchBoard('new');
+};
+// === 🧙‍♀️ 强制覆盖：初始化棋盘逻辑 ===
+window.initWitchBoard = function(mode = 'new', data = null) {
+    const grid = document.getElementById('witch-board-container');
+    if(!grid) return;
+    grid.innerHTML = '';
+    
+    // --- 模式 A: 新游戏 (重置所有状态) ---
+    if (mode === 'new') {
+        witchGameState = {
+            myTrap: -1, charTrap: -1, charPunishment: "",
+            charMoves: [], reactions: {}, stories: null,
+            eatenCookies: [], isMyTurn: true, isPlaying: false, history: []
+        };
+        // 显隐控制
+        document.getElementById('witch-setup-panel').style.display = 'block';
+        document.getElementById('btn-witch-start').style.display = 'block';
+        document.getElementById('witch-log-panel').style.display = 'none';
+        
+        // 清空输入
+        const punishInput = document.getElementById('witch-user-punishment');
+        if(punishInput) punishInput.value = "";
+        const trapDisplay = document.getElementById('witch-trap-display');
+        if(trapDisplay) trapDisplay.innerText = "未选择";
+    }
+    // --- 模式 B: 历史回放 (只读) ---
+    else if (mode === 'replay') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.isPlaying = false; // 锁定不可操作
+        
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "📚 历史回放模式 (仅供查看)";
+        document.getElementById('witch-game-log').innerHTML = "<div style='color:#aaa; text-align:center;'>--- 📜 历史记录存档 ---</div>";
+    }
+    // --- 模式 C: 重新挑战 (保留设定，重置进度) ---
+    else if (mode === 'retry') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.eatenCookies = []; // 清空吃掉的
+        witchGameState.isPlaying = true;  // 激活
+        witchGameState.isMyTurn = true;   // 轮到你
+        
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "🔄 重新挑战：陷阱位置未变，请开始...";
+        document.getElementById('witch-game-log').innerHTML = "<div style='color:#a29bfe; text-align:center;'>--- 🔄 命运重启 ---</div>";
+    }
+
+    // --- 生成 20 个饼干 ---
+    for (let i = 0; i < 20; i++) {
+        const btn = document.createElement('div');
+        btn.className = 'cookie-btn';
+        btn.id = `cookie-${i}`;
+        
+        if (mode === 'replay') {
+            // 回放模式：直接显示结果
+            if (witchGameState.eatenCookies.includes(i)) {
+                btn.classList.add('eaten');
+                btn.innerText = '';
+                if (i === witchGameState.myTrap) { btn.innerText = '😈'; btn.style.background = '#00cec9'; }
+                if (i === witchGameState.charTrap) { btn.innerText = '💀'; btn.style.background = '#d63031'; }
+            } else {
+                btn.innerText = '🐻';
+            }
+        } 
+        else if (mode === 'retry') {
+            // 重玩模式：重置为未吃，绑定点击
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+            // 标记一下自己选的陷阱，防止忘记
+            if (i === witchGameState.myTrap) {
+                btn.style.border = "2px solid #00cec9"; 
+            }
+        }
+        else {
+            // 新游戏模式
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+        }
+        grid.appendChild(btn);
+    }
+};
+// ==================== 🧙‍♀️ 女巫 APP 修复补丁 (保存与重玩) ====================
+
+// 1. 手动保存功能
+window.manualSaveWitchGame = function() {
+    // 检查是否已经生成了游戏数据
+    if (!witchGameState.isPlaying && !witchGameState.charTrap) {
+        return alert("⚠️ 游戏还没开始（未生成陷阱数据），无法保存！\n请先点击【🔮 抽牌注入灵魂】。");
+    }
+
+    const list = getWitchData(); // 获取无限存储中的数据
+    
+    // 创建存档对象
+    const historyItem = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        userPunish: document.getElementById('witch-user-punishment').value || "无惩罚",
+        // 标记状态
+        winner: witchGameState.eatenCookies.includes(witchGameState.charTrap) ? 'User' : (witchGameState.eatenCookies.includes(witchGameState.myTrap) ? 'Char' : '进行中/存档'),
+        // 🔥 核心：深度拷贝当前的游戏状态 (包含陷阱位置、AI生成的剧本、反应等)
+        state: JSON.parse(JSON.stringify(witchGameState)) 
+    };
+
+    // 存入头部
+    list.unshift(historyItem);
+    
+    // 保存到无限数据库
+    saveWitchData(list);
+    
+    alert("✅ 本局设定已保存！\n你可以在【历史对局】中点击【🔄 重新挑战】来无限重玩这一局（陷阱位置和剧本不变）。");
+    
+    // 如果历史面板是打开的，刷新它
+    renderWitchHistory();
+};
+
+// 2. 重玩功能 (点击历史记录触发)
+window.retryWitchGame = function(index) {
+    const list = getWitchData();
+    const item = list[index];
+    
+    if(!item || !item.state) return alert("❌ 存档数据损坏");
+    
+    // 1. 切换到游戏界面
+    switchWitchView('game');
+    
+    // 2. 恢复惩罚输入框的显示
+    document.getElementById('witch-user-punishment').value = item.userPunish;
+    
+    // 3. 调用初始化函数，使用 'retry' 模式
+    // (这会保留 item.state 里的 charTrap/reactions，但清空 eatenCookies)
+    initWitchBoard('retry', item.state);
+    
+    alert("🔄 已读取旧局设定！\n\n- 你的陷阱位置不变\n- Ta的陷阱位置不变\n- 惩罚剧本不变\n\n请尝试避开陷阱获胜吧！");
+};
+
+// 3. 渲染历史记录列表 (修复样式和按钮)
+window.renderWitchHistory = function() {
+    const list = getWitchData(); // 确保从无限存储读取
+    const container = document.getElementById('witch-history-list');
+    container.innerHTML = '';
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无存档<br>请在游戏中点击 [保存]</div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.marginBottom = '10px'; div.style.padding = '15px';
+        div.style.background = '#2d3436'; // 深色背景配合女巫主题
+        div.style.border = '1px solid #6c5ce7';
+        div.style.color = '#dfe6e9';
+        
+        let statusColor = "#a29bfe";
+        if (item.winner === 'User') statusColor = "#00b894"; // 赢了绿色
+        if (item.winner === 'Char') statusColor = "#ff7675"; // 输了红色
+
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:5px;">
+                <span>${item.date}</span>
+                <span style="color:#ff7675; cursor:pointer;" onclick="deleteWitchHistory(${index})">🗑️ 删除</span>
+            </div>
+            <div style="font-weight:bold; margin:5px 0; color:${statusColor}; font-size:1rem;">
+                ${item.winner === 'User' ? '🏆 你赢了' : (item.winner === 'Char' ? '💀 你输了' : '💾 存档点')}
+            </div>
+            <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">
+                惩罚: ${item.userPunish.substring(0, 15)}...
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white; border:none;">🔄 重新玩这局</button>
+                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#a29bfe; color:#2d3436; border:none;">📖 仅看结局</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+// 4. 确保无限存储加载 (防止数据丢失)
+if (typeof loadAllBigData === 'function') {
+    const _origLoad = loadAllBigData;
+    window.loadAllBigData = async function() {
+        await _origLoad(); 
+        try {
+            let res = await idb.get('universal_store', 'witch_data');
+            if(res) window.BIG_MEMORY.witch_data = res.data;
+        } catch(e){}
+    }
+}
     // === 新增：监听 Page 4 可见性，控制 Dock 栏显示/隐藏 ===
    // === 替换原有的 page4Observer 代码 ===// === 修复：Page 4 滑动监听 & 自动领养 ===
 const page4Observer = new IntersectionObserver((entries) => {
@@ -11882,73 +12809,98 @@ setTimeout(() => {
     const page4El = document.getElementById('page4');
     if (page4El) page4Observer.observe(page4El);
 }, 1000);
-// ==================== 🚀 核心：无限存储加载器 (终极修复版) ====================
+// === 🚀 终极无限存储加载器 ===
+// === 🚀 终极无限存储加载器 (全量安全整合版) ===
+// 包含：所有原有APP + 补丁APP (香片/拼图/工作/学习总结) + 新增女巫
 async function loadAllBigData() {
-    console.log("🚀 正在启动无限容量引擎...");
+    console.log("🚀 正在启动无限容量引擎 (全量整合版)...");
     
-    // 定义所有需要无限存储的 Key
-    // 混合了简单字符串 Key 和带有默认值的复杂对象 Key
+    // 1. 定义所有需要无限存储的 Key (这里包含了您文件里所有的应用)
     const keys = [
+        // --- 基础核心 ---
         'world_book', 'letters', 'finance', 
-        { dbKey: 'moving_data', def: { history: [], current_session: null } }, // 📦 搬家日记修复点
         'study', 'period', 'memo', 
-        'game_history', 'game_stats', 
-        'tarot_history', 'his_phone_history', 'dream_history', 'forum_history', 
-        'pickup_history', 'diary_history', 'pet_data', 'lofter_data', 
-        'pain_data', 'gashapon_history', 'shadow_data', 'rpg_data',
         'chat_settings', 'chat_history',
+        'theme_fonts', 'api_profiles',
         'thesaurus_data', 
-        'summary_data',
-        'teaching_data',   
-        'companion_data',    
-        { dbKey: 'galgame_data', def: { current: null, archives: [] } } // 🏩 Galgame 修复点
+        
+        // --- 早期应用 ---
+        'game_history', 'game_stats', 
+        'tarot_history', 'his_phone_history', 'dream_history', 
+        'forum_history', 'pickup_history', 'diary_history', 
+        'pet_data', 'lofter_data', 'pain_data', 
+        'gashapon_history', 'shadow_data', 'rpg_data',
+        
+        // --- 中期应用 (搬家/教导/陪伴/学习总结) ---
+        { dbKey: 'moving_data', def: { history: [], current_session: null } },
+        { dbKey: 'teaching_data', def: [] },
+        { dbKey: 'companion_data', def: { config:{}, history:[] } },
+        { dbKey: 'summary_data', def: [] },
+
+        // --- 后期补丁应用 (旮旯/香片/拼图/工作) ---
+        { dbKey: 'galgame_data', def: { current: null, archives: [] } },
+        { dbKey: 'scent_data', def: [] },
+        { dbKey: 'puzzle_data', def: { history: [] } },
+        { dbKey: 'work_data', def: [] },
+
+        // 🔥🔥🔥 新增：女巫数据 🔥🔥🔥
+        { dbKey: 'witch_data', def: [] }
     ];
 
-    // 初始化内存对象
+    // 2. 确保内存对象存在
     if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
 
-    // 遍历加载
+    // 3. 遍历加载所有数据
     for (let item of keys) {
-        // 1. 解析 Key 名称和默认值
         let keyName = "";
         let defaultValue = [];
 
+        // 处理简写格式和详细格式
         if (typeof item === 'string') {
             keyName = item;
-            // 给部分特殊 Key 设置非空默认值，防止报错
+            // 为特定 Key 设置默认结构，防止报错
             if (keyName === 'game_stats') defaultValue = { mood: 50, love: 50 };
             else if (keyName === 'pet_data') defaultValue = { config: {}, stats: {}, inventory: { coins: 0, items: {} }, history: [] };
             else if (keyName.includes('settings')) defaultValue = {};
+            else if (keyName === 'theme_fonts') defaultValue = {};
             else defaultValue = [];
         } else {
-            //如果是对象配置 ({ dbKey: ... })
             keyName = item.dbKey;
             defaultValue = item.def;
         }
 
-        // 2. 从数据库加载
         try {
+            // 从 IndexedDB 读取
             let res = await idb.get('universal_store', keyName);
             if (res) {
-                // 数据库有数据，直接加载
                 window.BIG_MEMORY[keyName] = res.data;
-                console.log(`✅ 加载成功: ${keyName}`);
             } else {
-                // 数据库无数据，使用默认值
                 window.BIG_MEMORY[keyName] = defaultValue;
-                console.log(`⚪ 初始化默认值: ${keyName}`);
             }
         } catch (e) { 
             console.error(`❌ 加载 ${keyName} 失败`, e); 
-            window.BIG_MEMORY[keyName] = defaultValue; // 兜底
+            window.BIG_MEMORY[keyName] = defaultValue; // 出错时使用默认值，防止白屏
         }
     }
     
-    // 3. 刷新界面 (如果当前停留在相关页面)
-    if(typeof renderLetterList === 'function') renderLetterList();
-    if(typeof renderMovingHistory === 'function' && document.getElementById('moving-app-modal').style.display === 'flex') renderMovingHistory();
+    // 4. 执行旧数据迁移（保护老用户数据）
+    if (typeof migrateAllRestrictedData === 'function') {
+        migrateAllRestrictedData();
+    }
+
+    // 5. 刷新所有可见的 UI (确保加载后立即显示)
+    try {
+        if(typeof renderLetterList === 'function') renderLetterList();
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+        if(typeof updateGameStatsUI === 'function') updateGameStatsUI();
+        if(typeof renderWitchHistory === 'function') renderWitchHistory(); // 刷新女巫
+        if(typeof renderWorkHistory === 'function') renderWorkHistory();   // 刷新工作日报
+        if(typeof renderPuzzleHistory === 'function') renderPuzzleHistory(); // 刷新拼图
+    } catch(e) {
+        console.log("UI刷新轻微报错，不影响数据:", e);
+    }
     
-    console.log("🎉 无限存储加载完毕，所有数据已就绪。");
+    console.log("🎉 全系统数据加载完毕，所有功能已就绪。");
 }
 window.getWBData = function() { return window.BIG_MEMORY.world_book || {}; };
 window.saveWBData = function(data) { saveToBigDB('world_book', data); };
@@ -12157,6 +13109,7 @@ window.renderDreamHistory = function() {
         container.appendChild(div);
     });
 };
+
 // ==================== 📦 搬家日记 APP 核心逻辑 ====================
 
 let movingDeck = [];
@@ -12827,6 +13780,556 @@ if (typeof loadAllBigData === 'function') {
             let res = await idb.get('universal_store', 'scent_data');
             if(res) window.BIG_MEMORY.scent_data = res.data;
         } catch(e){}
+    }
+}
+// ==================== 💞 默契大挑战 (Tacit Challenge) 核心逻辑 ====================
+
+let tacitDeck = [];
+let tacitFlipped = [];
+let activeTacitQuestionIndex = -1; // 当前正在给哪道题抽牌
+
+// 1. 无限存储初始化
+if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+// 结构: { history: [] }
+if (!window.BIG_MEMORY.tacit_data) window.BIG_MEMORY.tacit_data = { history: [] };
+// 修复版：自动检测数据格式，如果是错误的格式会自动修正
+function getTacitData() { 
+    let data = window.BIG_MEMORY.tacit_data;
+    
+    // 如果数据不存在，或者是数组(默认初始化导致的)，或者没有 history 字段
+    if (!data || Array.isArray(data) || !data.history) {
+        console.log("检测到默契挑战数据格式错误，正在自动修复...");
+        data = { history: [] };
+        // 立即修复内存中的数据
+        window.BIG_MEMORY.tacit_data = data;
+    }
+    
+    return data; 
+}
+function saveTacitData(data) {
+    window.BIG_MEMORY.tacit_data = data;
+    if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'tacit_data', data: data });
+}
+
+// 2. 界面切换
+window.openTacitApp = function() {
+    document.getElementById('tacit-app-modal').style.display = 'flex';
+    switchTacitView('setup');
+    
+    // 如果没有问题，默认加一个
+    const list = document.getElementById('tacit-question-list');
+    if(list.children.length === 0) addTacitQuestion();
+};
+
+window.switchTacitView = function(mode) {
+    const setupEl = document.getElementById('tacit-setup-view');
+    const resultEl = document.getElementById('tacit-result-view');
+    const histEl = document.getElementById('tacit-history-view');
+    const btnSetup = document.getElementById('btn-tacit-setup');
+    const btnHist = document.getElementById('btn-tacit-history');
+
+    setupEl.style.display = 'none';
+    resultEl.style.display = 'none';
+    histEl.style.display = 'none';
+
+    if (mode === 'setup') {
+        setupEl.style.display = 'block';
+        btnSetup.style.background = '#d63031'; btnSetup.style.color = '#fff';
+        btnHist.style.background = '#ff9ff3'; btnHist.style.color = '#fff';
+    } else if (mode === 'result') {
+        resultEl.style.display = 'block';
+    } else {
+        histEl.style.display = 'block';
+        renderTacitHistory();
+        btnSetup.style.background = '#ff9ff3'; 
+        btnHist.style.background = '#d63031';
+    }
+};
+
+// 3. 动态问题管理
+window.addTacitQuestion = function() {
+    const container = document.getElementById('tacit-question-list');
+    const index = container.children.length;
+    
+    if (index >= 10) return alert("最多只能添加10个问题哦！");
+
+    const div = document.createElement('div');
+    div.className = 'tacit-q-card';
+    div.dataset.index = index;
+    // 存储卡牌数据
+    div.dataset.card = ""; 
+
+    div.innerHTML = `
+        <div class="tacit-del-btn" onclick="removeTacitQuestion(this)">×</div>
+        <div style="font-weight:bold; margin-bottom:5px; color:#d63031;">Question ${index + 1}</div>
+        
+        <div class="tacit-input-row">
+            <input type="text" class="tacit-input q-text" placeholder="输入问题 (如: 我最喜欢的食物?)">
+        </div>
+        
+        <div class="tacit-opt-group">
+            <input type="radio" name="tacit_opt_${Date.now()}_${index}" value="A" class="tacit-radio">
+            <input type="text" class="tacit-input opt-a" placeholder="选项 A">
+        </div>
+        
+        <div class="tacit-opt-group">
+            <input type="radio" name="tacit_opt_${Date.now()}_${index}" value="B" class="tacit-radio">
+            <input type="text" class="tacit-input opt-b" placeholder="选项 B">
+        </div>
+
+        <div class="tacit-card-status" onclick="openTacitCardTable(${index})">
+            🃏 点击抽取命运牌 (决定Ta的选择)
+        </div>
+    `;
+    container.appendChild(div);
+};
+
+window.removeTacitQuestion = function(btn) {
+    btn.parentElement.remove();
+    // 重新编号 UI (可选，为了简单这里不做深度重排，只影响视觉顺序)
+};
+// 修改版：允许抽多张牌
+window.openTacitCardTable = function(qIndex) {
+    activeTacitQuestionIndex = qIndex;
+    const modal = document.getElementById('tacit-card-table-modal');
+    const area = document.getElementById('tacit-card-area');
+    const desk = document.getElementById('tacit-card-table-desk');
+
+    // 应用美化背景
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
+    area.innerHTML = '';
+    tacitDeck = []; 
+    tacitFlipped = []; // 重置当前选择
+    document.getElementById('tacit-flipped-count').innerText = '0';
+
+    // 114张全牌库
+    for(let i=0; i<=77; i++) tacitDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) tacitDeck.push({ type:'lenormand', id:i, isReversed:false });
+    tacitDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    tacitDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = () => {
+            // 🔥🔥🔥 修改点：删除了原来的单选限制代码 🔥🔥🔥
+            
+            if(el.classList.contains('flipped')) {
+                // 取消选择：从数组中移除
+                el.classList.remove('flipped');
+                tacitFlipped = tacitFlipped.filter(c => !(c.id === card.id && c.type === card.type));
+                
+                // 视觉上清除图片
+                setTimeout(() => {
+                    front.style.backgroundImage = '';
+                    front.style.background = '';
+                    front.innerText = '';
+                }, 300);
+            } else {
+                // 选中：添加到数组
+                el.classList.add('flipped');
+                tacitFlipped.push(card);
+                
+                // 加载图片逻辑
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ 
+                    if(res && res.data) {
+                        front.style.backgroundImage=`url(${res.data})`;
+                        front.innerText = '';
+                    } else { 
+                        front.style.background="#fff"; 
+                        front.innerText=card.id; 
+                    }
+                });
+                
+                // 处理正逆位旋转
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            // 更新计数器
+            document.getElementById('tacit-flipped-count').innerText = tacitFlipped.length;
+        };
+        area.appendChild(el);
+    });
+
+    modal.style.display = 'flex';
+};
+// 修改版：允许抽多张牌
+window.openTacitCardTable = function(qIndex) {
+    activeTacitQuestionIndex = qIndex;
+    const modal = document.getElementById('tacit-card-table-modal');
+    const area = document.getElementById('tacit-card-area');
+    const desk = document.getElementById('tacit-card-table-desk');
+
+    // 应用美化背景
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
+    area.innerHTML = '';
+    tacitDeck = []; 
+    tacitFlipped = []; // 重置当前选择
+    document.getElementById('tacit-flipped-count').innerText = '0';
+
+    // 114张全牌库
+    for(let i=0; i<=77; i++) tacitDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) tacitDeck.push({ type:'lenormand', id:i, isReversed:false });
+    tacitDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    tacitDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = () => {
+            // 🔥🔥🔥 修改点：删除了原来的单选限制代码 🔥🔥🔥
+            
+            if(el.classList.contains('flipped')) {
+                // 取消选择：从数组中移除
+                el.classList.remove('flipped');
+                tacitFlipped = tacitFlipped.filter(c => !(c.id === card.id && c.type === card.type));
+                
+                // 视觉上清除图片
+                setTimeout(() => {
+                    front.style.backgroundImage = '';
+                    front.style.background = '';
+                    front.innerText = '';
+                }, 300);
+            } else {
+                // 选中：添加到数组
+                el.classList.add('flipped');
+                tacitFlipped.push(card);
+                
+                // 加载图片逻辑
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ 
+                    if(res && res.data) {
+                        front.style.backgroundImage=`url(${res.data})`;
+                        front.innerText = '';
+                    } else { 
+                        front.style.background="#fff"; 
+                        front.innerText=card.id; 
+                    }
+                });
+                
+                // 处理正逆位旋转
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            // 更新计数器
+            document.getElementById('tacit-flipped-count').innerText = tacitFlipped.length;
+        };
+        area.appendChild(el);
+    });
+
+    modal.style.display = 'flex';
+};
+// 修改版：保存所有选中的牌
+window.confirmTacitCard = function() {
+    if(tacitFlipped.length === 0) return alert("请至少抽一张牌！");
+    
+    // 🔥🔥🔥 修改点：遍历所有选中的牌，拼接成字符串 🔥🔥🔥
+    const cardNames = tacitFlipped.map(card => {
+        const name = (card.type === 'tarot' ? (TAROT_NAMES[card.id] || card.id) : (LENORMAND_NAMES[card.id] || card.id));
+        const status = card.isReversed ? "(逆)" : "";
+        return name + status;
+    }).join(", "); // 用逗号分隔，例如：愚人(逆), 骑士, 房子
+    
+    // 找到对应的问题 DOM
+    const qList = document.getElementById('tacit-question-list');
+    let targetRow = qList.querySelector(`.tacit-q-card[data-index="${activeTacitQuestionIndex}"]`);
+    
+    if(targetRow) {
+        // 保存拼接好的牌名字符串
+        targetRow.dataset.card = cardNames;
+        
+        // UI 更新显示
+        const statusDiv = targetRow.querySelector('.tacit-card-status');
+        statusDiv.innerText = `✅ 已抽取 ${tacitFlipped.length} 张: ${cardNames}`;
+        statusDiv.style.background = "#e6fffa";
+        statusDiv.style.color = "#00b894";
+        statusDiv.style.border = "1px solid #00b894";
+    }
+    
+    document.getElementById('tacit-card-table-modal').style.display = 'none';
+};
+
+// 5. 提交并生成结果 (API 核心)
+window.submitTacitChallenge = async function() {
+    const qList = document.getElementById('tacit-question-list');
+    const rows = qList.querySelectorAll('.tacit-q-card');
+    
+    if (rows.length === 0) return alert("请至少添加一道题目！");
+
+    let questionsData = [];
+    let isComplete = true;
+
+    rows.forEach((row, i) => {
+        const q = row.querySelector('.q-text').value;
+        const optA = row.querySelector('.opt-a').value;
+        const optB = row.querySelector('.opt-b').value;
+        const card = row.dataset.card;
+        
+        // 获取用户选择
+        const radios = row.querySelectorAll('input[type="radio"]');
+        let userChoice = "";
+        radios.forEach(r => { if(r.checked) userChoice = r.value; });
+
+        if (!q || !optA || !optB) { isComplete = false; return alert(`第 ${i+1} 题内容未填写完整！`); }
+        if (!userChoice) { isComplete = false; return alert(`第 ${i+1} 题你没有勾选你的答案！`); }
+        if (!card) { isComplete = false; return alert(`第 ${i+1} 题还没有抽牌！`); }
+
+        questionsData.push({
+            id: i,
+            question: q,
+            options: { A: optA, B: optB },
+            userChoice: userChoice,
+            card: card
+        });
+    });
+
+    if (!isComplete) return;
+
+    // UI 锁定
+    const btn = document.getElementById('btn-tacit-submit');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ 正在连接Ta的潜意识..."; btn.disabled = true;
+
+    // 准备 Prompt
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+    if(!apiKey) { btn.innerText=oldText; btn.disabled=false; return alert("请配置 API Key"); }
+
+    const prompt = `
+你现在正在扮演世界书中的角色进行“默契大挑战”。
+【世界观/角色】：${globalCtx}
+
+【用户设定的题目与命运牌】：
+${JSON.stringify(questionsData)}
+
+【任务】：
+请遍历每一个问题，根据【命运牌的能量流动】和【角色人设】判断角色会选择哪一个选项。
+* 核心规则：命运牌的牌意最重要。
+* 如果牌意与用户选择一致（或牌意积极指向用户选项），则算作“心有灵犀”。
+
+【输出格式】：
+严格 JSON 对象：
+{
+  "results": [
+    {
+      "id": 0, (对应题目ID)
+      "char_choice": "A" 或 "B",
+      "reason": "角色选择的理由（结合牌意），包含对这两个选项的看法",
+      "reaction": "角色选完后的简短反应（开心/吐槽/疑惑）"
+    },
+    ... (所有题目)
+  ],
+  "reaction_50": "如果答对率低于50%时的角色反应（甚至有点生气或失落）",
+  "reaction_90": "如果答对率在50%-90%时的角色反应（比较满意）",
+  "reaction_100": "如果全部答对时的角色反应（非常惊喜、感动、完美）"
+}
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.7
+            })
+        });
+        const json = await res.json();
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+        if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+        
+        const apiResult = JSON.parse(raw);
+
+        // 计算结果
+        let correctCount = 0;
+        const total = questionsData.length;
+        
+        // 合并数据
+        const finalResults = questionsData.map(q => {
+            const resItem = apiResult.results.find(r => r.id === q.id);
+            const isMatch = resItem.char_choice === q.userChoice;
+            if (isMatch) correctCount++;
+            return {
+                ...q,
+                charChoice: resItem.char_choice,
+                reason: resItem.reason,
+                reaction: resItem.reaction,
+                isMatch: isMatch
+            };
+        });
+
+        const scorePercent = Math.round((correctCount / total) * 100);
+        let finalReaction = "";
+        if (scorePercent === 100) finalReaction = apiResult.reaction_100;
+        else if (scorePercent >= 50) finalReaction = apiResult.reaction_90;
+        else finalReaction = apiResult.reaction_50;
+
+        // 保存历史
+        const sessionData = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            score: scorePercent,
+            finalReaction: finalReaction,
+            details: finalResults
+        };
+        
+        const historyData = getTacitData();
+        historyData.history.unshift(sessionData);
+        saveTacitData(historyData);
+
+        // 渲染结果页
+        renderTacitResultPage(sessionData);
+        switchTacitView('result');
+
+    } catch(e) {
+        console.error(e);
+        alert("挑战失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
+// 6. 渲染结果详情页
+window.renderTacitResultPage = function(session) {
+    document.getElementById('tacit-score-display').innerText = `${session.score}%`;
+    document.getElementById('tacit-summary-reaction').innerText = `“${session.finalReaction}”`;
+    
+    const container = document.getElementById('tacit-result-list');
+    container.innerHTML = '';
+
+    session.details.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = `tacit-result-card ${item.isMatch ? 'correct' : 'wrong'}`;
+        
+        const userText = item.options[item.userChoice];
+        const charText = item.options[item.charChoice];
+        
+        div.innerHTML = `
+            <div class="tacit-res-header">
+                Q${i+1}: ${item.question} 
+                <span style="float:right;">${item.isMatch ? '✅ 默契' : '❌ 遗憾'}</span>
+            </div>
+            <div style="font-size:0.9rem; color:#333;">
+                <div>你选了：<strong>${userText}</strong></div>
+                <div style="color:#d63031;">Ta选了：<strong>${charText}</strong></div>
+            </div>
+            <div class="tacit-card-tag">🔮 命运牌: ${item.card}</div>
+            <div class="tacit-res-reason">
+                <strong>Ta的想法：</strong>${item.reason}<br>
+                <span style="color:#e17055;">(反应: ${item.reaction})</span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+// 7. 历史记录与删除
+window.renderTacitHistory = function() {
+    const data = getTacitData();
+    const list = document.getElementById('tacit-history-list');
+    list.innerHTML = '';
+
+    if (data.history.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无挑战记录</div>';
+        return;
+    }
+
+    data.history.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.marginBottom = '10px'; div.style.padding = '15px';
+        
+        let color = item.score === 100 ? '#00b894' : (item.score >= 60 ? '#fdcb6e' : '#ff7675');
+
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#888;">
+                <span>${item.date}</span>
+                <span onclick="deleteTacitHistory(${index})" style="color:red; cursor:pointer;">删除</span>
+            </div>
+            <div style="font-weight:bold; font-size:1.2rem; color:${color}; margin:5px 0;">
+                得分: ${item.score}%
+            </div>
+            <div style="font-size:0.85rem; color:#636e72;">
+                Ta说: “${item.finalReaction.substring(0, 20)}...”
+            </div>
+            <button class="m-btn small" onclick="replayTacitHistory(${index})" style="width:100%; margin-top:10px; background:#fab1a0; color:#d63031;">
+                🔄 重新查看 / 再次回味
+            </button>
+        `;
+        list.appendChild(div);
+    });
+};
+
+window.deleteTacitHistory = function(index) {
+    if(!confirm("删除这条记录？")) return;
+    const data = getTacitData();
+    data.history.splice(index, 1);
+    saveTacitData(data);
+    renderTacitHistory();
+};
+
+window.replayTacitHistory = function(index) {
+    const data = getTacitData();
+    const session = data.history[index];
+    renderTacitResultPage(session);
+    switchTacitView('result');
+};
+
+// 8. 补丁：确保 tacit_data 被加载
+if (typeof loadAllBigData === 'function') {
+    // 检查 REQUIRED_KEYS 里是否已有 'tacit_data'，如果没有，手动推入（但我在上面的代码块里无法修改常量，所以这里用 hook 方式）
+    // 实际上，只要在 loadAllBigData 的数组里加上 'tacit_data' 即可。
+    // 为了保险起见，这里做一个劫持：
+    const _origLoad = loadAllBigData;
+    window.loadAllBigData = async function() {
+        await _origLoad();
+        try {
+            let res = await idb.get('universal_store', 'tacit_data');
+            if(res) window.BIG_MEMORY.tacit_data = res.data;
+        } catch(e) {}
     }
 }
 // ==================== 🧩 记忆拼图 APP 核心逻辑 ====================
@@ -14748,6 +16251,21 @@ window.deleteStudyPlan = function() {
         </div>
         <div id="theme-tab-covers" class="theme-tab-content" style="display:none;">
             <div class="morandi-card">
+<hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">
+<h4 style="color:#d35400;">📺 组件外壳定制</h4>
+
+<div class="input-group">
+    <label>第1页：电视机外壳 (TV Shell)</label>
+    <input type="file" onchange="uploadThemeImage('shell_tv', this)">
+</div>
+<div class="input-group">
+    <label>第2页：游戏机外壳 (Game P2)</label>
+    <input type="file" onchange="uploadThemeImage('shell_console_p2', this)">
+</div>
+<div class="input-group">
+    <label>第3页：RPG机外壳 (Game P3)</label>
+    <input type="file" onchange="uploadThemeImage('shell_console_p3', this)">
+</div>
                 <h3>组件与背景</h3>
         <div class="input-group">
             <label style="color:#d81b60; font-weight:bold;">🏠 主页壁纸 (Main Wallpaper)</label>
@@ -18581,6 +20099,108 @@ window.generateGalgameEndingAPI = async function() {
         </div>
     </div>
 </div>
+<!-- ================= 🧙‍♀️ 女巫 APP 主界面 ================= -->
+<div id="witch-app-modal" class="modal-overlay" style="background:#1a1a2e; z-index:9999; display:none;">
+    <div class="modal-header" style="background:#16213e; color:#a29bfe; border-bottom:1px solid #6c5ce7;">
+        <span style="font-weight:bold;">🧙‍♀️ 女巫的饼干 · Witch's Game</span>
+        <button class="close-btn" onclick="document.getElementById('witch-app-modal').style.display='none'" style="color:#a29bfe;">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:15px; padding-bottom:100px;">
+        <!-- 顶部导航 -->
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="m-btn small" onclick="switchWitchView('setup')" id="btn-witch-setup" style="background:#6c5ce7; color:white; flex:1;">🎮 开始游戏</button>
+            <button class="m-btn small" onclick="switchWitchView('history')" id="btn-witch-history" style="background:#30336b; color:#ccc; flex:1;">📜 历史对局</button>
+        </div>
+
+        <!-- A. 游戏设置/进行区 -->
+        <div id="witch-game-view">
+            <!-- 1. 准备阶段 -->
+            <div id="witch-setup-panel">
+                <div class="morandi-card" style="background:rgba(255,255,255,0.1); border:1px solid #6c5ce7; color:#fff; padding:15px;">
+                    <h3 style="color:#a29bfe; margin-bottom:10px;">🍬 烘焙准备</h3>
+                    <p style="font-size:0.8rem; color:#ccc;">1. 点击下方饼干，选择一块藏入你的“惩罚” (作为陷阱)。<br>2. 填写如果Ta输了，要接受什么惩罚。</p>
+                    
+                    <div class="input-group" style="margin-top:15px;">
+                        <label style="color:#a29bfe;">😈 如果Ta输了，惩罚是：</label>
+                        <input type="text" id="witch-user-punishment" placeholder="例如：喊我三声主人 / 爆照一张..." style="background:rgba(0,0,0,0.3); border:1px solid #6c5ce7; color:white;">
+                    </div>
+                    
+                    <div style="margin-top:10px; font-size:0.9rem; color:#ff7675;">
+                        当前选定陷阱：<span id="witch-trap-display">未选择</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 饼干棋盘 (通用) -->
+            <div id="witch-board-container" style="margin-top:20px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+                <!-- JS 生成 20 个饼干 -->
+            </div>
+
+            <!-- 3. 底部控制按钮 -->
+            <button id="btn-witch-start" class="m-btn primary" onclick="startWitchDraw()" style="width:100%; margin-top:20px; background:#6c5ce7; display:block;">🔮 抽牌注入灵魂 (开始)</button>
+            
+            <!-- 4. 游戏日志与反馈 (游戏开始后显示) -->
+            <div id="witch-log-panel" style="display:none; margin-top:20px;">
+                <div class="morandi-card" style="background:rgba(0,0,0,0.5); border:1px solid #a29bfe; color:#fff;">
+                    <h4 style="color:#fdcb6e; margin-bottom:10px;">📜 对局记录</h4>
+                    <div id="witch-game-log" style="height:150px; overflow-y:auto; font-size:0.85rem; line-height:1.6;"></div>
+                </div>
+                <div class="morandi-card" style="margin-top:10px; background:#fff; color:#333; padding:10px; display:flex; align-items:center;">
+                    <div style="font-size:2rem; margin-right:10px;">🗣️</div>
+                    <div id="witch-reaction-text" style="font-size:0.9rem;">等待开局...</div>
+                </div>
+       <!-- 新增：按钮组，包含保存和重置 -->
+<div style="display:flex; gap:10px; margin-top:10px;">
+    <button class="m-btn small" onclick="manualSaveWitchGame()" style="flex:1; background:#a29bfe; color:white; border:none;">💾 保存本局设定</button>
+    <button class="m-btn small" onclick="resetWitchGame()" style="flex:1; background:#ff7675; color:white; border:none;">🏳️ 结束 / 重置</button>
+</div>
+            </div>
+        </div>
+
+        <!-- B. 历史记录区 -->
+        <div id="witch-history-view" style="display:none;">
+            <div id="witch-history-list" style="padding-bottom:50px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 🧙‍♀️ 女巫专用独立牌桌 ================= -->
+<div id="witch-card-table-modal" class="modal-overlay" style="background: rgba(20, 10, 30, 0.98); z-index:10000;">
+    <div id="witch-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #4834d4 0%, #130f40 100%);">
+        <div id="witch-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;">
+            <!-- 卡牌由 JS 生成 -->
+        </div>
+        
+        <div class="card-table-ui">
+            <div style="color:#a29bfe; text-shadow:0 1px 3px #000; font-weight:bold; font-size:1.1rem;">
+                抽取命运牌，决定Ta的策略与陷阱... (<span id="witch-flipped-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="finishWitchDraw()" style="background:#6c5ce7; border:1px solid #fff; color:white; box-shadow:0 0 15px rgba(108, 92, 231, 0.5);">
+                🍪 生成对局剧本
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('witch-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+<!-- 🧙‍♀️ 女巫专用：结局/故事阅读弹窗 (深色魔法卷轴风格) -->
+<div id="witch-story-modal" class="modal-overlay" style="background:rgba(0,0,0,0.85); z-index:12000; display:none; align-items:center; justify-content:center;">
+    <div class="witch-scroll-paper" onclick="event.stopPropagation()">
+        <div class="ws-header">
+            <span style="font-size:1.5rem;">🔮</span>
+            <span id="ws-title" style="font-size:1.1rem; font-weight:bold; color:#dcdde1; text-shadow:0 0 5px #a29bfe;">结局</span>
+            <div class="close-btn" onclick="document.getElementById('witch-story-modal').style.display='none'" style="color:#a29bfe; cursor:pointer;">×</div>
+        </div>
+        <div id="ws-content" class="ws-body">
+            <!-- 故事内容 -->
+        </div>
+        <div class="ws-footer">
+            <span id="ws-date" style="color:#636e72; font-size:0.8rem;">DATE</span>
+        </div>
+    </div>
+</div>
 <!-- ================= 📦 搬家日记 APP 主界面 ================= -->
 <div id="moving-app-modal" class="modal-overlay" style="background:#fdf6e3; z-index:9999; display:none;">
     <div class="modal-header" style="background:#fae5d3; color:#d35400; border-bottom:1px solid #e67e22;">
@@ -18793,6 +20413,82 @@ window.generateGalgameEndingAPI = async function() {
                 <strong style="color:#6d4c41; font-size:0.9rem;">📖 记忆故事:</strong>
                 <p id="sd-story" style="font-size:0.95rem; color:#3e2723; line-height:1.8; margin-top:5px; font-family:'Songti SC', serif; text-align:justify;"></p>
             </div>
+        </div>
+    </div>
+</div>
+<!-- ================= 💞 默契大挑战 APP 主界面 ================= -->
+<div id="tacit-app-modal" class="modal-overlay" style="background:#fff0f5; z-index:9999; display:none;">
+    <div class="modal-header" style="background:#ffcce0; color:#d63031; border-bottom:1px solid #ffadd2;">
+        <span style="font-weight:bold;">💞 默契大挑战 · Tacit Test</span>
+        <button class="close-btn" onclick="document.getElementById('tacit-app-modal').style.display='none'">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:15px; padding-bottom:100px;">
+        <!-- 顶部导航 -->
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="m-btn small" onclick="switchTacitView('setup')" id="btn-tacit-setup" style="background:#d63031; color:white; flex:1;">🎮 发起挑战</button>
+            <button class="m-btn small" onclick="switchTacitView('history')" id="btn-tacit-history" style="background:#ff9ff3; color:#fff; flex:1;">📂 挑战记录</button>
+        </div>
+
+        <!-- 1. 设置/挑战界面 -->
+        <div id="tacit-setup-view">
+            <div class="morandi-card" style="padding:15px; margin-bottom:15px; background:rgba(255,255,255,0.8);">
+                <h3 style="color:#d63031; margin-bottom:10px; font-size:1rem;">📝 规则说明</h3>
+                <p style="font-size:0.8rem; color:#888;">
+                    1. 填写问题和两个选项。<br>
+                    2. 点击右侧按钮，为这道题抽取一张“命运牌”。<br>
+                    3. 勾选 **你心中认为正确/你会选** 的那个选项。<br>
+                    4. 全部完成后提交，Ta 会根据牌意和人设进行选择。
+                </p>
+            </div>
+
+            <!-- 问题列表容器 -->
+            <div id="tacit-question-list"></div>
+
+            <button class="m-btn small" onclick="addTacitQuestion()" style="width:100%; background:#e0e0e0; color:#555; margin-bottom:20px;">+ 添加一题 (最多10题)</button>
+            
+            <button class="m-btn primary" onclick="submitTacitChallenge()" id="btn-tacit-submit" style="width:100%; height:50px; background:#ff7675; font-size:1.1rem; box-shadow:0 4px 10px rgba(255,118,117,0.4);">
+                💌 提交给 Ta (开始测试)
+            </button>
+        </div>
+
+        <!-- 2. 结果/详情界面 -->
+        <div id="tacit-result-view" style="display:none;">
+            <div class="morandi-card" style="text-align:center; padding:20px; margin-bottom:15px; background:#fff;">
+                <h2 id="tacit-score-display" style="color:#d63031; font-size:2rem; margin:0;">100%</h2>
+                <div style="font-size:0.9rem; color:#888;">默契度</div>
+                <div id="tacit-summary-reaction" style="margin-top:15px; font-style:italic; color:#5d4037; font-weight:bold;"></div>
+            </div>
+            
+            <div id="tacit-result-list"></div>
+            
+            <button class="m-btn small" onclick="switchTacitView('setup')" style="width:100%; margin-top:20px; background:#ccc;">🔙 返回</button>
+        </div>
+
+        <!-- 3. 历史记录界面 -->
+        <div id="tacit-history-view" style="display:none;">
+            <div id="tacit-history-list" style="padding-bottom:50px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 💞 默契挑战专用独立牌桌 ================= -->
+<div id="tacit-card-table-modal" class="modal-overlay" style="background: rgba(40, 20, 30, 0.98); z-index:10000; display:none;">
+    <div id="tacit-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #fd79a8 0%, #2d3436 100%);">
+        <div id="tacit-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;">
+            <!-- 卡牌由 JS 生成 -->
+        </div>
+        
+        <div class="card-table-ui">
+            <div style="color:#fab1a0; text-shadow:0 1px 3px #000; font-weight:bold; font-size:1.1rem;">
+                为这道题抽取命运指引... (<span id="tacit-flipped-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="confirmTacitCard()" style="background:#d63031; border:1px solid #fff; color:white; box-shadow:0 0 15px rgba(214, 48, 49, 0.5);">
+                ✅ 确认这张牌
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('tacit-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消
+            </button>
         </div>
     </div>
 </div>
@@ -19661,6 +21357,7 @@ window.generateGalgameEndingAPI = async function() {
         </div>
     </div>
 </div>
+
 <!-- ================= 🔴 学习总结 APP 修复整合包 START 🔴 ================= -->
 
 <!-- 1. 界面部分 (HTML) -->
@@ -21232,27 +22929,14 @@ window.finishRpgChat = async function() {
             text: `【我】${userInput}\n【Ta】${reply}\n\n🔮 牌意指引：${cardsDesc}`
         });
 
-        // 保存数据库
         if(window.BIG_MEMORY.rpg_data.history.length > 50) window.BIG_MEMORY.rpg_data.history.pop();
         window.saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
-        
-        // === 🔥【关键修改】UI 交互逻辑 ===
-        
-        // 1. 关闭抽牌桌
-        document.getElementById('rpg-card-table-modal').style.display = 'none'; 
-        
-        // 2. 确保回到聊天界面
+document.getElementById('rpg-card-table-modal').style.display = 'none'; 
         const chatModal = document.getElementById('rpg-chat-modal');
         chatModal.style.display = 'flex';
         chatModal.style.zIndex = '3000'; 
-
-        // 3. 切换到“显示模式” (隐藏输入框，显示回复框)
         toggleSpeaker('npc'); 
-        
-        // 4. 播放打字机效果
         playRpgTypewriter(reply);
-        
-        // 5. 更新浮窗历史
         renderRpgChatList();
 
     } catch(e) {
@@ -21262,8 +22946,6 @@ window.finishRpgChat = async function() {
         btn.innerText = oldText; btn.disabled = false;
     }
 };
-
-// 6. 故事集功能修复
 window.toggleRpgHistory = function() {
     const panel = document.getElementById('rpg-history-panel');
     panel.classList.toggle('open');
@@ -21271,33 +22953,26 @@ window.toggleRpgHistory = function() {
         renderRpgHistory();
     }
 };
-
 window.renderRpgHistory = function() {
     const data = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     const con = document.getElementById('rpg-history-list');
     con.innerHTML = '';
     
     if(!data || data.length === 0) {
-        con.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">暂无故事<br>去和Ta对话或点击家具吧~</div>';
+        con.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">暂无日记<br>去和Ta对话或点击家具生成故事吧~</div>';
         return;
     }
 
     data.forEach((h, i) => {
         const div = document.createElement('div');
-        div.className = 'morandi-card';
-        div.style.padding = '12px'; 
-        div.style.marginBottom = '10px'; 
-        div.style.background = '#fff';
-        
+        div.className = 'rpg-diary-entry'; 
+        const dateObj = new Date(h.date);
+        const dateStr = `${dateObj.getFullYear()}/${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+
         div.innerHTML = `
-            <div style="font-size:0.75rem; color:#888; border-bottom:1px dashed #eee; margin-bottom:6px; display:flex; justify-content:space-between;">
-                <span>${new Date(h.date).toLocaleString()}</span>
-                <strong style="color:#d35400;">${h.item || '事件'}</strong>
-            </div>
-            <div style="font-size:0.9rem; line-height:1.5; color:#333; white-space:pre-wrap;">${h.text}</div>
-            <div style="text-align:right; margin-top:8px;">
-                <button class="m-btn small" onclick="deleteRpgHistory(${i})" style="background:#ffcdd2; color:#c62828; font-size:0.7rem;">🗑️ 删除</button>
-            </div>
+            <div class="rpg-diary-date">${dateStr} · ${h.item || '随笔'}</div>
+            <div class="rpg-diary-text">${h.text}</div>
+            <div class="rpg-diary-del" onclick="deleteRpgHistory(${i})">撕掉这一页</div>
         `;
         con.appendChild(div);
     });
@@ -21385,7 +23060,6 @@ window.deleteRpgHistory = function(index) {
 body, #screen {
     background-color: #cdd1d3; 
 }
-/* 新增样式：学习资源和思维导图 */
 .study-resource-tag { 
     display: inline-block; background: #e3f2fd; color: #0277bd; 
     padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; 
@@ -21401,7 +23075,6 @@ body, #screen {
     border-radius: 8px; border: 1px dashed #aaa; line-height: 1.4;
     overflow-x: auto; color: #37474f;
 }
-/* --- 日记本组件样式 --- */
 .diary-book-container {
     width: 95%; max-width: 800px; height: 75vh;
     background: #fdfbf7;
@@ -21411,7 +23084,7 @@ body, #screen {
     border-radius: 4px;
     position: relative;
 }
-.diary-book-container::before { /* 中缝阴影 */
+.diary-book-container::before { 
     content: ""; position: absolute; top:0; bottom:0; left:50%; width:40px; transform:translateX(-50%);
     background: linear-gradient(to right, transparent, rgba(0,0,0,0.1) 45%, rgba(0,0,0,0.1) 55%, transparent);
     pointer-events: none; z-index: 5;
@@ -21436,8 +23109,6 @@ body, #screen {
     transform: rotate(-3deg); position: relative;
 }
 .photo-pin { position: absolute; top: -10px; left: 50%; font-size: 1.2rem; transform:translateX(-50%); }
-
-/* 背包物品样式 */
 .bag-item-box {
     margin-bottom: 15px; border: 1px solid #d7ccc8; padding: 10px; background: rgba(255,255,255,0.6);
 }
@@ -21446,7 +23117,6 @@ body, #screen {
     font-size: 0.8rem; color: #5d4037; margin-top: 5px; 
     border-top: 1px dashed #d7ccc8; padding-top: 5px; line-height: 1.4;
 }
-/* 移动端适配 */
 @media (max-width: 600px) {
     .diary-book-container { flex-direction: column; height: 85vh; overflow-y: scroll; }
     .diary-page { min-height: 500px; border-right: none; border-bottom: 10px solid #eee; }
@@ -21465,9 +23135,9 @@ body, #screen {
     width: 200px; height: 20px; display: flex; gap: 20px; justify-content: center;
 }
 .line-part { background: #e2c2b3; height: 100%; border-radius: 4px; }
-.line-yin .line-part { flex: 1; } /* 阴爻：两段 */
-.line-yang .line-part { width: 100%; } /* 阳爻：一段 */
-.line-moving { background: #ff6b6b !important; } /* 动爻变色 */
+.line-yin .line-part { flex: 1; } 
+.line-yang .line-part { width: 100%; } 
+.line-moving { background: #ff6b6b !important; } 
 .line-label { position: absolute; left: -30px; font-size: 0.8rem; color: #aaa; }
 .lofter-card {
     background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 4px;
@@ -21486,7 +23156,6 @@ body, #screen {
 }
 .lofter-cmt-row { display:flex; gap:10px; margin-bottom:15px; font-size:0.9rem; }
 .lofter-cmt-avatar { width:30px; height:30px; background:#ddd; border-radius:50%; flex-shrink:0; }
-/* 老福特工具栏 */
 .lofter-toolbar {
     padding: 10px 15px; background: #fff; border-bottom: 1px solid #f0f0f0;
     display: flex; gap: 10px; align-items: center;
@@ -21495,7 +23164,6 @@ body, #screen {
     flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px;
     font-size: 0.9rem; background: #f9f9f9; outline: none;
 }
-/* 删除按钮 */
 .lofter-del-btn {
     position: absolute; top: 10px; right: 10px;
     width: 20px; height: 20px; text-align: center; line-height: 18px;
@@ -21503,29 +23171,24 @@ body, #screen {
     z-index: 10; padding-bottom: 2px;
 }
 .lofter-del-btn:hover { color: #ff4757; background: #fff0f0; }
-.lofter-card { position: relative; } /* 确保删除按钮定位准确 */
-/* === 老福特 (Lofter) 修复版样式 (瀑布流) === */
+.lofter-card { position: relative; } 
 #lofter-feed-list {
-    /* 核心：瀑布流布局 */
     column-count: 2;
     column-gap: 10px;
     padding-bottom: 60px;
 }
 
 .lofter-card-new {
-    /* 防止卡片在列之间断裂 */
     break-inside: avoid;
     background: #fff;
     margin-bottom: 10px;
-    border-radius: 8px; /* 圆角 */
+    border-radius: 8px; 
     overflow: hidden;
     box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     position: relative;
     display: flex;
     flex-direction: column;
 }
-
-/* 模拟封面图 (用颜色代替，减少代码量) */
 .lof-cover-placeholder {
     width: 100%;
     height: 120px;
@@ -21556,8 +23219,6 @@ body, #screen {
     margin-bottom: 8px;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-
-/* 底部用户信息栏 */
 .lof-footer {
     padding: 0 10px 10px 10px;
     display: flex; align-items: center; justify-content: space-between;
@@ -21572,16 +23233,13 @@ body, #screen {
 }
 .lof-author { font-size: 0.7rem; color: #888; max-width: 60px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lof-hot { font-size: 0.7rem; color: #999; display: flex; align-items: center; gap: 2px;}
-
-/* 标签样式 */
-.lof-tags { display: none; } /* 首页隐藏标签保持整洁，或者你可以打开 */
+.lof-tags { display: none; } 
 .lof-del {
     position: absolute; top: 5px; right: 5px;
     width: 20px; height: 20px; background: rgba(0,0,0,0.5);
     color: #fff; border-radius: 50%; text-align: center; line-height: 18px;
     font-size: 1rem; cursor: pointer; z-index: 5; opacity: 0.6;
 }
-/* 🍬 扭蛋机样式 */
 .gashapon-machine {
     width: 200px; height: 320px; position: relative; cursor: pointer;
     transition: transform 0.1s;
@@ -21625,8 +23283,6 @@ body, #screen {
     position: absolute; top: 100px; left: 50%; transform:translateX(-50%);
     background: #fff; padding: 2px 8px; font-size: 0.7rem; color: #f48fb1; font-weight: bold; border-radius: 4px; z-index: 5;
 }
-
-/* 📜 历史记录抽屉 */
 .gashapon-history-drawer {
     background: #fff; border-radius: 20px 20px 0 0; 
     box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
@@ -21639,8 +23295,6 @@ body, #screen {
 }
 .gh-list { flex: 1; overflow-y: auto; padding: 15px; display: none; }
 .gh-list.show { display: block; }
-
-/* 💊 巨大扭蛋 (未开封) */
 .big-capsule {
     width: 200px; height: 200px; border-radius: 50%; 
     position: relative; cursor: pointer;
@@ -21660,8 +23314,6 @@ body, #screen {
 .big-capsule.open {
     transform: scale(1.5); opacity: 0; pointer-events: none;
 }
-
-/* 📝 故事纸条 */
 .story-paper {
     width: 90%; max-width: 500px; max-height: 80vh;
     background: #fffdf0; padding: 25px;
@@ -21684,7 +23336,6 @@ body, #screen {
 }
 .sp-content p { margin-bottom: 15px; }
 .sp-footer { margin-top: auto; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc; }
-/* 宠物系统专用样式 */
 .pet-item-card {
     background: #fff; border: 1px solid #ddd; border-radius: 8px;
     padding: 5px; text-align: center; cursor: pointer; position: relative;
@@ -21754,7 +23405,6 @@ body, #screen {
     color: #ff7675; 
     width: 30%;
 }
-/* RPG 游戏样式 */
 .rpg-sprite {
     position: absolute;
     width: 64px; 
@@ -21762,11 +23412,11 @@ body, #screen {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center bottom;
-    transition: left 0.1s linear, top 0.1s linear; /* 平滑移动 */
+    transition: left 0.1s linear, top 0.1s linear; 
 }
 .rpg-decor {
     position: absolute;
-    pointer-events: none; /* 让点击穿透，逻辑上处理 */
+    pointer-events: none; 
 }
 .rpg-dpad-btn {
     width: 40px; height: 40px;
@@ -21777,17 +23427,14 @@ body, #screen {
     display: flex; align-items: center; justify-content: center;
 }
 .rpg-dpad-btn:active { background: rgba(255,255,255,0.6); }
-
-/* 聊天历史样式 */
 .rpg-chat-bubble {
     font-size: 0.8rem; padding: 5px; margin-bottom: 5px; border-radius: 4px;
 }
 .rpg-chat-bubble.me { background: #ffeaa7; text-align: right; }
 .rpg-chat-bubble.char { background: #fff; text-align: left; }
-/* === RPG 修复补丁 CSS === */
 #rpg-history-panel {
-    z-index: 10000 !important; /* 确保浮在游戏画面和摇杆之上 */
-    background: #fdfbf7 !important; /* 确保背景不透明 */
+    z-index: 10000 !important; 
+    background: #fdfbf7 !important; 
     width: 85% !important;
     max-width: 300px;
     right: 0;
@@ -21803,30 +23450,22 @@ body, #screen {
     padding-bottom: 50px;
 }
 /* 修改或添加到你的 <style> 块中 */
-
-/* 确保底部控制区高度固定，防止切换时跳动 */
 #rpg-chat-modal > div:nth-child(4) { 
-    /* 对应 HTML 里的 "底部对话控制区" */
     min-height: 160px;
     padding: 20px;
     box-sizing: border-box;
 }
-
-/* 调整回复展示区域的样式，让它看起来像是在对话框里 */
 #rpg-display-mode {
     display: none; 
     height: 100%; 
     color: #fff; 
     font-family: 'Songti SC', serif;
-    /* 🔥 关键：让它看起来和输入框区域一样大 */
     background: rgba(255, 255, 255, 0.05); 
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     padding: 10px;
     box-sizing: border-box;
 }
-
-/* 调整打字机文字样式 */
 #rpg-typewriter-text {
     font-size: 1.1rem; 
     line-height: 1.6; 
@@ -21834,21 +23473,16 @@ body, #screen {
     white-space: pre-wrap;
     color: #ecf0f1;
 }
-/* === 🛠️ RPG 修复样式 (请直接复制粘贴) === */
-
-/* 1. 强制固定底部控制区的高度，防止切换时跳动 */
 #rpg-chat-modal > div:nth-child(4) { 
-    min-height: 180px !important; /* 强制高度 */
-    height: 180px !important;     /* 固定高度 */
+    min-height: 180px !important; 
+    height: 180px !important;     
     padding: 20px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: rgba(0,0,0,0.85); /* 确保背景色 */
+    background: rgba(0,0,0,0.85); 
 }
-
-/* 2. 让显示回复的框体 (display-mode) 充满这个区域 */
 #rpg-display-mode {
     display: none; 
     width: 100%;
@@ -21859,10 +23493,8 @@ body, #screen {
     padding: 15px;
     box-sizing: border-box;
     cursor: pointer; 
-    overflow-y: auto; /* 允许文字过多时滚动 */
+    overflow-y: auto; 
 }
-
-/* 3. 打字机文字样式 */
 #rpg-typewriter-text {
     color: #fff;
     font-family: 'Songti SC', serif;
@@ -21870,7 +23502,6 @@ body, #screen {
     line-height: 1.6; 
     white-space: pre-wrap;
 }
-/* === RPG 必须样式 === */
 #rpg-display-mode {
     display: none; 
     width: 100%;
@@ -21883,15 +23514,12 @@ body, #screen {
     cursor: pointer; 
     overflow-y: auto;
 }
-
-/* 强制固定底部高度，防止切换时塌陷 */
 #rpg-chat-modal > div:nth-child(4) { 
     min-height: 180px !important;
     height: 180px !important;
     display: flex;
     flex-direction: column;
 }
-/* 陪伴 APP 样式 */
 .comp-q-row {
     background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative;
@@ -21919,7 +23547,6 @@ body, #screen {
 .comp-msg-a { font-size: 0.95rem; color: #333; line-height: 1.6; }
 .comp-msg-cards { font-size: 0.7rem; color: #a29bfe; margin-top: 8px; text-align: right; }
 @keyframes popIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
-/* === 🛠️ 冰箱调料显示修复补丁 === */
 .flat-bottle {
     display: flex !important;
     flex-direction: column !important;
@@ -21933,19 +23560,15 @@ body, #screen {
     z-index: 10;
 }
 .flat-bottle.active { opacity: 1 !important; transform: scale(1.1); }
-
-/* 强制定义瓶身尺寸和颜色 */
 .bottle-shape {
     width: 30px !important;
     height: 45px !important;
     border-radius: 4px !important;
-    background-color: #e0e0e0; /* 默认颜色 */
+    background-color: #e0e0e0; 
     border: 1px solid rgba(0,0,0,0.1);
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     position: relative;
 }
-
-/* 瓶盖 */
 .bottle-shape::before {
     content: "";
     position: absolute;
@@ -21954,13 +23577,11 @@ body, #screen {
     background: #555;
     border-radius: 2px;
 }
-
-/* 强制颜色覆盖 */
 .b-oil .bottle-shape { background-color: #fdd835 !important; border-color: #fbc02d !important; }
-.b-dark .bottle-shape { background-color: #5d4037 !important; border-color: #3e2723 !important; } /* 耗油 */
-.b-black .bottle-shape { background-color: #2d3436 !important; border-color: #000 !important; } /* 生抽/醋 */
-.b-white .bottle-shape { background-color: #ffffff !important; border-color: #dfe6e9 !important; } /* 盐/糖 */
-.b-wine .bottle-shape { background-color: #fdcb6e !important; border-color: #e17055 !important; } /* 料酒 */
+.b-dark .bottle-shape { background-color: #5d4037 !important; border-color: #3e2723 !important; } 
+.b-black .bottle-shape { background-color: #2d3436 !important; border-color: #000 !important; } 
+.b-white .bottle-shape { background-color: #ffffff !important; border-color: #dfe6e9 !important; } 
+.b-wine .bottle-shape { background-color: #fdcb6e !important; border-color: #e17055 !important; } 
 
 .bottle-name {
     font-size: 0.65rem !important;
@@ -21969,7 +23590,6 @@ body, #screen {
     font-weight: bold;
     text-align: center;
 }
-/* 开车动画关键帧 */
 @keyframes driveRight {
     0% { left: -150px; }
     100% { left: 100%; }
@@ -21982,61 +23602,225 @@ body, #screen {
 
 .car-drive-right {
     animation: driveRight 3s linear forwards;
-    transform: scaleX(1); /* 车头朝右 */
+    transform: scaleX(1); 
 }
 
 .car-drive-left {
     animation: driveLeft 3s linear forwards;
-    transform: scaleX(-1); /* 车头朝左 (镜面反转) */
+    transform: scaleX(-1); 
 }
+.rpg-diary-entry {
+    background-color: #fff9c4; 
+    background-image: 
+        radial-gradient(#d7ccc8 1px, transparent 1px), 
+        linear-gradient(to bottom, transparent 29px, #bcaaa4 30px); 
+    background-size: 20px 20px, 100% 30px;
+    background-attachment: local;
+    
+    padding: 20px 20px 30px 20px;
+    margin-bottom: 20px;
+    border-radius: 2px;
+    box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+    
+    font-family: "Long Cang", "Comic Sans MS", cursive, serif; 
+    color: #5d4037;
+    position: relative;
+    transform: rotate(-1deg); 
+    transition: transform 0.2s;
+    line-height: 30px; 
+}
+
+.rpg-diary-entry:nth-child(even) {
+    transform: rotate(1deg); 
+}
+
+.rpg-diary-entry:hover {
+    transform: scale(1.02) rotate(0deg);
+    z-index: 10;
+    box-shadow: 5px 10px 15px rgba(0,0,0,0.15);
+}
+
+/* 日记上的图钉装饰 */
+.rpg-diary-entry::before {
+    content: "📌";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2rem;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+}
+
+.rpg-diary-date {
+    font-size: 0.9rem;
+    color: #8d6e63;
+    font-weight: bold;
+    text-align: right;
+    margin-bottom: 10px;
+    border-bottom: 2px dashed #8d6e63;
+    padding-bottom: 5px;
+}
+
+.rpg-diary-text {
+    font-size: 1.1rem;
+    white-space: pre-wrap;
+}
+
+.rpg-diary-del {
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    font-size: 0.8rem;
+    color: #ef5350;
+    cursor: pointer;
+    font-family: sans-serif;
+    opacity: 0.5;
+}
+.rpg-diary-del:hover { opacity: 1; font-weight: bold; }
+/* 🐻 小熊饼干样式 */
+.cookie-btn {
+    aspect-ratio: 1;
+    background: #e17055;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #d35400;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    transition: transform 0.1s;
+    border: 2px solid #fab1a0;
+}
+.cookie-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #d35400; }
+.cookie-btn::before, .cookie-btn::after {
+    content: ""; position: absolute; top: -5px; width: 12px; height: 12px;
+    background: #e17055; border-radius: 50%; border: 2px solid #fab1a0;
+}
+.cookie-btn::before { left: 5px; }
+.cookie-btn::after { right: 5px; }
+
+/* 状态样式 */
+.cookie-btn.selected { background: #00cec9; border-color: #81ecec; box-shadow: 0 4px 0 #00b894; }
+.cookie-btn.selected::before, .cookie-btn.selected::after { background: #00cec9; border-color: #81ecec; }
+
+.cookie-btn.eaten { 
+    background: #636e72; box-shadow: none; transform: scale(0.9); opacity: 0.5; pointer-events: none; 
+}
+.cookie-btn.eaten::before, .cookie-btn.eaten::after { background: #636e72; border-color: #2d3436; }
+
+.cookie-btn.trap-revealed {
+    background: #ff7675; border-color: #d63031; animation: shake 0.5s;
+}
+/* 🧙‍♀️ 女巫卷轴样式 */
+.witch-scroll-paper {
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+    border: 2px solid #6c5ce7;
+    box-shadow: 0 0 30px rgba(108, 92, 231, 0.4), inset 0 0 50px rgba(0,0,0,0.8);
+    border-radius: 12px;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    color: #dfe6e9;
+    font-family: "Songti SC", serif; /* 宋体更有魔幻感 */
+    position: relative;
+    animation: unfold 0.6s ease-out;
+}
+
+.ws-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #6c5ce7; padding-bottom: 10px; margin-bottom: 15px;
+}
+
+.ws-body {
+    flex: 1; overflow-y: auto;
+    font-size: 1.05rem; line-height: 1.8; text-align: justify;
+    white-space: pre-wrap;
+    padding-right: 5px;
+    color: #ecf0f1;
+    text-shadow: 0 1px 2px #000;
+}
+
+.ws-footer {
+    margin-top: 15px; padding-top: 10px; border-top: 1px dashed #636e72; text-align: right;
+}
+/* 💞 默契大挑战专用样式 */
+.tacit-q-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #ffefff;
+    position: relative;
+}
+.tacit-del-btn {
+    position: absolute; top: 10px; right: 10px;
+    color: #ff7675; cursor: pointer; font-weight: bold;
+}
+.tacit-input-row { margin-bottom: 8px; }
+.tacit-input {
+    width: 100%; padding: 8px; border: 1px solid #eee; 
+    border-radius: 6px; font-size: 0.9rem; background: #fdfdfd;
+}
+.tacit-opt-group {
+    display: flex; gap: 10px; align-items: center; margin-top: 5px;
+}
+.tacit-radio { transform: scale(1.2); accent-color: #d63031; }
+.tacit-card-status {
+    margin-top: 10px; padding: 8px; background: #fff0f6; 
+    border-radius: 6px; color: #d63031; font-size: 0.8rem; text-align: center;
+    cursor: pointer; border: 1px dashed #ffadd2;
+}
+.tacit-result-card {
+    background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 8px;
+    border-left: 4px solid #ccc;
+}
+.tacit-result-card.correct { border-left-color: #00b894; background: #f0fdf4; }
+.tacit-result-card.wrong { border-left-color: #ff7675; background: #fff5f5; }
+.tacit-res-header { font-weight: bold; margin-bottom: 5px; color: #2d3436; }
+.tacit-res-reason { font-size: 0.85rem; color: #636e72; margin-top: 8px; line-height: 1.5; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 4px;}
+.tacit-card-tag { font-size: 0.75rem; color: #a29bfe; margin-top: 5px; }
 </style>
 <script>
-// ==================== 🚑 RPG 游戏机终极修复补丁 (无限存储版) ====================
-
-// 1. 确保数据结构存在 (防止报错)
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
 if (!window.BIG_MEMORY.rpg_data) {
     window.BIG_MEMORY.rpg_data = { 
-        history: [],       // 故事集 (互动+对话)
-        chat_history: []   // 聊天气泡记录
+        history: [],       
+        chat_history: []   
     };
 }
-
-// 2. 修复：打开故事集面板
 window.toggleRpgHistory = function() {
     const panel = document.getElementById('rpg-history-panel');
     panel.classList.toggle('open');
     if(panel.classList.contains('open')) {
-        renderRpgHistory(); // 打开时立即刷新数据
+        renderRpgHistory(); 
     }
 };
 
-// 3. 修复：渲染故事集列表 (读取无限存储)
 window.renderRpgHistory = function() {
     const data = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     const con = document.getElementById('rpg-history-list');
     con.innerHTML = '';
     
     if(!data || data.length === 0) {
-        con.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">暂无故事<br>去和Ta对话或点击家具吧~</div>';
+        con.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">暂无日记<br>去和Ta对话或点击家具生成故事吧~</div>';
         return;
     }
 
     data.forEach((h, i) => {
         const div = document.createElement('div');
-        div.className = 'morandi-card';
-        div.style.padding = '12px'; 
-        div.style.marginBottom = '10px'; 
-        div.style.background = '#fff';
+        div.className = 'rpg-diary-entry'; 
+        const dateObj = new Date(h.date);
+        const dateStr = `${dateObj.getFullYear()}/${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+
         div.innerHTML = `
-            <div style="font-size:0.75rem; color:#888; border-bottom:1px dashed #eee; margin-bottom:6px; display:flex; justify-content:space-between;">
-                <span>${new Date(h.date).toLocaleString()}</span>
-                <strong style="color:#d35400;">${h.item || '事件'}</strong>
-            </div>
-            <div style="font-size:0.9rem; line-height:1.5; color:#333; white-space:pre-wrap;">${h.text}</div>
-            <div style="text-align:right; margin-top:8px;">
-                <button class="m-btn small" onclick="deleteRpgHistory(${i})" style="background:#ffcdd2; color:#c62828; font-size:0.7rem;">🗑️ 删除</button>
-            </div>
+            <div class="rpg-diary-date">${dateStr} · ${h.item || '随笔'}</div>
+            <div class="rpg-diary-text">${h.text}</div>
+            <div class="rpg-diary-del" onclick="deleteRpgHistory(${i})">撕掉这一页</div>
         `;
         con.appendChild(div);
     });
@@ -22188,5 +23972,789 @@ window.generateRpgStory = async function(item) {
         loadingDiv.innerHTML = `<span style="color:red">失败: ${e.message}</span>`;
     }
 };
+<script>
+/**
+ * =================================================================
+ * 🚀 RetroOS 终极系统补丁 (无限存储 + 女巫修复 + 全局兼容)
+ * =================================================================
+ */
 
+// 1. 强制初始化大容量内存结构 (防止报错)
+window.BIG_MEMORY = window.BIG_MEMORY || {};
+const REQUIRED_KEYS = [
+    'world_book', 'letters', 'finance', 'study', 'period', 'memo', 
+    'chat_settings', 'theme_fonts', 'api_profiles', 'thesaurus_data', 
+    'game_history', 'game_stats', 'tarot_history', 'his_phone_history', 
+    'dream_history', 'forum_data', 'pickup_data', 'diary_history', 
+    'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
+    'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
+    'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
+    'puzzle_data', 'work_data', 'witch_data' // 🔥 重点：确保女巫数据存在
+];
+
+// 2. 通用保存函数 (写入 IndexedDB 无限存储)
+window.saveToBigDB = function(key, data) {
+    // 更新内存
+    window.BIG_MEMORY[key] = data;
+    // 写入数据库
+    if (typeof idb !== 'undefined') {
+        // 兼容不同的 key 写法 (有些是 _data 结尾，有些不是，统一处理)
+        idb.put('universal_store', { id: key, data: data });
+    }
+};
+
+// 3. 全量数据加载器 (开机时把所有数据从数据库拉进内存)
+window.loadAllBigData = async function() {
+    console.log("🚀 [系统补丁] 正在启动无限容量引擎...");
+    
+    // 确保 idb 已连接
+    if (!idb.db) await idb.init();
+
+    for (let key of REQUIRED_KEYS) {
+        try {
+            let res = await idb.get('universal_store', key);
+            if (res) {
+                window.BIG_MEMORY[key] = res.data;
+            } else {
+                // 如果数据库没数据，尝试从 LocalStorage 迁移旧数据 (只做一次)
+                // 这是一个自动迁移机制，保护你的旧数据
+                const oldLocal = localStorage.getItem(key) || localStorage.getItem(key + '_list') || localStorage.getItem(key + '_data');
+                if (oldLocal) {
+                    try {
+                        const parsed = JSON.parse(oldLocal);
+                        window.BIG_MEMORY[key] = parsed;
+                        // 存入新库
+                        idb.put('universal_store', { id: key, data: parsed });
+                        console.log(`♻️ 已将 [${key}] 迁移至无限存储`);
+                    } catch(e) { window.BIG_MEMORY[key] = []; }
+                } else {
+                    // 默认初始化
+                    if (key === 'game_stats') window.BIG_MEMORY[key] = { mood: 50, love: 50 };
+                    else if (key.includes('settings') || key === 'theme_fonts') window.BIG_MEMORY[key] = {};
+                    else window.BIG_MEMORY[key] = []; 
+                }
+            }
+        } catch (e) {
+            console.error(`❌ 加载 ${key} 失败`, e);
+            window.BIG_MEMORY[key] = []; // 兜底防止白屏
+        }
+    }
+    
+    // 4. 数据加载完成后，刷新所有界面
+    refreshAllUI();
+    console.log("🎉 [系统补丁] 全系统数据加载完毕！");
+};
+
+// 辅助：刷新所有界面 UI
+function refreshAllUI() {
+    try {
+        if(typeof renderLetterList === 'function') renderLetterList();
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+        if(typeof updateGameStatsUI === 'function') updateGameStatsUI();
+        if(typeof renderWitchHistory === 'function') renderWitchHistory();
+        if(typeof updateSettingsUI === 'function') updateSettingsUI(); // 宠物
+        if(typeof renderStudyList === 'function' && window.BIG_MEMORY.study) renderStudyList(window.BIG_MEMORY.study);
+    } catch(e) { console.log("UI刷新轻微报错 (正常现象):", e); }
+}
+
+// ============================================================
+// 🧙‍♀️ 女巫 APP 专项修复 (解决点击保存无反应)
+// ============================================================
+
+// 1. 确保获取数据的函数是安全的
+window.getWitchData = function() { 
+    if (!window.BIG_MEMORY.witch_data || !Array.isArray(window.BIG_MEMORY.witch_data)) {
+        window.BIG_MEMORY.witch_data = [];
+    }
+    return window.BIG_MEMORY.witch_data; 
+};
+
+// 2. 重写保存函数 (增加错误提示和强制执行)
+window.manualSaveWitchGame = function() {
+    console.log("🔮 尝试保存女巫游戏...");
+    
+    // 检查游戏状态
+    if (!witchGameState || (!witchGameState.isPlaying && !witchGameState.charTrap)) {
+        return alert("⚠️ 游戏还没开始（或者数据未生成），无法保存！\n请先点击【🔮 抽牌注入灵魂】开始一局游戏。");
+    }
+
+    try {
+        const list = window.getWitchData(); 
+        
+        // 创建存档对象 (深度拷贝防止引用错误)
+        const historyItem = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            userPunish: document.getElementById('witch-user-punishment').value || "无惩罚",
+            winner: witchGameState.eatenCookies.includes(witchGameState.charTrap) ? 'User' : (witchGameState.eatenCookies.includes(witchGameState.myTrap) ? 'Char' : '进行中'),
+            state: JSON.parse(JSON.stringify(witchGameState)) 
+        };
+
+        // 存入头部
+        list.unshift(historyItem);
+        
+        // 强制保存到数据库
+        window.saveToBigDB('witch_data', list);
+        
+        alert("✅ 保存成功！\n已存入【历史对局】，你可以随时回看或重玩。");
+        
+        // 刷新列表
+        if(typeof renderWitchHistory === 'function') renderWitchHistory();
+
+    } catch (e) {
+        console.error(e);
+        alert("❌ 保存出错: " + e.message);
+    }
+};
+
+// 3. 重写历史记录渲染 (确保删除按钮有效)
+window.renderWitchHistory = function() {
+    const list = window.getWitchData();
+    const container = document.getElementById('witch-history-list');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无存档</div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.marginBottom = '10px'; div.style.padding = '15px';
+        div.style.background = '#2d3436'; 
+        div.style.border = '1px solid #6c5ce7';
+        div.style.color = '#dfe6e9';
+        
+        let statusText = item.winner === 'User' ? '🏆 你赢了' : (item.winner === 'Char' ? '💀 你输了' : '💾 存档点');
+
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:5px;">
+                <span>${item.date}</span>
+                <span style="color:#ff7675; cursor:pointer;" onclick="deleteWitchHistory(${index})">🗑️ 删除</span>
+            </div>
+            <div style="font-weight:bold; margin:5px 0; color:#a29bfe; font-size:1rem;">${statusText}</div>
+            <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">惩罚: ${item.userPunish}</div>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white; border:none;">🔄 重玩</button>
+                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#a29bfe; color:#2d3436; border:none;">📖 结局</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+window.deleteWitchHistory = function(index) {
+    if(!confirm("确定删除这条存档？")) return;
+    const list = window.getWitchData();
+    list.splice(index, 1);
+    window.saveToBigDB('witch_data', list);
+    window.renderWitchHistory();
+};
+
+// ============================================================
+// 🔄 全局功能重写 (将旧版 localStorage 替换为无限存储)
+// ============================================================
+
+// 1. 记账 (Finance)
+window.getFinanceData = function() { return window.BIG_MEMORY.finance || []; };
+window.addFinanceRecord = function(category, type) {
+    // ... (保留原逻辑，但改用 saveToBigDB)
+    const amountIn = document.getElementById('finance-amount');
+    const val = parseFloat(amountIn.value);
+    if (!val || val <= 0) return alert("请输入金额");
+    
+    // 简单获取描述
+    const desc = type==='expense'?'支出':'收入'; 
+    const record = { id: Date.now(), date: new Date().toISOString(), category, type, amount: val, desc };
+    
+    const data = window.getFinanceData();
+    data.unshift(record);
+    window.saveToBigDB('finance', data); // 保存
+    
+    amountIn.value = '';
+    if(typeof renderFinanceUI === 'function') renderFinanceUI();
+};
+window.deleteFinance = function(id) {
+    if(confirm("删除此账目？")) {
+        let data = window.getFinanceData();
+        data = data.filter(i => i.id !== id);
+        window.saveToBigDB('finance', data);
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+    }
+};
+
+// 2. 信件 (Letters)
+window.getLetters = function() { return window.BIG_MEMORY.letters || []; };
+window.saveLetters = function(data) { window.saveToBigDB('letters', data); };
+
+// 3. 学习计划 (Study)
+window.getStudyData = function() { return window.BIG_MEMORY.study; };
+window.saveStudyData = function(data) { window.saveToBigDB('study', data); };
+window.deleteStudyPlan = function() {
+    if(confirm("删除当前计划？")) {
+        window.saveToBigDB('study', null);
+        if(typeof renderStudyApp === 'function') renderStudyApp();
+    }
+};
+
+// 4. 经期 (Period)
+window.getPeriodData = function() { return window.BIG_MEMORY.period || {records:[], isBleeding:false}; };
+window.savePeriodData = function(data) { window.saveToBigDB('period', data); };
+
+// 5. 备忘录 (Memo)
+window.saveMemoToLocal = function() {
+    const text = document.getElementById('memo-full-text').value;
+    window.saveToBigDB('memo', text);
+    document.getElementById('desktop-memo-text').innerText = text || "点击编辑...";
+};
+window.loadMemoFromLocal = function() {
+    const text = window.BIG_MEMORY.memo || "";
+    if(document.getElementById('memo-full-text')) document.getElementById('memo-full-text').value = text;
+    if(document.getElementById('desktop-memo-text')) document.getElementById('desktop-memo-text').innerText = text || "点击编辑...";
+};
+
+// 6. 游戏机状态 (Game Stats)
+window.updateGameStatsUI = function() {
+    // 简单的更新 UI 逻辑
+    const mood = window.gameState ? window.gameState.mood : 50;
+    const love = window.gameState ? window.gameState.love : 50;
+    if(document.getElementById('bar-mood')) {
+        document.getElementById('bar-mood').style.width = mood + '%';
+        document.getElementById('val-mood').innerText = mood;
+        document.getElementById('bar-love').style.width = love + '%';
+        document.getElementById('val-love').innerText = love;
+    }
+    window.saveToBigDB('game_stats', { mood, love });
+};
+
+// ============================================================
+// 🏁 强制启动逻辑 (覆盖原有的 window.onload)
+// ============================================================
+window.addEventListener('load', function() {
+    console.log("⚡ [补丁] 页面加载完成，初始化系统...");
+    
+    // 延迟一点点，确保 IDB 库已加载
+    setTimeout(() => {
+        idb.init().then(async () => {
+            await window.loadAllBigData();
+            
+            // 额外的初始化
+            if(typeof loadTVContent === 'function') loadTVContent();
+            if(typeof loadMemoFromLocal === 'function') loadMemoFromLocal();
+            
+            // 绑定女巫的保存按钮 (防止 onclick 在 HTML 中失效)
+            const witchSaveBtn = document.querySelector('#witch-log-panel button[onclick="manualSaveWitchGame()"]');
+            if(witchSaveBtn) {
+                witchSaveBtn.onclick = function() { window.manualSaveWitchGame(); };
+            }
+            
+            console.log("✅ [补丁] 系统就绪，所有功能已切换至无限存储。");
+        });
+    }, 500);
+});
+
+</script>
+<script>
+/**
+ * =================================================================
+ * 🚀 RetroOS 终极系统补丁 (无限存储 + 女巫修复 + 全局兼容)
+ * =================================================================
+ */
+
+// 1. 强制初始化大容量内存结构 (防止报错)
+window.BIG_MEMORY = window.BIG_MEMORY || {};
+const REQUIRED_KEYS = [
+    'world_book', 'letters', 'finance', 'study', 'period', 'memo', 
+    'chat_settings', 'theme_fonts', 'api_profiles', 'thesaurus_data', 
+    'game_history', 'game_stats', 'tarot_history', 'his_phone_history', 
+    'dream_history', 'forum_data', 'pickup_data', 'diary_history', 
+    'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
+    'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
+    'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
+    'puzzle_data', 'work_data', 'witch_data', 'tacit_data' // ✅ 已添加 tacit_data
+];
+
+// 2. 通用保存函数 (写入 IndexedDB 无限存储)
+window.saveToBigDB = function(key, data) {
+    // 更新内存
+    window.BIG_MEMORY[key] = data;
+    // 写入数据库
+    if (typeof idb !== 'undefined') {
+        // 兼容不同的 key 写法 (有些是 _data 结尾，有些不是，统一处理)
+        idb.put('universal_store', { id: key, data: data });
+    }
+};
+
+// 3. 全量数据加载器 (开机时把所有数据从数据库拉进内存)
+window.loadAllBigData = async function() {
+    console.log("🚀 [系统补丁] 正在启动无限容量引擎...");
+    
+    // 确保 idb 已连接
+    if (!idb.db) await idb.init();
+
+    for (let key of REQUIRED_KEYS) {
+        try {
+            let res = await idb.get('universal_store', key);
+            if (res) {
+                window.BIG_MEMORY[key] = res.data;
+            } else {
+                // 如果数据库没数据，尝试从 LocalStorage 迁移旧数据 (只做一次)
+                // 这是一个自动迁移机制，保护你的旧数据
+                const oldLocal = localStorage.getItem(key) || localStorage.getItem(key + '_list') || localStorage.getItem(key + '_data');
+                if (oldLocal) {
+                    try {
+                        const parsed = JSON.parse(oldLocal);
+                        window.BIG_MEMORY[key] = parsed;
+                        // 存入新库
+                        idb.put('universal_store', { id: key, data: parsed });
+                        console.log(`♻️ 已将 [${key}] 迁移至无限存储`);
+                    } catch(e) { window.BIG_MEMORY[key] = []; }
+                } else {
+                    // 默认初始化
+                    if (key === 'game_stats') window.BIG_MEMORY[key] = { mood: 50, love: 50 };
+                    else if (key.includes('settings') || key === 'theme_fonts') window.BIG_MEMORY[key] = {};
+                    else window.BIG_MEMORY[key] = []; 
+                }
+            }
+        } catch (e) {
+            console.error(`❌ 加载 ${key} 失败`, e);
+            window.BIG_MEMORY[key] = []; // 兜底防止白屏
+        }
+    }
+    
+    // 4. 数据加载完成后，刷新所有界面
+    refreshAllUI();
+    console.log("🎉 [系统补丁] 全系统数据加载完毕！");
+};
+
+// 辅助：刷新所有界面 UI
+function refreshAllUI() {
+    try {
+        if(typeof renderLetterList === 'function') renderLetterList();
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+        if(typeof updateGameStatsUI === 'function') updateGameStatsUI();
+        if(typeof renderWitchHistory === 'function') renderWitchHistory();
+        if(typeof updateSettingsUI === 'function') updateSettingsUI(); // 宠物
+        if(typeof renderStudyList === 'function' && window.BIG_MEMORY.study) renderStudyList(window.BIG_MEMORY.study);
+    } catch(e) { console.log("UI刷新轻微报错 (正常现象):", e); }
+}
+
+// ============================================================
+// 🧙‍♀️ 女巫 APP 专项修复 (解决点击保存无反应)
+// ============================================================
+
+// 1. 确保获取数据的函数是安全的
+window.getWitchData = function() { 
+    if (!window.BIG_MEMORY.witch_data || !Array.isArray(window.BIG_MEMORY.witch_data)) {
+        window.BIG_MEMORY.witch_data = [];
+    }
+    return window.BIG_MEMORY.witch_data; 
+};
+
+// 2. 重写保存函数 (增加错误提示和强制执行)
+window.manualSaveWitchGame = function() {
+    console.log("🔮 尝试保存女巫游戏...");
+    
+    // 检查游戏状态
+    if (!witchGameState || (!witchGameState.isPlaying && !witchGameState.charTrap)) {
+        return alert("⚠️ 游戏还没开始（或者数据未生成），无法保存！\n请先点击【🔮 抽牌注入灵魂】开始一局游戏。");
+    }
+
+    try {
+        const list = window.getWitchData(); 
+        
+        // 创建存档对象 (深度拷贝防止引用错误)
+        const historyItem = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            userPunish: document.getElementById('witch-user-punishment').value || "无惩罚",
+            winner: witchGameState.eatenCookies.includes(witchGameState.charTrap) ? 'User' : (witchGameState.eatenCookies.includes(witchGameState.myTrap) ? 'Char' : '进行中'),
+            state: JSON.parse(JSON.stringify(witchGameState)) 
+        };
+
+        // 存入头部
+        list.unshift(historyItem);
+        
+        // 强制保存到数据库
+        window.saveToBigDB('witch_data', list);
+        
+        alert("✅ 保存成功！\n已存入【历史对局】，你可以随时回看或重玩。");
+        
+        // 刷新列表
+        if(typeof renderWitchHistory === 'function') renderWitchHistory();
+
+    } catch (e) {
+        console.error(e);
+        alert("❌ 保存出错: " + e.message);
+    }
+};
+
+// 3. 重写历史记录渲染 (确保删除按钮有效)
+window.renderWitchHistory = function() {
+    const list = window.getWitchData();
+    const container = document.getElementById('witch-history-list');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无存档</div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.marginBottom = '10px'; div.style.padding = '15px';
+        div.style.background = '#2d3436'; 
+        div.style.border = '1px solid #6c5ce7';
+        div.style.color = '#dfe6e9';
+        
+        let statusText = item.winner === 'User' ? '🏆 你赢了' : (item.winner === 'Char' ? '💀 你输了' : '💾 存档点');
+
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:5px;">
+                <span>${item.date}</span>
+                <span style="color:#ff7675; cursor:pointer;" onclick="deleteWitchHistory(${index})">🗑️ 删除</span>
+            </div>
+            <div style="font-weight:bold; margin:5px 0; color:#a29bfe; font-size:1rem;">${statusText}</div>
+            <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">惩罚: ${item.userPunish}</div>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white; border:none;">🔄 重玩</button>
+                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#a29bfe; color:#2d3436; border:none;">📖 结局</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+window.deleteWitchHistory = function(index) {
+    if(!confirm("确定删除这条存档？")) return;
+    const list = window.getWitchData();
+    list.splice(index, 1);
+    window.saveToBigDB('witch_data', list);
+    window.renderWitchHistory();
+};
+
+// ============================================================
+// 🔄 全局功能重写 (将旧版 localStorage 替换为无限存储)
+// ============================================================
+
+// 1. 记账 (Finance)
+window.getFinanceData = function() { return window.BIG_MEMORY.finance || []; };
+window.addFinanceRecord = function(category, type) {
+    // ... (保留原逻辑，但改用 saveToBigDB)
+    const amountIn = document.getElementById('finance-amount');
+    const val = parseFloat(amountIn.value);
+    if (!val || val <= 0) return alert("请输入金额");
+    
+    // 简单获取描述
+    const desc = type==='expense'?'支出':'收入'; 
+    const record = { id: Date.now(), date: new Date().toISOString(), category, type, amount: val, desc };
+    
+    const data = window.getFinanceData();
+    data.unshift(record);
+    window.saveToBigDB('finance', data); // 保存
+    
+    amountIn.value = '';
+    if(typeof renderFinanceUI === 'function') renderFinanceUI();
+};
+window.deleteFinance = function(id) {
+    if(confirm("删除此账目？")) {
+        let data = window.getFinanceData();
+        data = data.filter(i => i.id !== id);
+        window.saveToBigDB('finance', data);
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+    }
+};
+
+// 2. 信件 (Letters)
+window.getLetters = function() { return window.BIG_MEMORY.letters || []; };
+window.saveLetters = function(data) { window.saveToBigDB('letters', data); };
+
+// 3. 学习计划 (Study)
+window.getStudyData = function() { return window.BIG_MEMORY.study; };
+window.saveStudyData = function(data) { window.saveToBigDB('study', data); };
+window.deleteStudyPlan = function() {
+    if(confirm("删除当前计划？")) {
+        window.saveToBigDB('study', null);
+        if(typeof renderStudyApp === 'function') renderStudyApp();
+    }
+};
+
+// 4. 经期 (Period)
+window.getPeriodData = function() { return window.BIG_MEMORY.period || {records:[], isBleeding:false}; };
+window.savePeriodData = function(data) { window.saveToBigDB('period', data); };
+
+// 5. 备忘录 (Memo)
+window.saveMemoToLocal = function() {
+    const text = document.getElementById('memo-full-text').value;
+    window.saveToBigDB('memo', text);
+    document.getElementById('desktop-memo-text').innerText = text || "点击编辑...";
+};
+window.loadMemoFromLocal = function() {
+    const text = window.BIG_MEMORY.memo || "";
+    if(document.getElementById('memo-full-text')) document.getElementById('memo-full-text').value = text;
+    if(document.getElementById('desktop-memo-text')) document.getElementById('desktop-memo-text').innerText = text || "点击编辑...";
+};
+
+// 6. 游戏机状态 (Game Stats)
+window.updateGameStatsUI = function() {
+    // 简单的更新 UI 逻辑
+    const mood = window.gameState ? window.gameState.mood : 50;
+    const love = window.gameState ? window.gameState.love : 50;
+    if(document.getElementById('bar-mood')) {
+        document.getElementById('bar-mood').style.width = mood + '%';
+        document.getElementById('val-mood').innerText = mood;
+        document.getElementById('bar-love').style.width = love + '%';
+        document.getElementById('val-love').innerText = love;
+    }
+    window.saveToBigDB('game_stats', { mood, love });
+};
+
+// ============================================================
+// 🏁 强制启动逻辑 (覆盖原有的 window.onload)
+// ============================================================
+window.addEventListener('load', function() {
+    console.log("⚡ [补丁] 页面加载完成，初始化系统...");
+    
+    // 延迟一点点，确保 IDB 库已加载
+    setTimeout(() => {
+        idb.init().then(async () => {
+            await window.loadAllBigData();
+            
+            // 额外的初始化
+            if(typeof loadTVContent === 'function') loadTVContent();
+            if(typeof loadMemoFromLocal === 'function') loadMemoFromLocal();
+            
+            // 绑定女巫的保存按钮 (防止 onclick 在 HTML 中失效)
+            const witchSaveBtn = document.querySelector('#witch-log-panel button[onclick="manualSaveWitchGame()"]');
+            if(witchSaveBtn) {
+                witchSaveBtn.onclick = function() { window.manualSaveWitchGame(); };
+            }
+            
+            console.log("✅ [补丁] 系统就绪，所有功能已切换至无限存储。");
+        });
+    }, 500);
+});
+
+</script>
+<script>
+// ============================================================
+// 🧙‍♀️ 女巫 APP 修改补丁：将饼干数量改为 19 块
+// ============================================================
+
+// 1. 修改棋盘初始化逻辑 (生成 19 个饼干)
+window.initWitchBoard = function(mode = 'new', data = null) {
+    const grid = document.getElementById('witch-board-container');
+    if(!grid) return;
+    grid.innerHTML = '';
+    
+    // --- 模式 A: 新游戏 ---
+    if (mode === 'new') {
+        witchGameState = {
+            myTrap: -1, charTrap: -1, charPunishment: "",
+            charMoves: [], reactions: {}, stories: null,
+            eatenCookies: [], isMyTurn: true, isPlaying: false, history: []
+        };
+        document.getElementById('witch-setup-panel').style.display = 'block';
+        document.getElementById('btn-witch-start').style.display = 'block';
+        document.getElementById('witch-log-panel').style.display = 'none';
+        
+        const punishInput = document.getElementById('witch-user-punishment');
+        if(punishInput) punishInput.value = "";
+        const trapDisplay = document.getElementById('witch-trap-display');
+        if(trapDisplay) trapDisplay.innerText = "未选择";
+    }
+    // --- 模式 B: 历史回放 ---
+    else if (mode === 'replay') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.isPlaying = false;
+        
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "📚 历史回放模式";
+    }
+    // --- 模式 C: 重新挑战 ---
+    else if (mode === 'retry') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        witchGameState.eatenCookies = []; 
+        witchGameState.isPlaying = true;
+        witchGameState.isMyTurn = true;
+        
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-reaction-text').innerText = "🔄 重新挑战：请开始...";
+    }
+
+    // 🔥🔥🔥 修改点：循环次数改为 19 🔥🔥🔥
+    for (let i = 0; i < 19; i++) {
+        const btn = document.createElement('div');
+        btn.className = 'cookie-btn';
+        btn.id = `cookie-${i}`;
+        
+        if (mode === 'replay') {
+            if (witchGameState.eatenCookies.includes(i)) {
+                btn.classList.add('eaten');
+                btn.innerText = '';
+                if (i === witchGameState.myTrap) { btn.innerText = '😈'; btn.style.background = '#00cec9'; }
+                if (i === witchGameState.charTrap) { btn.innerText = '💀'; btn.style.background = '#d63031'; }
+            } else {
+                btn.innerText = '🐻';
+            }
+        } 
+        else if (mode === 'retry') {
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+            if (i === witchGameState.myTrap) btn.style.border = "2px solid #00cec9"; 
+        }
+        else {
+            btn.innerText = '🐻';
+            btn.onclick = () => handleCookieClick(i);
+        }
+        grid.appendChild(btn);
+    }
+};
+
+// ============================================================
+// 🧙‍♀️ 女巫 APP 修复：保留原版高质量 Prompt (19块饼干版)
+// ============================================================
+
+window.finishWitchDraw = async function() {
+    if(witchFlipped.length === 0) return alert("请至少抽一张牌！");
+
+    const btn = document.querySelector('#witch-card-table-modal .primary');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "🔮 正在编织 19 块饼干的命运...";
+
+    // 准备数据
+    const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const userPunish = document.getElementById('witch-user-punishment').value;
+    const userTrapIdx = witchGameState.myTrap;
+
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+    if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
+
+    // 🔥🔥🔥 核心修改：使用原版详细 Prompt，仅修改数字范围 (0-18) 🔥🔥🔥
+    const prompt = `
+你是一个擅长写“惩罚游戏”剧情的小说家。
+【游戏规则】：用户(我)和角色(Ta)玩吃饼干，桌上共有 19 块饼干。吃到陷阱的人接受惩罚。
+【世界观】：${globalCtx}
+【命运牌 (决定惩罚的尺度和氛围)】：${cardsDesc}
+【用户设定的惩罚 (如果角色输了)】：${userPunish}
+【用户陷阱位置】：#${userTrapIdx} (0-18)
+
+【⚡️ 核心原则】：
+**所有生成的内容（陷阱选择、反应台词、故事走向）必须严格遵守抽到的【命运牌】的牌意（牌面的能量波动）。**
+例如：牌意是“欺骗/隐瞒”，角色可能会假装没事；牌意是“冲动/热情”，角色可能会挑衅。
+
+【任务要求】
+请生成以下内容：
+1. **角色的陷阱**：(0-18，不能是 #${userTrapIdx})。
+2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字）。
+3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意（有的紧张，有的得意，有的平淡）。
+4. **两篇长篇小故事**：
+   - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚。**字数不少于 300 字**。
+   - **Story B (角色输)**：用户获胜。描写角色吃到陷阱后的反应。**字数不少于 300 字**。
+
+【输出格式】
+严格 JSON：
+{
+  "char_trap_index": 5,
+  "char_move_priority": [0, 1, 2, ...],
+  "user_lose_story": "长篇故事：用户输了被惩罚...",
+  "char_lose_story": "长篇故事：角色输了接受惩罚...",
+  "reactions": { 
+      "safe": ["台词1", "台词2", "台词3", "台词4", "台词5", ...], 
+      "win": "哈，你输了！", 
+      "lose": "唔...被发现了..." 
+  }
+}
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.85 
+            })
+        });
+        const json = await res.json();
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+        if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+        
+        const result = JSON.parse(raw);
+
+        witchGameState.charTrap = result.char_trap_index;
+        // 过滤掉越界的数字 (只保留 0-18)
+        witchGameState.charMoves = result.char_move_priority.filter(n => n >= 0 && n <= 18);
+        
+        if (!Array.isArray(result.reactions.safe)) result.reactions.safe = [result.reactions.safe];
+        witchGameState.reactions = result.reactions;
+        
+        witchGameState.stories = {
+            user_lose: result.user_lose_story,
+            char_lose: result.char_lose_story
+        };
+
+        witchGameState.isPlaying = true;
+        witchGameState.isMyTurn = true;
+        
+        // 界面切换
+        document.getElementById('witch-card-table-modal').style.display = 'none';
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        
+        document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
+        
+        addWitchLog(`🎮 游戏开始！共 19 块饼干...`);
+        addWitchLog(`🔮 命运牌意已注入，若你输了将触发长篇剧情...`);
+        document.getElementById('witch-reaction-text').innerText = "请先吃一块饼干...";
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+// 3. 修改 NPC 自动行动逻辑 (兜底范围改为 19)
+window.charAutoTurn = function() {
+    let pick = -1;
+    // 先尝试从 AI 生成的列表里找
+    for (let idx of witchGameState.charMoves) {
+        if (!witchGameState.eatenCookies.includes(idx)) {
+            pick = idx;
+            break;
+        }
+    }
+    // 兜底：如果列表里的都没了，随便找一个没吃的 (范围 0-18)
+    if (pick === -1) {
+        // 🔥🔥🔥 修改点：循环小于 19 🔥🔥🔥
+        for (let i=0; i<19; i++) {
+            if (!witchGameState.eatenCookies.includes(i)) { pick = i; break; }
+        }
+    }
+    
+    if (pick !== -1) {
+        processTurn(pick, 'char');
+    }
+};
+</script>
 </html> 
