@@ -10268,35 +10268,40 @@ async function applyAllThemeSettings() {
 
         // B. 🌸 香片专用牌背 (这里是修复重点！)
         // 作用于 .scent-chip.closed (12个未翻开的香片)
+                        // B. 🌸 香片专用牌背 (终极修正：解决翻开变白问题)
         if(images.scent_back) {
             cssRules += `
-                /* 1. 修复：12个香片未翻开时的背面 */
+                /* 1. 12宫格界面：未翻开的香片背面 */
                 .scent-chip.closed {
-                    background: url('${images.scent_back}') !important;
+                    background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
                     background-position: center !important;
                     background-repeat: no-repeat !important;
                     border: none !important; 
                     box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
                 }
-                /* 隐藏香片背面原本的 "No. X" 文字的小白框，只显示数字 */
+                /* 隐藏原本的文字 */
                 .scent-chip.closed::after {
-                    background: rgba(255,255,255,0.7) !important;
-                    color: #333 !important;
-                    border: none !important;
-                    box-shadow: none !important;
+                    opacity: 0 !important;
                 }
 
-                /* 2. 同时应用到香片抽牌桌的卡牌 (保持一致性) */
-                #scent-card-area .playing-card, 
-                #scent-card-area .playing-card-front { 
+                /* 2. 抽牌桌：牌的背面 (未翻开时) */
+                #scent-card-area .playing-card { 
                     background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
                     background-repeat: no-repeat !important;
                 }
+
+                /* 3. 【核心修复】抽牌桌：牌的正面 (翻开后) */
+                /* 这里的修改：删除了 background-image 的规则 */
+                /* 只保留 background-color: #fff，用来遮挡住背面的图 */
+                /* 这样 JS 设置的塔罗牌图片(inline style) 就会生效了 */
+                #scent-card-area .playing-card .playing-card-front {
+                    background-color: #fff !important; 
+                    /* 不要在这里写 background-image !important，否则会把塔罗牌顶掉 */
+                }
             `;
         }
-
         // C. 牌桌背景
         if(images.tarot_table) {
             const tables = [
@@ -12853,98 +12858,85 @@ setTimeout(() => {
     const page4El = document.getElementById('page4');
     if (page4El) page4Observer.observe(page4El);
 }, 1000);
-// === 🚀 终极无限存储加载器 ===
-// === 🚀 终极无限存储加载器 (全量安全整合版) ===
-// 包含：所有原有APP + 补丁APP (香片/拼图/工作/学习总结) + 新增女巫
+// === 🚀 终极无限存储加载器 (全量修正版) ===
 async function loadAllBigData() {
     console.log("🚀 正在启动无限容量引擎 (全量整合版)...");
     
-    // 1. 定义所有需要无限存储的 Key (这里包含了您文件里所有的应用)
+    // 1. 定义所有需要无限存储的 Key (包含了香片、日记、女巫等所有数据)
     const keys = [
         // --- 基础核心 ---
         'world_book', 'letters', 'finance', 
         'study', 'period', 'memo', 
-        'chat_settings', 'chat_history',
-        'theme_fonts', 'api_profiles',
-        'thesaurus_data', 
+        'chat_settings', 'theme_fonts', 'api_profiles', 'thesaurus_data', 
         
         // --- 早期应用 ---
         'game_history', 'game_stats', 
         'tarot_history', 'his_phone_history', 'dream_history', 
-        'forum_history', 'pickup_history', 'diary_history', 
+        'forum_data', 'pickup_data', 'diary_history', 
         'pet_data', 'lofter_data', 'pain_data', 
         'gashapon_history', 'shadow_data', 'rpg_data',
         
-        // --- 中期应用 (搬家/教导/陪伴/学习总结) ---
-        { dbKey: 'moving_data', def: { history: [], current_session: null } },
-        { dbKey: 'teaching_data', def: [] },
-        { dbKey: 'companion_data', def: { config:{}, history:[] } },
-        { dbKey: 'summary_data', def: [] },
+        // --- 中期应用 ---
+        'moving_data', 'teaching_data', 'companion_data', 'summary_data',
 
-        // --- 后期补丁应用 (旮旯/香片/拼图/工作) ---
-        { dbKey: 'galgame_data', def: { current: null, archives: [] } },
-        { dbKey: 'scent_data', def: [] },
-        { dbKey: 'puzzle_data', def: { history: [] } },
-        { dbKey: 'work_data', def: [] },
-
-        // 🔥🔥🔥 新增：女巫数据 🔥🔥🔥
-        { dbKey: 'witch_data', def: [] }
+        // --- 后期补丁应用 (必须包含这些！) ---
+        'galgame_data', 
+        'scent_data',   // 🌸 香片数据
+        'puzzle_data', 
+        'work_data', 
+        'witch_data',   // 🧙‍♀️ 女巫数据
+        'tacit_data'    // 💞 默契挑战
     ];
 
     // 2. 确保内存对象存在
     if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
 
     // 3. 遍历加载所有数据
-    for (let item of keys) {
-        let keyName = "";
-        let defaultValue = [];
-
-        // 处理简写格式和详细格式
-        if (typeof item === 'string') {
-            keyName = item;
-            // 为特定 Key 设置默认结构，防止报错
-            if (keyName === 'game_stats') defaultValue = { mood: 50, love: 50 };
-            else if (keyName === 'pet_data') defaultValue = { config: {}, stats: {}, inventory: { coins: 0, items: {} }, history: [] };
-            else if (keyName.includes('settings')) defaultValue = {};
-            else if (keyName === 'theme_fonts') defaultValue = {};
-            else defaultValue = [];
-        } else {
-            keyName = item.dbKey;
-            defaultValue = item.def;
-        }
-
+    for (let keyName of keys) {
         try {
-            // 从 IndexedDB 读取
+            // 从 IndexedDB (无限存储) 读取
             let res = await idb.get('universal_store', keyName);
+            
             if (res) {
                 window.BIG_MEMORY[keyName] = res.data;
             } else {
-                window.BIG_MEMORY[keyName] = defaultValue;
+                // 如果数据库没数据，尝试从 LocalStorage 迁移旧数据 (只做一次)
+                // 这是一个保护机制，防止你以前存的数据丢失
+                const oldLocal = localStorage.getItem(keyName) || localStorage.getItem(keyName + '_data');
+                if (oldLocal) {
+                    try {
+                        const parsed = JSON.parse(oldLocal);
+                        window.BIG_MEMORY[keyName] = parsed;
+                        // 存入新库
+                        idb.put('universal_store', { id: keyName, data: parsed });
+                        console.log(`♻️ 已将 [${keyName}] 迁移至无限存储`);
+                    } catch(e) { window.BIG_MEMORY[keyName] = []; }
+                } else {
+                    // 默认初始化为空数组或对象
+                    if (keyName === 'game_stats') window.BIG_MEMORY[keyName] = { mood: 50, love: 50 };
+                    else if (keyName.includes('settings') || keyName === 'theme_fonts') window.BIG_MEMORY[keyName] = {};
+                    else window.BIG_MEMORY[keyName] = []; 
+                }
             }
         } catch (e) { 
             console.error(`❌ 加载 ${keyName} 失败`, e); 
-            window.BIG_MEMORY[keyName] = defaultValue; // 出错时使用默认值，防止白屏
+            window.BIG_MEMORY[keyName] = []; // 出错时使用空数组，防止白屏
         }
     }
     
-    // 4. 执行旧数据迁移（保护老用户数据）
-    if (typeof migrateAllRestrictedData === 'function') {
-        migrateAllRestrictedData();
-    }
-
-    // 5. 刷新所有可见的 UI (确保加载后立即显示)
+    // 4. 刷新所有可见的 UI (确保加载后立即显示)
     try {
         if(typeof renderLetterList === 'function') renderLetterList();
         if(typeof renderFinanceUI === 'function') renderFinanceUI();
         if(typeof updateGameStatsUI === 'function') updateGameStatsUI();
-        if(typeof renderWitchHistory === 'function') renderWitchHistory(); // 刷新女巫
-        if(typeof renderWorkHistory === 'function') renderWorkHistory();   // 刷新工作日报
-        if(typeof renderPuzzleHistory === 'function') renderPuzzleHistory(); // 刷新拼图
+        if(typeof renderWitchHistory === 'function') renderWitchHistory(); 
+        if(typeof renderScentHistory === 'function') renderScentHistory(); // 🌸 刷新香片历史
+        if(typeof renderPetDiaryList === 'function') renderPetDiaryList();
     } catch(e) {
         console.log("UI刷新轻微报错，不影响数据:", e);
     }
     
-    console.log("🎉 全系统数据加载完毕，所有功能已就绪。");
+    console.log("🎉 全系统数据加载完毕，无限存储已激活。");
 }
 window.getWBData = function() { return window.BIG_MEMORY.world_book || {}; };
 window.saveWBData = function(data) { saveToBigDB('world_book', data); };
@@ -23828,6 +23820,45 @@ body, #screen {
 .tacit-res-header { font-weight: bold; margin-bottom: 5px; color: #2d3436; }
 .tacit-res-reason { font-size: 0.85rem; color: #636e72; margin-top: 8px; line-height: 1.5; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 4px;}
 .tacit-card-tag { font-size: 0.75rem; color: #a29bfe; margin-top: 5px; }
+/* === 修复补丁：香片详情页滑动 === */
+#scent-detail-modal .morandi-card {
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh !important; /* 限制弹窗最大高度 */
+}
+#scent-detail-modal .morandi-card > div:last-child {
+    overflow-y: auto !important; /* 允许内容区域垂直滚动 */
+    flex: 1; /* 占满剩余空间 */
+    -webkit-overflow-scrolling: touch; /* iOS 丝滑滚动 */
+}
+
+/* === 修复补丁：日记页滑动 === */
+.diary-page {
+    overflow-y: auto !important; /* 强制开启垂直滚动 */
+    -webkit-overflow-scrolling: touch !important; /* iOS 优化 */
+    touch-action: pan-y !important; /* 允许手指垂直拖动 */
+    height: 100% !important; /* 确保占满高度 */
+    padding-bottom: 100px !important; /* 底部留白，防止被按钮遮挡 */
+}
+
+/* 修复日记本容器的高度，防止被卡住 */
+.diary-book-container {
+    height: 80vh !important; /* 增加高度 */
+    overflow: hidden; /* 防止外层滚动条冲突 */
+}
+
+/* 手机端特别优化 */
+@media (max-width: 600px) {
+    .diary-book-container {
+        height: 90vh !important;
+        overflow-y: auto !important; /* 手机端允许整本书滚动 */
+    }
+    .diary-page {
+        height: auto !important; /* 手机端让内容自然撑开 */
+        min-height: 500px;
+        overflow-y: visible !important; /* 内部不再滚动，由外层滚 */
+    }
+}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -24858,11 +24889,11 @@ window.finishScentDraw = async function() {
 【命运牌】：${cardsDesc}
 
 【任务】
-请为【同一个角色】生成 **8 支不同的香水**（香片）。(减少到8个以防截断)
-代表 Ta 在不同时期、不同心境使用的香。结合牌意。
+请为【同一个角色】生成 **12 支不同的香水**（香片）。
+代表 Ta 在不同时期、不同心境使用的香。结合牌意。（小故事也要因为牌意生成。
 
 【输出格式】
-**严格输出 JSON 数组**，包含 8 个对象。不要 Markdown。
+**严格输出 JSON 数组**，包含 12 个对象。不要 Markdown。
 [
   { "name": "...", "notes": "...", "review": "...", "story": "..." },
   ...
@@ -24877,7 +24908,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-                max_tokens: 3500 // 🔴 增大 Token 限制
+                max_tokens: 150000 // 🔴 增大 Token 限制
             })
         });
         const json = await res.json();
