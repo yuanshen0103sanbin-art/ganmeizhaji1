@@ -3100,10 +3100,11 @@ canvas {
             
             <div class="page" id="page2">
 <div class="page-2-grid">
-    <div class="fridge-item-large" onclick="openFridgeApp()" style="grid-row: span 2;">
-        <div class="fridge-handle"></div>
-        <div class="fridge-sticker"></div>
-    </div>
+    <!-- 给冰箱增加 id="fridge-widget" -->
+<div class="fridge-item-large" id="fridge-widget" onclick="openFridgeApp()" style="grid-row: span 2;">
+    <div class="fridge-handle"></div>
+    <div class="fridge-sticker"></div>
+</div>
 <div class="app-item" onclick="openStudyApp()">
         <div class="app-icon" style="background:#546e7a; color:#fff; font-size:1.6rem; border:2px solid #cfd8dc; box-shadow:0 2px 5px rgba(0,0,0,0.2);">📅</div>
         <span class="app-name">学习计划</span>
@@ -3158,7 +3159,8 @@ canvas {
     <div class="gc-dpad"></div>
     <div class="gc-screen-area">
         <div class="gc-scanline"></div>
-        <img id="widget-game-bg-p3" class="gc-screen-img" src="" style="display:none"> 
+        <!-- 👇 修改了这里的 ID 为 p2 -->
+        <img id="widget-game-bg-p2" class="gc-screen-img" src="" style="display:none"> 
         <div class="tv-placeholder" style="color:#fff; text-shadow:0 0 5px #0f0;">PRESS START</div>
     </div>
     <div class="gc-btns"><div class="gc-btn"></div><div class="gc-btn"></div></div>
@@ -10106,12 +10108,12 @@ async function deleteStamp(index) {
     await idb.put('settings_heavy', { key: 'reply_stamps', data: stamps.data });
     renderStampList();
 }
-// === 🎨 终极美化应用函数 (修复字体/背景/外壳/牌背) ===
+// === 🎨 终极美化应用函数 (修复版) ===
 async function applyAllThemeSettings() {
     try {
         console.log("🎨 正在应用全系统美化...");
         
-        // 1. 应用 APP 图标 (保持原逻辑)
+        // 1. 应用 APP 图标
         if (typeof APP_MAP !== 'undefined') {
             for (let app of APP_MAP) {
                 try {
@@ -10134,14 +10136,14 @@ async function applyAllThemeSettings() {
             }
         }
 
-        // 2. 读取图片资源 (新增了 shell_tv, shell_console_p2, shell_console_p3, scent_back)
+        // 2. 读取所有图片资源
         const imgKeys = [
             'main_bg', 'fridge_cover', 'news_cover', 'memo_cover', 
             'tarot_back', 'tarot_table', 'letter_paper', 
             'game_bg', 'game_char_half', 'game_user_half',
             'diary_widget_bg', 'diary_photo', 'lofter_cover',
-            'scent_back', // 香片牌背
-            'shell_tv', 'shell_console_p2', 'shell_console_p3', // 新增的外壳
+            'scent_back', 'game_cover_p2', // 确保包含这些 key
+            'shell_tv', 'shell_console_p2', 'shell_console_p3',
             'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle'
         ];
 
@@ -10153,38 +10155,41 @@ async function applyAllThemeSettings() {
             } catch(e) {}
         }
 
-        // 3. 应用外壳与封面 (新增逻辑)
+        // 3. 应用组件外观
         
         // 📺 电视外壳
         if(images.shell_tv) {
             const tv = document.getElementById('tv-shell-case');
             if(tv) {
                 tv.style.backgroundImage = `url(${images.shell_tv})`;
-                tv.style.backgroundSize = '100% 100%'; // 强制拉伸适应
-                tv.style.border = 'none'; // 去除原有的边框
-                tv.style.backgroundColor = 'transparent'; // 去除原有的木纹色
+                tv.style.backgroundSize = '100% 100%';
+                tv.style.border = 'none';
+                tv.style.backgroundColor = 'transparent';
             }
         }
 
-        // 🎮 游戏机 P2 外壳
-        if(images.shell_console_p2) {
-            const gp2 = document.getElementById('console-widget-p2');
-            if(gp2) {
-                gp2.style.backgroundImage = `url(${images.shell_console_p2})`;
-                gp2.style.backgroundSize = '100% 100%';
-                gp2.style.border = 'none';
-                gp2.style.backgroundColor = 'transparent';
+        // ❄️ 冰箱封面 (修复)
+        if(images.fridge_cover) {
+            const fridge = document.getElementById('fridge-widget');
+            if(fridge) {
+                fridge.style.backgroundImage = `url(${images.fridge_cover})`;
+                fridge.style.backgroundSize = 'cover';
+                fridge.style.backgroundPosition = 'center';
+                // 隐藏原本的装饰线，保留把手
+                const sticker = fridge.querySelector('.fridge-sticker');
+                if(sticker) sticker.style.display = 'none';
+                // 如果你想保留把手，就不隐藏 .fridge-handle
             }
         }
 
-        // 🎮 游戏机 P3 外壳
-        if(images.shell_console_p3) {
-            const gp3 = document.getElementById('console-widget-p3');
-            if(gp3) {
-                gp3.style.backgroundImage = `url(${images.shell_console_p3})`;
-                gp3.style.backgroundSize = '100% 100%';
-                gp3.style.border = 'none';
-                gp3.style.backgroundColor = 'transparent';
+        // 🎮 第二页游戏机封面 (修复)
+        if(images.game_cover_p2) {
+            const imgEl = document.getElementById('widget-game-bg-p2');
+            const ph = document.querySelector('#console-widget-p2 .tv-placeholder');
+            if(imgEl) {
+                imgEl.src = images.game_cover_p2;
+                imgEl.style.display = 'block';
+                if(ph) ph.style.display = 'none';
             }
         }
 
@@ -10200,7 +10205,7 @@ async function applyAllThemeSettings() {
             if(d) {
                 d.style.backgroundImage = `url(${images.diary_widget_bg})`; d.style.backgroundSize = 'cover';
                 const preview = document.getElementById('desktop-diary-preview'); 
-                if(preview) { preview.style.display = 'none'; } // 有图时隐藏文字预览
+                if(preview) { preview.style.display = 'none'; }
             }
         }
 
@@ -10209,7 +10214,7 @@ async function applyAllThemeSettings() {
             const n = document.querySelector('.newspaper-wrap');
             if(n) { n.classList.add('custom-cover-mode'); n.style.backgroundImage = `url(${images.news_cover})`; n.style.backgroundSize = 'cover'; }
         }
-        window.LOFTER_COVER_URL = images.lofter_cover || null; // 存入全局变量供Lofter渲染使用
+        window.LOFTER_COVER_URL = images.lofter_cover || null;
 
         // 📜 信纸与游戏背景
         if(images.letter_paper) {
@@ -10242,17 +10247,30 @@ async function applyAllThemeSettings() {
             `;
         }
 
-        // 🌸 香片专用牌背 (覆盖通用)
+        // 🌸 香片专用牌背 (修正：不仅应用于抽牌，也应用于未翻开的香片格子)
         if(images.scent_back) {
             cssRules += `
+                /* 香片抽牌界面 */
                 #scent-card-area .playing-card { 
                     background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
+                    background-color: #fff !important; 
+                }
+                /* 香片收集界面 (未翻开状态) */
+                .scent-chip.closed {
+                    background-image: url('${images.scent_back}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    border: 1px solid rgba(0,0,0,0.1) !important;
+                }
+                /* 隐藏默认的文字伪元素，如果你希望完全是图片 */
+                .scent-chip.closed::after {
+                    display: none !important;
                 }
             `;
         }
 
-        // 牌桌背景 (应用到所有牌桌 ID)
+        // 牌桌背景
         if(images.tarot_table) {
             const tables = [
                 'card-table-desk', 'diary-card-table-desk', 'game-card-table-desk', 
@@ -10269,14 +10287,11 @@ async function applyAllThemeSettings() {
         
         customStyle.innerHTML = cssRules;
 
-        // 5. 应用字体 (Fonts)
-        // 必须从无限存储读取
+        // 5. 应用字体 & 独立APP背景
         const fonts = window.BIG_MEMORY.theme_fonts || {};
         for(let [appId, url] of Object.entries(fonts)) {
             if(typeof injectCustomFont === 'function') injectCustomFont(appId, url);
         }
-
-        // 6. 应用软件内部独立背景 (Backgrounds)
         if (typeof APP_BG_MAP !== 'undefined') {
             for (let item of APP_BG_MAP) {
                 try {
@@ -10290,6 +10305,18 @@ async function applyAllThemeSettings() {
                     }
                 } catch(e) { }
             }
+        }
+        
+        // 6. 全局CSS
+        const globalCss = await idb.get('settings_heavy', 'global_custom_css');
+        if(globalCss && globalCss.data) {
+             let styleTag = document.getElementById('user-custom-style');
+             if(!styleTag) {
+                 styleTag = document.createElement('style');
+                 styleTag.id = 'user-custom-style';
+                 document.head.appendChild(styleTag);
+             }
+             styleTag.innerHTML = globalCss.data;
         }
 
         // 7. 加载 RPG 皮肤缓存
@@ -16249,7 +16276,21 @@ window.deleteStudyPlan = function() {
                 </div>
             </div>
         </div>
-        <div id="theme-tab-covers" class="theme-tab-content" style="display:none;">
+       <div class="input-group">
+    <label>冰箱组件封面 (Fridge Cover)</label>
+    <!-- key: fridge_cover -->
+    <input type="file" onchange="uploadThemeImage('fridge_cover', this)">
+</div>
+<div class="input-group">
+    <label>第二页游戏机封面 (Game P2 Cover)</label>
+    <!-- key: game_cover_p2 -->
+    <input type="file" onchange="uploadThemeImage('game_cover_p2', this)">
+</div>
+<div class="input-group">
+    <label style="color:#d81b60;">🌸 香片-专用牌背 (Card Back)</label>
+    <!-- key: scent_back -->
+    <input type="file" onchange="uploadThemeImage('scent_back', this)">
+</div> <div id="theme-tab-covers" class="theme-tab-content" style="display:none;">
             <div class="morandi-card">
 <hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">
 <h4 style="color:#d35400;">📺 组件外壳定制</h4>
@@ -16273,17 +16314,26 @@ window.deleteStudyPlan = function() {
         </div>
                 <div class="input-group"><label>塔罗牌-牌背</label><input type="file" onchange="uploadThemeImage('tarot_back', this)"></div>
                 <div class="input-group"><label>塔罗牌-牌桌背景</label><input type="file" onchange="uploadThemeImage('tarot_table', this)"></div>
-                <div class="input-group"><label>冰箱组件封面</label><input type="file" onchange="uploadThemeImage('fridge_cover', this)"></div>
-<div class="input-group"><label>第二页的游戏机封面</label><input type="file" onchange="uploadThemeImage('game_cover_p3', this)"></div>
+               <div class="input-group">
+    <label>冰箱组件封面 (Fridge Cover)</label>
+    <!-- key: fridge_cover -->
+    <input type="file" onchange="uploadThemeImage('fridge_cover', this)">
+</div>
+<div class="input-group">
+    <label>第二页游戏机封面 (Game P2 Cover)</label>
+    <!-- key: game_cover_p2 -->
+    <input type="file" onchange="uploadThemeImage('game_cover_p2', this)">
+</div>
+<div class="input-group">
+    <label style="color:#d81b60;">🌸 香片-专用牌背 (Card Back)</label>
+    <!-- key: scent_back -->
+    <input type="file" onchange="uploadThemeImage('scent_back', this)">
+</div>
 <!-- 下面这些是你提到没生效的，代码逻辑里会修复它们 -->
 <div class="input-group"><label>日记桌面外观 (Card)</label><input type="file" onchange="uploadThemeImage('diary_widget_bg', this)"></div>
 <div class="input-group"><label>报纸封面底图</label><input type="file" onchange="uploadThemeImage('news_cover', this)"></div>
 <div class="input-group"><label>老福特卡面底图</label><input type="file" onchange="uploadThemeImage('lofter_cover', this)"></div>
 <div class="input-group"><label>塔罗牌-牌背图案</label><input type="file" onchange="uploadThemeImage('tarot_back', this)"></div>
-<div class="input-group">
-    <label style="color:#d81b60;">🌸 香片收集-专用牌背</label>
-    <input type="file" onchange="uploadThemeImage('scent_back', this)">
-</div>
 <div class="input-group"><label>塔罗牌-牌桌背景</label><input type="file" onchange="uploadThemeImage('tarot_table', this)"></div>
 <div class="input-group"><label>回信信纸背景</label><input type="file" onchange="uploadThemeImage('letter_paper', this)"></div>
 <!-- === 修改结束 === -->
@@ -19464,16 +19514,13 @@ let shadowDeck = [];
 let shadowFlipped = [];
 
 // 1. 数据存取 (无限存储)
-function getShadowData() { return window.BIG_MEMORY.shadow_data || []; }
-function saveShadowData(list) {
-    window.BIG_MEMORY.shadow_data = list;
-    if(typeof idb !== 'undefined') idb.put('universal_store', { id: 'shadow_data', data: list });
-}
-
-// 2. 打开 APP
-function openShadowApp() {
-    document.getElementById('shadow-app-modal').style.display = 'flex';
-    renderShadowHistory();
+// === 找到原来的 getShadowData 函数，替换为下面这个 ===
+function getShadowData() { 
+    // 强制类型检查：如果不是数组，就重置为空数组
+    if (!Array.isArray(window.BIG_MEMORY.shadow_data)) {
+        window.BIG_MEMORY.shadow_data = [];
+    }
+    return window.BIG_MEMORY.shadow_data; 
 }
 
 // 3. 渲染历史记录
@@ -24287,48 +24334,84 @@ window.saveToBigDB = function(key, data) {
         idb.put('universal_store', { id: key, data: data });
     }
 };
-
-// 3. 全量数据加载器 (开机时把所有数据从数据库拉进内存)
+// === 🚀 终极无限存储加载器 (全量安全整合版) ===
 window.loadAllBigData = async function() {
-    console.log("🚀 [系统补丁] 正在启动无限容量引擎...");
+    console.log("🚀 正在启动无限容量引擎 (全量整合版)...");
     
-    // 确保 idb 已连接
-    if (!idb.db) await idb.init();
+    // 1. 定义所有需要无限存储的 Key
+    const keys = [
+        // --- 基础核心 ---
+        'world_book', 'letters', 'finance', 
+        'study', 'period', 'memo', 
+        'chat_settings', 'chat_history',
+        'theme_fonts', 'api_profiles',
+        'thesaurus_data', 
+        
+        // --- 早期应用 ---
+        'game_history', 'game_stats', 
+        'tarot_history', 'his_phone_history', 'dream_history', 
+        'forum_data', 'pickup_data', 'diary_history', // forum 和 pickup 注意后缀
+        'pet_data', 'lofter_data', 'pain_data', 
+        'gashapon_history', 'shadow_data', 'rpg_data',
+        
+        // --- 中期应用 ---
+        'moving_data', 'teaching_data', 
+        'companion_data', 'summary_data',
 
-    for (let key of REQUIRED_KEYS) {
+        // --- 后期补丁应用 ---
+        'galgame_data', 'scent_data', 
+        'puzzle_data', 'work_data',
+
+        // 🔥🔥🔥 新增：女巫 & 默契挑战 🔥🔥🔥
+        'witch_data', 'tacit_data'
+    ];
+
+    // 2. 确保内存对象存在
+    if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+
+    // 3. 遍历加载所有数据
+    for (let keyName of keys) {
+        let defaultValue = [];
+        
+        // 为特定 Key 设置默认结构，防止报错
+        if (keyName === 'game_stats') defaultValue = { mood: 50, love: 50 };
+        else if (keyName === 'pet_data') defaultValue = { config: {}, stats: {}, inventory: { coins: 0, items: {} }, history: [] };
+        else if (keyName === 'chat_settings' || keyName === 'theme_fonts') defaultValue = {};
+        else if (keyName === 'period') defaultValue = { records: [], isBleeding: false };
+        else if (keyName === 'galgame_data') defaultValue = { current: null, archives: [] };
+        else if (keyName === 'tacit_data') defaultValue = { history: [] };
+        else if (keyName === 'witch_data') defaultValue = [];
+        else defaultValue = []; // 默认是数组
+
         try {
-            let res = await idb.get('universal_store', key);
+            // 从 IndexedDB 读取
+            let res = await idb.get('universal_store', keyName);
             if (res) {
-                window.BIG_MEMORY[key] = res.data;
+                window.BIG_MEMORY[keyName] = res.data;
             } else {
-                // 如果数据库没数据，尝试从 LocalStorage 迁移旧数据 (只做一次)
-                // 这是一个自动迁移机制，保护你的旧数据
-                const oldLocal = localStorage.getItem(key) || localStorage.getItem(key + '_list') || localStorage.getItem(key + '_data');
-                if (oldLocal) {
-                    try {
-                        const parsed = JSON.parse(oldLocal);
-                        window.BIG_MEMORY[key] = parsed;
-                        // 存入新库
-                        idb.put('universal_store', { id: key, data: parsed });
-                        console.log(`♻️ 已将 [${key}] 迁移至无限存储`);
-                    } catch(e) { window.BIG_MEMORY[key] = []; }
-                } else {
-                    // 默认初始化
-                    if (key === 'game_stats') window.BIG_MEMORY[key] = { mood: 50, love: 50 };
-                    else if (key.includes('settings') || key === 'theme_fonts') window.BIG_MEMORY[key] = {};
-                    else window.BIG_MEMORY[key] = []; 
-                }
+                window.BIG_MEMORY[keyName] = defaultValue;
             }
-        } catch (e) {
-            console.error(`❌ 加载 ${key} 失败`, e);
-            window.BIG_MEMORY[key] = []; // 兜底防止白屏
+        } catch (e) { 
+            console.error(`❌ 加载 ${keyName} 失败`, e); 
+            window.BIG_MEMORY[keyName] = defaultValue; // 出错时使用默认值，防止白屏
         }
     }
     
-    // 4. 数据加载完成后，刷新所有界面
-    refreshAllUI();
-    console.log("🎉 [系统补丁] 全系统数据加载完毕！");
-};
+    // 4. 刷新所有可见的 UI (确保加载后立即显示)
+    try {
+        if(typeof renderLetterList === 'function') renderLetterList();
+        if(typeof renderFinanceUI === 'function') renderFinanceUI();
+        if(typeof updateGameStatsUI === 'function') updateGameStatsUI();
+        if(typeof renderWitchHistory === 'function') renderWitchHistory(); 
+        if(typeof renderWorkHistory === 'function') renderWorkHistory(); 
+        if(typeof renderPuzzleHistory === 'function') renderPuzzleHistory(); 
+        if(typeof applyAllThemeSettings === 'function') applyAllThemeSettings(); // 这一步很重要，加载背景图
+    } catch(e) {
+        console.log("UI刷新轻微报错，不影响数据:", e);
+    }
+    
+    console.log("🎉 全系统数据加载完毕，所有功能已就绪。");
+}
 
 // 辅助：刷新所有界面 UI
 function refreshAllUI() {
@@ -24756,5 +24839,181 @@ window.charAutoTurn = function() {
         processTurn(pick, 'char');
     }
 };
+</script>
+<script>
+// ============================================================
+// 🚑 紧急修复补丁 V2：强力修复阴暗面 & 香片
+// ============================================================
+
+// --- 1. 强制修复阴暗面数据结构 (解决打不开的问题) ---
+(function() {
+    // 立即执行：检查内存中的数据
+    try {
+        if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+        
+        // 如果 shadow_data 不存在，或者它竟然不是一个数组 (比如变成了 {})
+        if (!window.BIG_MEMORY.shadow_data || !Array.isArray(window.BIG_MEMORY.shadow_data)) {
+            console.warn("⚠️ 检测到阴暗面数据损坏，正在重置...");
+            window.BIG_MEMORY.shadow_data = []; // 强制变回数组
+            
+            // 同步清空数据库里的坏数据，防止刷新后又坏了
+            if (typeof idb !== 'undefined') {
+                idb.put('universal_store', { id: 'shadow_data', data: [] });
+            }
+        }
+    } catch (e) {
+        console.error("数据清洗失败", e);
+        window.BIG_MEMORY.shadow_data = []; // 兜底
+    }
+})();
+
+// --- 2. 重写阴暗面获取函数 (安全版) ---
+window.getShadowData = function() {
+    let data = window.BIG_MEMORY.shadow_data;
+    // 双重保险：如果拿到的不是数组，立刻返回空数组，防止报错
+    if (!Array.isArray(data)) return [];
+    return data;
+};
+
+// --- 3. 重写阴暗面渲染函数 (防崩坏版) ---
+window.renderShadowHistory = function() {
+    const list = window.getShadowData(); // 获取安全数据
+    const container = document.getElementById('shadow-history-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+
+    if (list.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#636e72; padding:20px;">暂无记录...<br>他还隐藏得很好。</div>`;
+        return;
+    }
+
+    // 使用 try-catch 包裹循环，防止某一条坏数据导致整个打不开
+    try {
+        list.forEach((item, index) => {
+            if (!item || !item.date) return; // 跳过坏数据
+
+            const div = document.createElement('div');
+            div.className = 'morandi-card';
+            div.style.background = '#2d3436'; 
+            div.style.border = '1px solid #636e72';
+            div.style.marginBottom = '15px';
+            div.style.padding = '15px';
+            div.style.color = '#dfe6e9';
+
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:10px; border-bottom:1px dashed #636e72; padding-bottom:5px;">
+                    <span>${new Date(item.date).toLocaleString()}</span>
+                    <span style="color:#d63031; cursor:pointer; font-weight:bold;" onclick="deleteShadowItem(${index})">销毁罪证</span>
+                </div>
+                <div style="font-size:0.8rem; color:#ff7675; margin-bottom:10px;">🔮 命运牌: ${item.cards || '未知'}</div>
+                <div style="background:#000; padding:10px; border-radius:4px; font-size:0.9rem; line-height:1.5;">
+                    ${item.tableHTML || '内容丢失'}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    } catch (e) {
+        console.error("渲染列表出错", e);
+        container.innerHTML = `<div style="color:red; text-align:center;">数据渲染异常，建议清除历史。</div>`;
+    }
+};
+
+// --- 4. 重写打开函数 (确保能弹窗) ---
+window.openShadowApp = function() {
+    const modal = document.getElementById('shadow-app-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // 强制刷新一次数据检查
+        if (!Array.isArray(window.BIG_MEMORY.shadow_data)) window.BIG_MEMORY.shadow_data = [];
+        window.renderShadowHistory();
+    } else {
+        alert("错误：找不到阴暗面界面 ID (shadow-app-modal)");
+    }
+};
+
+// --- 5. 阴暗面保存函数 (确保保存的是数组) ---
+window.saveShadowData = function(list) {
+    if (!Array.isArray(list)) list = []; // 再次保险
+    window.BIG_MEMORY.shadow_data = list;
+    if(typeof idb !== 'undefined') idb.put('universal_store', { id: 'shadow_data', data: list });
+};
+
+// ============================================================
+// 🌸 香片修复保持 (防止 JSON Error)
+// ============================================================
+window.finishScentDraw = async function() {
+    if(scentFlipped.length === 0) return alert("请至少抽一张牌！");
+
+    const btn = document.querySelector('#scent-card-table-modal .primary');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "🌬️ 正在调香...";
+
+    const cardsDesc = scentFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.getWBData();
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { 
+        try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} 
+    }
+    if(!apiKey) { btn.disabled=false; btn.innerText=oldText; return alert("请配置 API Key"); }
+
+    const prompt = `
+你是一位顶级调香师。
+【角色/世界观】：${globalCtx}
+【命运牌】：${cardsDesc}
+【任务】：生成 **12 支** 代表角色不同切面的香水。
+【格式】：严格 JSON 数组。
+[ { "name": "...", "notes": "...", "review": "...", "story": "..." }, ... ]
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
+                temperature: 0.85,
+                max_tokens: 100000 // 增大Token
+            })
+        });
+        const json = await res.json();
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        
+        // JSON 自动截断修复
+        const lastBracket = raw.lastIndexOf(']');
+        const lastBrace = raw.lastIndexOf('}');
+        if (lastBracket === -1 && lastBrace !== -1) raw = raw.substring(0, lastBrace + 1) + ']';
+        else if (lastBracket !== -1) raw = raw.substring(0, lastBracket + 1);
+
+        const items = JSON.parse(raw);
+        
+        currentScentSession = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            cards: cardsDesc,
+            chips: items.map(item => ({ ...item, revealed: false }))
+        };
+
+        document.getElementById('scent-card-table-modal').style.display = 'none';
+        renderScentGrid();
+
+        const list = getScentData();
+        list.unshift(currentScentSession);
+        saveScentData(list);
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message + "\n(建议减少生成数量或重试)");
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
 </script>
 </html> 
