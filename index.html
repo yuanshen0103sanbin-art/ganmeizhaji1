@@ -4034,6 +4034,45 @@ function playAudioMsg(btn, src) {
                 alert("文件已选择，系统已接收 (通用文件不做特殊入库处理)");
             }
         }); 
+        // ================= 👇 塔罗牌修复补丁开始 👇 =================
+        document.getElementById('file-tarot-input').addEventListener('change', async function(e){
+            const files = Array.from(e.target.files);
+            let count = 0;
+            const statusDiv = document.getElementById('tarot-status');
+            if(statusDiv) statusDiv.innerText = "正在处理... (请稍候)";
+            
+            for(let file of files) {
+                // 匹配文件名开头的数字 (例如 0.jpg, 12_fool.png)
+                const match = file.name.match(/^(\d+)/);
+                if(match) {
+                    const id = parseInt(match[1]);
+                    // 塔罗牌 ID 范围必须是 0 到 77
+                    if(id >= 0 && id <= 77) {
+                        const reader = new FileReader();
+                        await new Promise(resolve => {
+                            reader.onload = (evt) => {
+                                // 存入数据库 'tarot_deck'
+                                idb.put('tarot_deck', { id: id, data: evt.target.result }).then(resolve);
+                            };
+                            reader.onerror = resolve; // 防止坏文件卡死
+                            reader.readAsDataURL(file);
+                        });
+                        count++;
+                    }
+                }
+            }
+            
+            // 更新界面上的状态文字
+            checkDeckStatus();
+            
+            if(count > 0) {
+                alert(`✅ 成功导入 ${count} 张塔罗牌！`);
+            } else {
+                alert("❌ 未找到有效图片！\n请确保文件名以数字开头 (0-77)，例如 '0.jpg'");
+            }
+            if(statusDiv) statusDiv.innerText = "";
+        });
+        // ================= 👆 塔罗牌修复补丁结束 👆 =================
        
 // 兼容安卓的文件导入逻辑 - 雷诺曼
 document.getElementById('file-lenormand-input').addEventListener('change', async function(e){
