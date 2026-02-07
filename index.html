@@ -26383,11 +26383,16 @@ ${extraInstruction}
         alert("生成失败: " + e.message);
     }
 };
-
-// 5. 辅助函数：统一 API 调用 (修正 Token)
+// 5. 辅助函数：统一 API 调用 (修正 Token + 自动读取缓存)
 async function callRpgApi(prompt, ctx, callback) {
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    // === 修改开始：优先读取缓存中的 API 设置 ===
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); } catch(e){}
+
+    // 逻辑：输入框有值用输入框 -> 没值用缓存 -> 还没值用默认
+    let apiUrl = document.getElementById('api-url').value || s.url || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || s.model || "gpt-3.5-turbo";
+    // === 修改结束 ===
 
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
@@ -26397,17 +26402,28 @@ async function callRpgApi(prompt, ctx, callback) {
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.8,
-                max_tokens: 100000 // 🔥 统一调大 Token
+                max_tokens: 100000 // 保持大 Token 限制
             })
         });
         const json = await res.json();
+        
+        // 错误检查
+        if (json.error) throw new Error(json.error.message);
+        
         const story = json.choices[0].message.content;
+        
+        // 移除 loading 提示
+        const loading = document.getElementById('rpg-temp-loading');
+        if(loading) loading.remove();
         
         callback(story);
 
     } catch(e) {
         console.error(e);
         alert(`❌ API 请求失败：${e.message}\n请检查网络或 API Key。`);
+        // 移除 loading 提示防止卡死
+        const loading = document.getElementById('rpg-temp-loading');
+        if(loading) loading.remove();
     }
 }
 </script>
