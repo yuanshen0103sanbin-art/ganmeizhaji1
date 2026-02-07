@@ -2594,9 +2594,21 @@ canvas {
 .hb-user { right: -50px; transform: translateX(0); }
 .hb-hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
 /* === 修改开始：RPG 对话框滑动修复 === */
+/* === 找到原来的 .rpg-dialog-box 样式，替换为下面这段 === */
 .rpg-dialog-box {
-    position: absolute; bottom: 20px; left: 20px; right: 20px;
-    height: 140px; /* 固定高度 */
+    position: absolute; 
+    bottom: 20px; 
+    left: 20px; 
+    right: 20px;
+    
+    /* 🔴 修改点开始：删除原来的 height: 140px */
+    height: auto !important;       /* 让高度随内容自动撑开 */
+    min-height: 140px;             /* 保持最小高度，防止没字时太扁 */
+    max-height: 60vh;              /* 限制最大高度为屏幕的 60%，防止挡住所有人 */
+    display: flex; 
+    flex-direction: column;
+    /* 🔴 修改点结束 */
+
     background: rgba(0, 0, 0, 0.85);
     border: 3px solid #fff;
     border-radius: 8px;
@@ -2604,8 +2616,7 @@ canvas {
     z-index: 100; 
     color: #fff;
     box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-    display: flex; 
-    flex-direction: column;
+    transition: all 0.2s ease;     /* 增加一个丝滑的变高动画 */
 }
 .rpg-name {
     color: #f1c40f; font-weight: bold; font-size: 1.1rem; margin-bottom: 8px;
@@ -2617,15 +2628,20 @@ canvas {
     color: #f1c40f; font-weight: bold; font-size: 1.1rem; margin-bottom: 5px;
     text-shadow: 1px 1px 0 #000;
 }
+/* === 找到 .rpg-text 样式，确保如下 === */
 .rpg-text {
     font-size: 1rem; 
     line-height: 1.6; 
     text-align: justify; 
-    flex: 1; /* 占据剩余空间 */
-    overflow-y: auto; /* 关键：允许垂直滑动 */
-    padding-right: 5px; /* 给滚动条留点位置 */
+    
+    /* 🔴 这里的 flex: 1 配合父元素的 max-height */
+    /* 当文字超过 max-height 时，这里会出现滚动条 */
+    flex: 1; 
+    overflow-y: auto; 
+    
+    padding-right: 5px; 
     word-wrap: break-word;
-    -webkit-overflow-scrolling: touch; /* iOS丝滑滚动 */
+    -webkit-overflow-scrolling: touch; 
 }
 /* === 修改结束 === */
 .rpg-cursor {
@@ -3482,7 +3498,7 @@ canvas {
             <div class="morandi-card">
                 <h3>🔮 塔罗牌库 (0-77)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择78张JPEG图片 (文件名需包含数字0-77)</p>
-                <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/*">
+               <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/jpeg, image/png, image/webp, .jpg, .jpeg, .png, .webp">
 
                 <button class="m-btn primary" onclick="document.getElementById('file-tarot-input').click()">批量上传塔罗牌</button>
                 <div id="tarot-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
@@ -3492,7 +3508,7 @@ canvas {
                 <h3>⚜️ 雷诺曼牌库 (1-36)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择36张JPEG图片 (文件名需包含数字1-36)</p>
   
-<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/*">
+<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/jpeg, image/png, image/webp, .jpg, .jpeg, .png, .webp">
                 <button class="m-btn primary" onclick="document.getElementById('file-lenormand-input').click()">批量上传雷诺曼</button>
                 <div id="lenormand-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
             </div>
@@ -3725,6 +3741,7 @@ canvas {
     </div>
 </div>
     <script>
+window.THEME_IMG_CACHE = {};
         // === 全局变量 ===
         let chatDisplayLimit = 20; 
         let currentQuoteData = null; 
@@ -10214,23 +10231,31 @@ async function deleteStamp(index) {
     await idb.put('settings_heavy', { key: 'reply_stamps', data: stamps.data });
     renderStampList();
 }
-// === 🎨 终极美化应用函数 (修复字体/背景/外壳/牌背) ===
-// === 🎨 终极美化应用函数 (已修复：12香片背面显示自定义图) ===
+// === 🎨 终极美化应用函数 (性能优化版：并行读取 + 内存缓存) ===
 async function applyAllThemeSettings() {
     try {
-        console.log("🎨 正在应用全系统美化...");
+        console.log("🎨 [加速引擎] 正在并行应用全系统美化...");
         
-        // 1. 应用 APP 图标
+        // 1. 应用 APP 图标 (保持原逻辑，但也建议后续优化，这里先不动避免出错)
         if (typeof APP_MAP !== 'undefined') {
             for (let app of APP_MAP) {
                 try {
-                    const iconData = await idb.get('settings_heavy', `icon_${app.id}`);
+                    // 优先查缓存
+                    let iconData = window.THEME_IMG_CACHE[`icon_${app.id}`];
+                    if (!iconData) {
+                        const res = await idb.get('settings_heavy', `icon_${app.id}`);
+                        if (res) {
+                            iconData = res.data;
+                            window.THEME_IMG_CACHE[`icon_${app.id}`] = iconData; // 存入缓存
+                        }
+                    }
+                    
                     if(iconData) {
                         const els = document.querySelectorAll(app.selector + ' .app-icon');
                         els.forEach(el => {
                             if(el) {
                                 el.innerText = ''; 
-                                el.style.backgroundImage = `url(${iconData.data})`;
+                                el.style.backgroundImage = `url(${iconData})`;
                                 el.style.backgroundSize = 'cover';
                                 el.style.backgroundPosition = 'center';
                                 el.style.border = 'none'; 
@@ -10243,27 +10268,42 @@ async function applyAllThemeSettings() {
             }
         }
 
-        // 2. 读取图片资源
+        // 2. 定义所有需要加载的图片 Key
         const imgKeys = [
             'main_bg', 'fridge_cover', 'news_cover', 'memo_cover', 
             'tarot_back', 'tarot_table', 'letter_paper', 
             'game_bg', 'game_char_half', 'game_user_half',
             'diary_widget_bg', 'diary_photo', 'lofter_cover',
-            'scent_back', // 🌸 香片牌背
-            'game_cover_p2', 
+            'scent_back', 'game_cover_p2', 
             'shell_tv', 'shell_console_p2', 'shell_console_p3',
-            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle'
+            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 
+            'rpg_npc_idle', 'rpg_book_paper'
         ];
 
-        const images = {};
-        for(let key of imgKeys) {
+        // 🔥 核心优化：并行读取所有图片！(而不是一个接一个)
+        const promises = imgKeys.map(async (key) => {
+            // A. 如果缓存里有，直接返回
+            if (window.THEME_IMG_CACHE[key]) return { key, data: window.THEME_IMG_CACHE[key] };
+            
+            // B. 如果缓存没有，去数据库取
             try {
                 const res = await idb.get('settings_heavy', key);
-                if(res) images[key] = res.data;
+                if (res && res.data) {
+                    window.THEME_IMG_CACHE[key] = res.data; // 存入缓存
+                    return { key, data: res.data };
+                }
             } catch(e) {}
-        }
+            return { key, data: null };
+        });
 
-        // 3. 应用外壳与封面
+        // 等待所有图片“同时”读取完毕
+        const results = await Promise.all(promises);
+        
+        // 组装成对象
+        const images = {};
+        results.forEach(r => { if(r.data) images[r.key] = r.data; });
+
+        // 3. 应用外壳与封面 (逻辑保持不变，但此时 images 数据已瞬间准备好)
         
         // ❄️ 冰箱封面
         if(images.fridge_cover) {
@@ -10374,12 +10414,9 @@ async function applyAllThemeSettings() {
             `;
         }
 
-        // B. 🌸 香片专用牌背 (这里是修复重点！)
-        // 作用于 .scent-chip.closed (12个未翻开的香片)
-                        // B. 🌸 香片专用牌背 (终极修正：解决翻开变白问题)
+        // B. 🌸 香片专用牌背
         if(images.scent_back) {
             cssRules += `
-                /* 1. 12宫格界面：未翻开的香片背面 */
                 .scent-chip.closed {
                     background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
@@ -10388,25 +10425,14 @@ async function applyAllThemeSettings() {
                     border: none !important; 
                     box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
                 }
-                /* 隐藏原本的文字 */
-                .scent-chip.closed::after {
-                    opacity: 0 !important;
-                }
-
-                /* 2. 抽牌桌：牌的背面 (未翻开时) */
+                .scent-chip.closed::after { opacity: 0 !important; }
                 #scent-card-area .playing-card { 
                     background-image: url('${images.scent_back}') !important;
                     background-size: cover !important;
                     background-repeat: no-repeat !important;
                 }
-
-                /* 3. 【核心修复】抽牌桌：牌的正面 (翻开后) */
-                /* 这里的修改：删除了 background-image 的规则 */
-                /* 只保留 background-color: #fff，用来遮挡住背面的图 */
-                /* 这样 JS 设置的塔罗牌图片(inline style) 就会生效了 */
                 #scent-card-area .playing-card .playing-card-front {
                     background-color: #fff !important; 
-                    /* 不要在这里写 background-image !important，否则会把塔罗牌顶掉 */
                 }
             `;
         }
@@ -10425,31 +10451,56 @@ async function applyAllThemeSettings() {
             });
         }
         
+        // 故事书背景跟随
+        if (images.rpg_book_paper) {
+            cssRules += `
+                #book-page-content {
+                    background-image: url('${images.rpg_book_paper}') !important;
+                    background-size: 100% auto !important; 
+                    background-repeat: repeat-y !important;
+                    background-attachment: local !important;
+                    background-color: transparent !important; 
+                }
+            `;
+        }
         customStyle.innerHTML = cssRules;
 
-        // 5. 应用字体
+        // 5. 应用字体 (保持不变)
         const fonts = window.BIG_MEMORY.theme_fonts || {};
         for(let [appId, url] of Object.entries(fonts)) {
             if(typeof injectCustomFont === 'function') injectCustomFont(appId, url);
         }
 
-        // 6. 应用软件独立背景
+        // 6. 应用软件独立背景 (同样使用并行优化)
         if (typeof APP_BG_MAP !== 'undefined') {
-            for (let item of APP_BG_MAP) {
-                try {
-                    const bgData = await idb.get('settings_heavy', `bg_${item.id}`);
+            const bgPromises = APP_BG_MAP.map(async (item) => {
+                const cacheKey = `bg_${item.id}`;
+                let bgData = window.THEME_IMG_CACHE[cacheKey];
+                
+                if (!bgData) {
+                    try {
+                        const res = await idb.get('settings_heavy', cacheKey);
+                        if (res && res.data) {
+                            bgData = res.data;
+                            window.THEME_IMG_CACHE[cacheKey] = bgData;
+                        }
+                    } catch(e) {}
+                }
+
+                if (bgData) {
                     const modal = document.getElementById(item.modalId);
-                    if (modal && bgData && bgData.data) {
-                        modal.style.backgroundImage = `url(${bgData.data})`; 
+                    if (modal) {
+                        modal.style.backgroundImage = `url(${bgData})`; 
                         modal.style.backgroundSize = 'cover';
                         modal.style.backgroundPosition = 'center';
                         modal.style.backgroundRepeat = 'no-repeat';
                     }
-                } catch(e) { }
-            }
+                }
+            });
+            await Promise.all(bgPromises);
         }
 
-        // 7. 加载 RPG 皮肤
+        // 7. 加载 RPG 皮肤 (优化版，见下一步)
         if (typeof loadRpgSkins === 'function') await loadRpgSkins();
 
     } catch (e) {
@@ -11525,10 +11576,21 @@ async function finishDiaryDrawing() {
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const diaryCtx = (wb['14.日记'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"); // 记得在世界书里加这个分类
     
-    let apiKey = document.getElementById('api-key').value;
+        let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-    if(!apiKey) return alert("API Key 未配置");
+    
+    // 🔥 修复补丁：如果输入框为空，尝试读取设置缓存
+    if(!apiKey) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            apiKey = s.key; 
+            if(s.url) apiUrl = s.url;
+            if(s.model) model = s.model;
+        } catch(e){}
+    }
+
+    if(!apiKey) return alert("请先在桌面【设置】中配置 API Key！");
 
     // === 原版 Prompt ===
     const prompt = `
@@ -13958,12 +14020,41 @@ if (!window.BIG_MEMORY.gacha_data) {
         custom_fronts: {} 
     };
 }
+// 1. 数据管理 (修复版)
+if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+// 结构确保初始化
+if (!window.BIG_MEMORY.gacha_data) {
+    window.BIG_MEMORY.gacha_data = {
+        tickets: 0,
+        msg_count: 0,
+        history: [],
+        custom_fronts: {} 
+    };
+}
 
-function getGachaData() { return window.BIG_MEMORY.gacha_data; }
+// 🔥 核心修复：这个函数会自动检查并补全缺失的数据字段，防止卡死
+function getGachaData() { 
+    let data = window.BIG_MEMORY.gacha_data;
+    
+    // 如果数据完全丢失，重新初始化
+    if (!data) {
+        data = { tickets: 0, msg_count: 0, history: [], custom_fronts: {} };
+        window.BIG_MEMORY.gacha_data = data;
+    }
+    
+    // 自动补全缺失的属性 (这就是卡死的原因)
+    if (!data.custom_fronts) data.custom_fronts = {}; 
+    if (!data.history) data.history = [];
+    if (typeof data.tickets !== 'number') data.tickets = 0;
+    
+    return data; 
+}
+
 function saveGachaData(data) {
     window.BIG_MEMORY.gacha_data = data;
     if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'gacha_data', data: data });
 }
+
 
 // 2. 聊天钩子 (Hook Chat)
 // ⚠️ 请确保这段代码执行在原有的 window.appendMessage 定义之后
@@ -14086,6 +14177,68 @@ window.doGachaDraw = function(count) {
     playGachaAnimation();
 };
 
+// 5. 动画与展示 (修复版：增加安全检查)
+window.playGachaAnimation = function() {
+    const overlay = document.getElementById('gacha-animation-overlay');
+    const container = document.getElementById('gacha-card-container');
+    const closeBtn = document.getElementById('gacha-close-btn');
+    
+    if (!overlay || !container) return console.error("找不到抽卡界面元素");
+
+    overlay.style.display = 'flex';
+    container.innerHTML = '';
+    closeBtn.style.opacity = '0';
+    
+    // 获取数据（使用修复后的函数）
+    const data = getGachaData();
+    
+    // 生成卡片 DOM
+    currentPullResults.forEach((rarity, index) => {
+        const card = document.createElement('div');
+        card.className = 'gacha-card-wrapper';
+        
+        // 安全获取图片资源
+        const safeRarity = (rarity || 'R').toLowerCase();
+        const backImg = GACHA_ASSETS.back[safeRarity] || '';
+        const frameImg = GACHA_ASSETS.frame[safeRarity] || '';
+        
+        // 安全获取自定义卡面 (防止 custom_fronts 报错)
+        const customFronts = data.custom_fronts || {}; 
+        const customImg = customFronts[safeRarity];
+        
+        // 正面样式
+        let frontContent = '';
+        if (customImg) {
+            frontContent = `<img src="${customImg}" class="gacha-front-img">`;
+        } else {
+            // 默认显示文字
+            const colorMap = { 'ur':'#ff7675', 'ssr':'#fdcb6e', 'sr':'#74b9ff', 'r':'#dfe6e9' };
+            frontContent = `<div style="font-size:2rem; font-weight:bold; color:${colorMap[safeRarity] || '#999'};">${rarity}</div>`;
+        }
+
+        card.innerHTML = `
+            <div class="gacha-face gacha-back" style="background-image: url('${backImg}');"></div>
+            <div class="gacha-face gacha-front">
+                ${frontContent}
+                <div class="gacha-frame" style="background-image: url('${frameImg}');"></div>
+                <div class="gacha-shine"></div>
+            </div>
+        `;
+        
+        // 点击翻牌
+        card.onclick = () => flipGachaCard(card, rarity, index);
+        
+        container.appendChild(card);
+        
+        // 依次飞入动画
+        setTimeout(() => {
+            card.classList.add('visible');
+        }, index * 100);
+    });
+    
+    // 重置自动翻开标记
+    container.dataset.allOpened = "false";
+};    
 // 5. 动画与展示
 window.playGachaAnimation = function() {
     const overlay = document.getElementById('gacha-animation-overlay');
@@ -16801,6 +16954,11 @@ window.deleteStudyPlan = function() {
 </div>
 <div class="input-group"><label>塔罗牌-牌桌背景</label><input type="file" onchange="uploadThemeImage('tarot_table', this)"></div>
 <div class="input-group"><label>回信信纸背景</label><input type="file" onchange="uploadThemeImage('letter_paper', this)"></div>
+<!-- ✅ 在美化列表里插入这一行 -->
+<div class="input-group">
+    <label style="color:#8d6e63;">📖 故事书-内页信纸 (Rpg Book Paper)</label>
+    <input type="file" onchange="uploadThemeImage('rpg_book_paper', this)">
+</div>
 <!-- === 修改结束 === -->
 <div class="input-group"><label>游戏机-内部背景</label><input type="file" onchange="uploadThemeImage('game_bg', this)"></div>
 <!-- 在美化弹窗的 HTML 中找地方插入这个 -->
@@ -21908,11 +22066,41 @@ window.generateGalgameEndingAPI = async function() {
     </div>
 
     <!-- 侧边栏：生成的故事历史 -->
-    <div id="rpg-history-panel" class="chat-settings-panel">
-        <h3>📖 生活片段</h3>
-        <button class="m-btn small" onclick="toggleRpgHistory()" style="margin-bottom:10px; background:#e8d7d7;">关闭</button>
-        <div id="rpg-history-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <!-- ✅ 插入这段新的书本弹窗代码 -->
+<div id="rpg-book-modal" class="modal-overlay" style="display:none; background:rgba(0,0,0,0.85); z-index:10001; align-items:center; justify-content:center; perspective: 1500px;">
+    
+    <!-- 关闭按钮 -->
+    <div onclick="closeRpgBook()" style="position:absolute; top:40px; right:20px; color:white; font-size:2rem; cursor:pointer; z-index:20;">×</div>
+
+    <!-- 书本容器 -->
+    <div id="rpg-story-book" class="story-book-container" onclick="handleBookClick(event)">
+        <!-- 封面 (动态生成) -->
+        <div id="book-cover" class="book-cover">
+            <div class="book-spine"></div>
+            <div class="book-title-box">
+                <div style="font-size:0.8rem; letter-spacing:2px; opacity:0.8;">MEMORIES</div>
+                <div style="font-size:1.8rem; font-weight:bold; margin:10px 0; font-family: 'Old English Text MT', serif;">关于我们的故事</div>
+                <div style="font-size:0.6rem; margin-top:20px;">CLICK TO OPEN</div>
+            </div>
+        </div>
+
+        <!-- 内页 (动态生成) -->
+        <div id="book-inner-page" class="book-inner-page" style="display:none;">
+            <div class="paper-texture"></div>
+            <div id="book-page-content" class="book-content-area"></div>
+            
+            <!-- 翻页控制 -->
+            <div class="book-pagination">
+                <span onclick="prevStoryPage(event)" id="btn-prev-page">❮ 上一页</span>
+                <span id="page-indicator" style="font-family:monospace; color:#8d6e63;">1 / 1</span>
+                <span onclick="nextStoryPage(event)" id="btn-next-page">下一页 ❯</span>
+            </div>
+            
+            <!-- 删除当前页按钮 -->
+            <div class="book-delete-btn" onclick="deleteCurrentStoryPage(event)">撕掉这一页 🗑️</div>
+        </div>
     </div>
+</div>
 </div>
 <div id="rpg-chat-modal" class="modal-overlay" style="display:none; background:#000;">
     <!-- 1. 背景容器 (解决白屏问题) -->
@@ -22294,7 +22482,7 @@ const RPG_ASSETS = {
     bg_room: "https://i.postimg.cc/4xNTKjLp/IMG_0470.png",
     bg_outside: "https://i.postimg.cc/bwCf1L4q/IMG_0496.png",
     bg_store: "https://i.postimg.cc/BnPmP1hr/IMG_1348.png",
-    bg_hospital: "https://i.postimg.cc/Y09B3W9T/IMG_1558.jpg",
+    bg_hospital: "https://i.postimg.cc/W4zsDv7n/IMG-1558.jpg",
     bg_hospital_room: "https://i.postimg.cc/QCtZbTCG/IMG_1529.jpg",
     bg_seaside: "https://i.postimg.cc/tCcxQKKF/IMG-1623.png",
     bg_seaside_hut: "https://i.postimg.cc/q7V0TqbP/IMG_1581.jpg",
@@ -22434,7 +22622,36 @@ let RPG_SKINS = {
     npc_back: null,
     npc_right: null
 };
+// === RPG 皮肤加载 (并行加速版) ===
+async function loadRpgSkins() {
+    try {
+        const keys = [
+            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 
+            'rpg_npc_idle', 'rpg_npc_front', 'rpg_npc_back', 'rpg_npc_right'
+        ];
+        
+        // 并行读取
+        const promises = keys.map(async (key) => {
+            // 查缓存
+            if (window.THEME_IMG_CACHE[key]) {
+                const skinKey = key.replace('rpg_', '');
+                RPG_SKINS[skinKey] = window.THEME_IMG_CACHE[key];
+                return;
+            }
+            
+            // 查数据库
+            const res = await idb.get('settings_heavy', key);
+            if (res && res.data) {
+                const skinKey = key.replace('rpg_', '');
+                RPG_SKINS[skinKey] = res.data;
+                window.THEME_IMG_CACHE[key] = res.data; // 写入缓存
+            }
+        });
 
+        await Promise.all(promises);
+        
+    } catch(e) { console.log("皮肤加载略过"); }
+}
 // 更新加载函数
 async function loadRpgSkins() {
     try {
@@ -23809,6 +24026,126 @@ window.deleteRpgHistory = function(index) {
     saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
     renderRpgHistory();
 };
+// ==================== 📖 书本系统核心逻辑 ====================
+
+let bookCurrentPageIdx = 0;
+let isBookCoverOpen = false;
+
+// 1. 打开书本 (替代原来的 toggleRpgHistory)
+window.toggleRpgHistory = function() {
+    const modal = document.getElementById('rpg-book-modal');
+    modal.style.display = 'flex';
+    
+    // 重置状态：合上封面
+    isBookCoverOpen = false;
+    document.getElementById('book-cover').classList.remove('opened');
+    document.getElementById('book-inner-page').style.display = 'none';
+    
+    // 获取数据并准备
+    const data = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    bookCurrentPageIdx = 0; // 默认看第一页（最新的）
+};
+
+// 2. 关闭书本
+window.closeRpgBook = function() {
+    document.getElementById('rpg-book-modal').style.display = 'none';
+};
+
+// 3. 点击书本处理
+window.handleBookClick = function(e) {
+    // 如果点的是内部按钮(翻页/删除)，不触发合上/打开逻辑
+    if(e.target.closest('.book-pagination') || e.target.closest('.book-delete-btn')) return;
+
+    if (!isBookCoverOpen) {
+        // 如果封面是合上的，点击则打开
+        isBookCoverOpen = true;
+        document.getElementById('book-cover').classList.add('opened');
+        
+        // 延迟显示内页内容，配合翻页动画
+        setTimeout(() => {
+            document.getElementById('book-inner-page').style.display = 'flex';
+            renderCurrentStoryPage();
+        }, 300);
+    }
+    // 如果已经打开了，点击内容区不做操作 (保持阅读状态)
+};
+
+// 4. 渲染当前页内容
+window.renderCurrentStoryPage = function() {
+    const data = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    const contentArea = document.getElementById('book-page-content');
+    const indicator = document.getElementById('page-indicator');
+    
+    if (data.length === 0) {
+        contentArea.innerHTML = "<div style='text-align:center; margin-top:50px; opacity:0.5;'>一本空白的笔记本...<br>去创造一些故事吧。</div>";
+        indicator.innerText = "0 / 0";
+        return;
+    }
+
+    const item = data[bookCurrentPageIdx];
+    const dateStr = new Date(item.date).toLocaleString();
+    
+    // 渲染内容：日期 + 标题 + 正文
+    contentArea.innerHTML = `
+        <span class="story-meta-date">${dateStr}</span>
+        <div class="story-meta-item">${item.item || '随笔'}</div>
+        <hr style="border:0; border-bottom:1px dashed #aaa; margin-bottom:10px;">
+        ${item.text.replace(/\n/g, '<br>')}
+    `;
+    
+    // 更新页码 (1-based)
+    indicator.innerText = `${bookCurrentPageIdx + 1} / ${data.length}`;
+    
+    // 控制翻页按钮显隐
+    document.getElementById('btn-prev-page').style.visibility = (bookCurrentPageIdx > 0) ? 'visible' : 'hidden';
+    document.getElementById('btn-next-page').style.visibility = (bookCurrentPageIdx < data.length - 1) ? 'visible' : 'hidden';
+};
+
+// 5. 翻页功能
+window.prevStoryPage = function(e) {
+    e.stopPropagation(); // 防止触发书本点击
+    if(bookCurrentPageIdx > 0) {
+        bookCurrentPageIdx--;
+        renderCurrentStoryPage();
+    }
+};
+
+window.nextStoryPage = function(e) {
+    e.stopPropagation();
+    const data = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    if(bookCurrentPageIdx < data.length - 1) {
+        bookCurrentPageIdx++;
+        renderCurrentStoryPage();
+    }
+};
+
+// 6. 撕掉这一页 (删除功能)
+window.deleteCurrentStoryPage = function(e) {
+    e.stopPropagation();
+    if(!confirm("确定要撕掉这一页回忆吗？(不可恢复)")) return;
+    
+    const data = window.BIG_MEMORY.rpg_data.history;
+    data.splice(bookCurrentPageIdx, 1);
+    
+    // 保存
+    saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
+    
+    // 逻辑调整：如果删的是最后一页，索引前移
+    if(bookCurrentPageIdx >= data.length && bookCurrentPageIdx > 0) {
+        bookCurrentPageIdx--;
+    }
+    
+    renderCurrentStoryPage();
+};
+
+// 7. 保持原有的 renderRpgHistory 以兼容其他可能的调用，但将其重定向到 update UI
+// 这样即使别的代码调用了 renderRpgHistory，也不会报错，只是可能不会立刻弹书
+window.renderRpgHistory = function() {
+    // 如果书本是打开的，刷新当前页
+    if(document.getElementById('rpg-book-modal').style.display === 'flex') {
+        renderCurrentStoryPage();
+    }
+};
 </script>
 </body>
 <style>
@@ -24275,57 +24612,77 @@ body, #screen {
     padding-bottom: 50px;
 }
 /* 修改或添加到你的 <style> 块中 */
-#rpg-chat-modal > div:nth-child(4) { 
-    min-height: 160px;
-    padding: 20px;
-    box-sizing: border-box;
+/* ==================== 🔴 修复开始：RPG 对话框自动长高 ==================== */
+
+/* 1. 修复中间图片区域，允许被底部文字框挤压 */
+#rpg-chat-modal > div:nth-child(3) {
+    flex: 1 !important;
+    min-height: 0 !important; /* 关键：允许缩小，防止被顶出屏幕 */
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
+
+/* 2. 修复底部黑色对话框容器 */
+#rpg-chat-modal > div:nth-child(4) { 
+    /* 删除原来的 height: 200px */
+    height: auto !important;       /* 高度随内容自动撑开 */
+    min-height: 120px !important;  /* 保持一个最小高度 */
+    max-height: 50vh !important;   /* 限制最大高度为屏幕一半，太长了再滚动 */
+    
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    
+    /* 玻璃质感背景 */
+    background: rgba(0,0,0,0.85) !important; 
+    border-top: 1px solid rgba(255,255,255,0.2) !important;
+    
+    /* 防止被压缩 */
+    flex-shrink: 0 !important; 
+    transition: all 0.2s ease;
+}
+
+/* 3. 修复内部文字显示区域 */
 #rpg-display-mode {
     display: none; 
-    height: 100%; 
-    color: #fff; 
-    font-family: 'Songti SC', serif;
-    background: rgba(255, 255, 255, 0.05); 
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    padding: 10px;
-    box-sizing: border-box;
+    width: 100% !important;
+    
+    /* 高度设为自动，随文字撑开 */
+    height: auto !important; 
+    
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    
+    /* 允许垂直滚动，禁止水平滚动 */
+    overflow-y: auto !important; 
+    overflow-x: hidden !important;
+    
+    /* 字体优化 */
+    color: #fff !important;
+    font-size: 1.1rem !important;
+    line-height: 1.6 !important;
+    white-space: pre-wrap !important; /* 保留换行 */
+    word-break: break-word !important; /* 防止长单词撑破 */
+    
+    /* iOS 滚动优化 */
+    -webkit-overflow-scrolling: touch !important;
 }
-#rpg-typewriter-text {
-    font-size: 1.1rem; 
-    line-height: 1.6; 
-    min-height: 60px; 
-    white-space: pre-wrap;
-    color: #ecf0f1;
-}
-#rpg-chat-modal > div:nth-child(4) { 
-    min-height: 180px !important; 
-    height: 180px !important;     
-    padding: 20px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: rgba(0,0,0,0.85); 
-}
-#rpg-display-mode {
-    display: none; 
-    width: 100%;
-    height: 100%; 
-    background: rgba(255, 255, 255, 0.05); 
-    border: 1px solid rgba(255, 255, 255, 0.3); 
-    border-radius: 8px;
-    padding: 15px;
-    box-sizing: border-box;
-    cursor: pointer; 
-    overflow-y: auto; 
-}
+/* ==================== 🔴 修复结束 ==================== */
 #rpg-typewriter-text {
     color: #fff;
     font-family: 'Songti SC', serif;
     font-size: 1.1rem; 
     line-height: 1.6; 
     white-space: pre-wrap;
+    padding-bottom: 20px; /* 底部留出一点空间方便手指滑动 */
 }
 #rpg-display-mode {
     display: none; 
@@ -24337,13 +24694,23 @@ body, #screen {
     padding: 15px;
     box-sizing: border-box;
     cursor: pointer; 
-    overflow-y: auto;
+    
+    /* 🔥 修复滚动和长文本显示 */
+    overflow-y: auto !important; 
+    word-break: break-word; /* 防止长单词撑开 */
+    white-space: pre-wrap;  /* 保留换行 */
+    -webkit-overflow-scrolling: touch; /* iOS 丝滑滚动 */
 }
 #rpg-chat-modal > div:nth-child(4) { 
-    min-height: 180px !important;
-    height: 180px !important;
+    height: 200px !important;     /*稍微加高一点，体验更好*/
+    min-height: 200px !important; 
+    padding: 20px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    background: rgba(0,0,0,0.85); 
+    flex-shrink: 0; /* 防止被压缩 */
 }
 .comp-q-row {
     background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px;
@@ -24453,6 +24820,8 @@ body, #screen {
     transform: rotate(-1deg); 
     transition: transform 0.2s;
     line-height: 30px; 
+width: 100%; 
+    box-sizing: border-box;
 }
 
 .rpg-diary-entry:nth-child(even) {
@@ -24649,14 +25018,137 @@ body, #screen {
     display: flex !important; /* 只有添加了 open 类时才显示 */
 }
 
-/* 3. 确保列表内容可以滚动 */
+/* === 找到 #rpg-history-list 替换为以下内容 === */
 #rpg-history-list {
-    overflow-y: auto !important;
+    /* 🔴 核心修改：强制禁止水平滑动 */
+    overflow-x: hidden !important; 
+    overflow-y: auto !important;   /* 只允许垂直滑动 */
+    
     height: 100%;
     padding-bottom: 50px;
     flex: 1;
+    
+    /* 🔴 额外保险：限制宽度 */
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box; /* 确保 padding 不会撑大宽度 */
+}
+/* === 📖 故事书样式 === */
+.story-book-container {
+    width: 320px;
+    height: 480px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    cursor: pointer;
 }
 
+/* 牛皮封面 */
+.book-cover {
+    position: absolute; inset: 0;
+    background: #5d4037; /* 深棕色 */
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.15'/%3E%3C/svg%3E");
+    border-radius: 5px 15px 15px 5px;
+    box-shadow: 
+        inset 5px 0 10px rgba(0,0,0,0.5),
+        10px 10px 30px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: #e6d7b9;
+    text-align: center;
+    transform-origin: left center;
+    z-index: 10;
+    transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.book-cover.opened {
+    transform: rotateY(-160deg);
+}
+
+.book-spine {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 20px;
+    background: linear-gradient(to right, #3e2723, #5d4037);
+    border-radius: 5px 0 0 5px;
+}
+
+.book-title-box {
+    border: 2px solid #e6d7b9;
+    padding: 20px;
+    border-radius: 4px;
+    margin-left: 10px;
+}
+/* === 📖 修改后的书本内页样式 === */
+
+/* 1. 外层容器变成透明，只负责边框和阴影 */
+.book-inner-page {
+    position: absolute; inset: 5px 8px 5px 12px; /* 稍微调整边距，留出书脊空间 */
+    background: transparent; /* 🔴 改为透明，背景交给里面 */
+    border-radius: 2px 10px 10px 2px;
+    display: flex; flex-direction: column;
+    padding: 0; /* 🔴 去掉 padding，交给里面 */
+    overflow: hidden;
+    z-index: 5;
+    /* 给个纸张边缘的投影效果 */
+    box-shadow: inset 5px 0 10px rgba(0,0,0,0.05), 2px 0 5px rgba(0,0,0,0.1); 
+}
+
+/* 2. 内容区域：这里才是真正的“纸” */
+.book-content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 25px 25px 60px 25px; /* 内边距移到这里 */
+    
+    /* 🔴 默认纸张样式 */
+    background-color: #fff9c4; 
+    /* 默认横线背景 */
+    background-image: repeating-linear-gradient(transparent, transparent 29px, #b0bec5 30px);
+    
+    /* 🔥 核心属性：让背景跟随文字滚动 🔥 */
+    background-attachment: local; 
+    
+    /* 默认横线大小 */
+    background-size: 100% 30px; 
+    
+    font-family: "Long Cang", "Comic Sans MS", cursive, serif; 
+    font-size: 1.15rem;
+    line-height: 30px;
+    color: #3e2723;
+    position: relative;
+    z-index: 2;
+    white-space: pre-wrap;
+    
+    /* 滚动条美化 (隐藏或细化) */
+    scrollbar-width: thin;
+    scrollbar-color: #d7ccc8 transparent;
+}
+
+/* 移除原来的 paper-texture 单独图层，因为它会挡住自定义背景 */
+.paper-texture { display: none; } 
+
+/* 翻页栏 */
+.book-pagination {
+    position: absolute; bottom: 15px; left: 0; right: 0;
+    display: flex; justify-content: space-between; padding: 0 20px;
+    font-size: 0.8rem; color: #8d6e63; font-weight: bold;
+    z-index: 10;
+}
+.book-pagination span { cursor: pointer; user-select: none; }
+.book-pagination span:active { opacity: 0.6; }
+
+.book-delete-btn {
+    position: absolute; top: 10px; right: 15px;
+    font-size: 0.7rem; color: #e74c3c; cursor: pointer;
+    z-index: 20; opacity: 0.6;
+}
+.book-delete-btn:hover { opacity: 1; }
+
+/* 元数据样式 */
+.story-meta-date {
+    display: block; text-align: right; font-size: 0.8rem; color: #888;
+    margin-bottom: 10px; font-family: monospace;
+}
+.story-meta-item {
+    font-weight: bold; color: #d35400; font-size: 0.9rem; margin-bottom: 5px;
+}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
