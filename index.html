@@ -3352,11 +3352,13 @@ canvas {
     <div class="app-icon" style="background:#273c75; color:#fff; font-size:1.6rem; border:2px solid #fff; box-shadow: 0 4px 10px rgba(39, 60, 117, 0.4);">🍎</div>
     <span class="app-name">教导</span>
 </div>
+
 <div id="console-widget-p3" class="game-console-widget" onclick="openRpgApp()" style="grid-column: span 4; grid-row: span 2; background: #2d3436; border:4px solid #57606f;">
     <div class="gc-dpad" style="left:10px; width:50px; height:50px;"></div>
     <div class="gc-screen-area" style="width: 65%; height: 85%; border: 2px solid #111;">
-        <!-- 这里放你提供的显示屏背景图 -->
-        <img src="https://i.postimg.cc/ZqXkMnTj/IMG_1126.png" style="width:100%; height:100%; object-fit:cover;">
+
+     <img id="p3-screen-img" src="https://i.postimg.cc/ZqXkMnTj/IMG_1126.png" style="width:100%; height:100%; object-fit:cover;">
+        
         <div style="position:absolute; bottom:10px; left:0; width:100%; text-align:center; color:#0f0; font-family:'Courier New'; font-weight:bold; font-size:0.8rem; text-shadow:0 0 2px #000; animation: blink 1s infinite;">CLICK START</div>
     </div>
     <div class="gc-btns" style="right:10px; width:50px; height:50px;">
@@ -3475,6 +3477,7 @@ canvas {
             <div class="morandi-card">
                 <h3>📁 通用导入</h3>
                 <p style="font-size:0.8rem; color:#888;">从手机文件导入图片或文档</p>
+
                 <input type="file" id="file-generic-input" class="hidden-file-input" accept="image/*, .jpg, .jpeg, .png, .gif, .webp, .txt, .pdf, .json, */*">
                 <button class="m-btn secondary" onclick="document.getElementById('file-generic-input').click()">选择文件...</button>
             </div>
@@ -3482,7 +3485,8 @@ canvas {
             <div class="morandi-card">
                 <h3>🔮 塔罗牌库 (0-77)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择78张JPEG图片 (文件名需包含数字0-77)</p>
-                <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/*">
+              <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="*/*">
+
 
                 <button class="m-btn primary" onclick="document.getElementById('file-tarot-input').click()">批量上传塔罗牌</button>
                 <div id="tarot-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
@@ -3491,8 +3495,7 @@ canvas {
             <div class="morandi-card">
                 <h3>⚜️ 雷诺曼牌库 (1-36)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择36张JPEG图片 (文件名需包含数字1-36)</p>
-  
-<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/*">
+  <input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="*/*">
                 <button class="m-btn primary" onclick="document.getElementById('file-lenormand-input').click()">批量上传雷诺曼</button>
                 <div id="lenormand-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
             </div>
@@ -4031,41 +4034,7 @@ function playAudioMsg(btn, src) {
                 alert("文件已选择，系统已接收 (通用文件不做特殊入库处理)");
             }
         }); 
-       // 兼容安卓的文件导入逻辑 - 塔罗牌
-document.getElementById('file-tarot-input').addEventListener('change', async function(e){
-    const files = Array.from(e.target.files);
-    let count = 0;
-    const statusDiv = document.getElementById('tarot-status');
-    statusDiv.innerText = "正在处理...";
-    
-    for(let file of files) {
-        // 修改点：正则放宽，支持 png/webp，且只要文件名以 数字+点 开头即可
-        // 例如 "0.jpg", "0.png", "12.webp" 都能识别
-        const match = file.name.match(/^(\d+)\./); 
-        if(match) {
-            const id = parseInt(match[1]);
-            if(id >= 0 && id <= 77) {
-                const reader = new FileReader();
-                await new Promise(resolve => {
-                    reader.onload = (evt) => {
-                        idb.put('tarot_deck', { id: id, data: evt.target.result }).then(resolve);
-                    };
-                    // 增加错误处理，防止安卓读取大文件卡死
-                    reader.onerror = resolve; 
-                    reader.readAsDataURL(file);
-                });
-                count++;
-            }
-        }
-    }
-    statusDiv.innerText = `成功导入 ${count} 张塔罗牌`;
-    if(count > 0) {
-        alert(`✅ 成功导入 ${count} 张塔罗牌！(兼容模式)`);
-    } else {
-        alert("❌ 未找到符合规范的图片。请确保文件名为 0.jpg, 1.png 等数字开头的文件。");
-    }
-});
-
+       
 // 兼容安卓的文件导入逻辑 - 雷诺曼
 document.getElementById('file-lenormand-input').addEventListener('change', async function(e){
     const files = Array.from(e.target.files);
@@ -7110,14 +7079,20 @@ async function finishLetterReading() {
     const globalText = (wb['1.全局'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
     const letterText = (wb['13.信件'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
 
-    // 4. API Key 检查
-    let apiKey = document.getElementById('api-key').value;
+        let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
     let model = document.getElementById('model-select').value;
-    if(!apiKey) {
-        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey = s.key; apiUrl = s.url; model = s.model; } catch(e){}
+    
+    // 🟢 修复：如果 Key 或 Model 缺失，尝试读取缓存
+    if(!apiKey || !model) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model;
+        } catch(e){}
     }
-    if(!apiKey) return alert("请先配置 API Key");
+    if(!apiKey) return alert("请先在桌面【设置】中配置 API Key");
 
     // 5. === 核心 Prompt：完美复刻原版礼物逻辑 + 新增阅读判定 ===
     const prompt = `
@@ -9303,16 +9278,21 @@ async function finishHisPhoneReading() {
     const wb = getWBData();
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const phoneCtx = (wb['11.捡到ta的手机'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    let apiKey = document.getElementById('api-key').value;
+        let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
     let model = document.getElementById('model-select').value;
-    if(!apiKey) {
+    
+    // 修复：只要有一项缺失，就尝试从缓存全量读取
+    if(!apiKey || !model) {
         try {
             const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
-            apiKey = s.key; apiUrl = s.url; model = s.model;
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model;
         } catch(e){}
     }
-
+    // 兜底默认
+    if (!apiUrl) apiUrl = "https://api.openai.com/v1";
     const prompt = `
 你现在正在模拟**目标角色**的手机内容。
 【角色/世界设定】：
@@ -10252,7 +10232,9 @@ async function applyAllThemeSettings() {
             'scent_back', // 🌸 香片牌背
             'game_cover_p2', 
             'shell_tv', 'shell_console_p2', 'shell_console_p3',
-            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle'
+            'rpg_user_idle', 'rpg_user_front', 'rpg_user_back', 'rpg_user_right', 'rpg_user_left', 'rpg_npc_idle', // --- 新加的 ---
+            'rpg_book_paper', 
+            'console_p3_screen_img' 
         ];
 
         const images = {};
@@ -10451,6 +10433,31 @@ async function applyAllThemeSettings() {
 
         // 7. 加载 RPG 皮肤
         if (typeof loadRpgSkins === 'function') await loadRpgSkins();
+
+        // 👇👇👇【请在这里（try块的最后）粘贴代码】👇👇👇
+
+        // === 新增：RPG 故事书背景 ===
+        if(images.rpg_book_paper) {
+            const bookPage = document.getElementById('book-single-view');
+            if(bookPage) {
+                bookPage.style.backgroundImage = `url(${images.rpg_book_paper})`;
+                bookPage.style.backgroundSize = '100% 100%'; 
+                bookPage.style.backgroundRepeat = 'no-repeat';
+            }
+            // 同时也给所有标记为 custom-paper-bg 的元素加上
+            document.querySelectorAll('.custom-paper-bg').forEach(el => {
+                el.style.backgroundImage = `url(${images.rpg_book_paper})`;
+                el.style.backgroundSize = '100% 100%';
+            });
+        }
+
+        // === 新增：游戏机中间屏幕 ===
+        if(images.console_p3_screen_img) {
+            const screenImg = document.getElementById('p3-screen-img'); 
+            if(screenImg) {
+                screenImg.src = images.console_p3_screen_img;
+            }
+        }
 
     } catch (e) {
         console.error("美化应用错误:", e);
@@ -11525,11 +11532,23 @@ async function finishDiaryDrawing() {
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const diaryCtx = (wb['14.日记'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"); // 记得在世界书里加这个分类
     
-    let apiKey = document.getElementById('api-key').value;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-    if(!apiKey) return alert("API Key 未配置");
+        let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    // 🟢 修复日记读取逻辑
+    if(!apiKey || !model) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model;
+        } catch(e){}
+    }
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
 
+    if(!apiKey) return alert("API Key 未配置");
     // === 原版 Prompt ===
     const prompt = `
 你现在正在以第一人称撰写日记。
@@ -13946,24 +13965,40 @@ const GACHA_ASSETS = {
     // 概率配置
     probs: { ur: 0.0005, ssr: 0.01, sr: 0.10 } // 剩下是 R
 };
-
-// 1. 数据管理
+// 1. 数据管理 (修复版：自动纠错，防止卡死)
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
-// 结构: { tickets: 0, msg_count: 0, history: [], custom_fronts: {r, sr, ssr, ur} }
-if (!window.BIG_MEMORY.gacha_data) {
-    window.BIG_MEMORY.gacha_data = {
-        tickets: 0,
-        msg_count: 0,
-        history: [],
-        custom_fronts: {} 
-    };
-}
 
-function getGachaData() { return window.BIG_MEMORY.gacha_data; }
-function saveGachaData(data) {
+// 🔥 核心修复：获取数据时如果发现格式错误(例如是空数组)，立刻自动重置为正确对象
+window.getGachaData = function() { 
+    let data = window.BIG_MEMORY.gacha_data;
+    
+    // 如果数据不存在，或者被错误初始化成了数组 []
+    if (!data || Array.isArray(data) || typeof data !== 'object') {
+        console.warn("⚠️ 检测到抽卡数据结构异常，正在自动修复...");
+        data = {
+            tickets: 1, // 🎁 修复补偿：重置时送1张券，防止你没法测试
+            msg_count: 0,
+            history: [],
+            custom_fronts: {} 
+        };
+        // 立即修复内存
+        window.BIG_MEMORY.gacha_data = data;
+    }
+    
+    // 二次检查内部关键字段，防止读取 undefined 报错
+    if (!data.custom_fronts) data.custom_fronts = {};
+    if (typeof data.tickets !== 'number') data.tickets = 0;
+    if (!Array.isArray(data.history)) data.history = [];
+    
+    return data; 
+};
+
+window.saveGachaData = function(data) {
     window.BIG_MEMORY.gacha_data = data;
-    if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'gacha_data', data: data });
-}
+    if (typeof idb !== 'undefined') {
+        idb.put('universal_store', { id: 'gacha_data', data: data });
+    }
+};
 
 // 2. 聊天钩子 (Hook Chat)
 // ⚠️ 请确保这段代码执行在原有的 window.appendMessage 定义之后
@@ -14043,58 +14078,66 @@ window.updateGachaUI = function() {
         });
     }
 };
-// 4. 抽卡核心逻辑
+// 4. 抽卡核心逻辑 (修复版：防卡死 + 数据自动补全)
 let currentPullResults = [];
 
 window.doGachaDraw = function(count) {
-    const data = getGachaData();
-    
-    // 检查券
-    let cost = count;
-    if (count === 10) cost = 9; // 囤9次可以10连 (优惠)
-    
-    if ((data.tickets || 0) < cost) {
-        return alert(`券不足！需要 ${cost} 张，当前只有 ${data.tickets || 0} 张。`);
-    }
-    
-    data.tickets -= cost;
-    
-    // 计算结果
-    currentPullResults = [];
-    let hasSR = false;
-    
-    for (let i = 0; i < count; i++) {
-        const rand = Math.random();
-        let rarity = 'R';
+    try {
+        const data = getGachaData();
         
-        if (rand < GACHA_ASSETS.probs.ur) rarity = 'UR';
-        else if (rand < (GACHA_ASSETS.probs.ur + GACHA_ASSETS.probs.ssr)) rarity = 'SSR';
-        else if (rand < (GACHA_ASSETS.probs.ur + GACHA_ASSETS.probs.ssr + GACHA_ASSETS.probs.sr)) rarity = 'SR';
+        // 检查券
+        let cost = count;
+        if (count === 10) cost = 9; // 囤9次可以10连 (优惠)
         
-        if (rarity === 'SR' || rarity === 'SSR' || rarity === 'UR') hasSR = true;
-        currentPullResults.push(rarity);
+        if ((data.tickets || 0) < cost) {
+            return alert(`券不足！需要 ${cost} 张，当前只有 ${data.tickets || 0} 张。`);
+        }
+        
+        data.tickets -= cost;
+        
+        // 计算结果
+        currentPullResults = [];
+        let hasSR = false;
+        
+        for (let i = 0; i < count; i++) {
+            const rand = Math.random();
+            let rarity = 'R';
+            
+            if (rand < GACHA_ASSETS.probs.ur) rarity = 'UR';
+            else if (rand < (GACHA_ASSETS.probs.ur + GACHA_ASSETS.probs.ssr)) rarity = 'SSR';
+            else if (rand < (GACHA_ASSETS.probs.ur + GACHA_ASSETS.probs.ssr + GACHA_ASSETS.probs.sr)) rarity = 'SR';
+            
+            if (rarity === 'SR' || rarity === 'SSR' || rarity === 'UR') hasSR = true;
+            currentPullResults.push(rarity);
+        }
+        
+        // 十连保底逻辑 (如果全是R，强制把最后一个改成SR)
+        if (count === 10 && !hasSR) {
+            currentPullResults[9] = 'SR';
+        }
+        
+        saveGachaData(data); // 先扣费保存
+        
+        // 开始播放动画
+        playGachaAnimation();
+    } catch (e) {
+        console.error("Draw Error:", e);
+        alert("抽卡启动失败，请刷新重试。");
     }
-    
-    // 十连保底逻辑 (如果全是R，强制把最后一个改成SR)
-    if (count === 10 && !hasSR) {
-        currentPullResults[9] = 'SR';
-    }
-    
-    saveGachaData(data); // 先扣费保存
-    
-    // 开始播放动画
-    playGachaAnimation();
 };
 
-// 5. 动画与展示
+// 5. 动画与展示 (修复版)
 window.playGachaAnimation = function() {
     const overlay = document.getElementById('gacha-animation-overlay');
     const container = document.getElementById('gacha-card-container');
     const closeBtn = document.getElementById('gacha-close-btn');
     
+    if(!container || !overlay) return;
+
     overlay.style.display = 'flex';
     container.innerHTML = '';
-    closeBtn.style.opacity = '0';
+    closeBtn.style.opacity = '0'; // 先隐藏关闭按钮
+    closeBtn.style.pointerEvents = 'none'; 
     
     // 生成卡片 DOM
     currentPullResults.forEach((rarity, index) => {
@@ -14102,12 +14145,12 @@ window.playGachaAnimation = function() {
         card.className = 'gacha-card-wrapper';
         
         // 获取背景图 (根据稀有度)
-        const backImg = GACHA_ASSETS.back[rarity.toLowerCase()];
-        const frameImg = GACHA_ASSETS.frame[rarity.toLowerCase()];
+        const backImg = GACHA_ASSETS.back[rarity.toLowerCase()] || GACHA_ASSETS.back['r'];
+        const frameImg = GACHA_ASSETS.frame[rarity.toLowerCase()] || GACHA_ASSETS.frame['r'];
         
         // 获取卡面 (用户自定义或默认颜色)
         const data = getGachaData();
-        const customImg = data.custom_fronts[rarity.toLowerCase()];
+        const customImg = data.custom_fronts && data.custom_fronts[rarity.toLowerCase()];
         
         // 正面样式
         let frontContent = '';
@@ -14116,7 +14159,7 @@ window.playGachaAnimation = function() {
         } else {
             // 默认显示文字
             const colorMap = { 'ur':'#ff7675', 'ssr':'#fdcb6e', 'sr':'#74b9ff', 'r':'#dfe6e9' };
-            frontContent = `<div style="font-size:2rem; font-weight:bold; color:${colorMap[rarity.toLowerCase()]};">${rarity}</div>`;
+            frontContent = `<div style="font-size:2rem; font-weight:bold; color:${colorMap[rarity.toLowerCase()] || '#999'};">${rarity}</div>`;
         }
 
         card.innerHTML = `
@@ -14139,122 +14182,147 @@ window.playGachaAnimation = function() {
         }, index * 100);
     });
     
-    // 如果是10连，第一张自动点击引导
-    // 这里实现：点击第一张，自动全开 (仿乙女游戏)
+    // 重置自动开启状态
     container.dataset.allOpened = "false";
 };
+
 window.flipGachaCard = function(el, rarity, index) {
     if (el.classList.contains('flipped')) return;
     
-    const container = document.getElementById('gacha-card-container');
-    
-    // 翻转当前张
-    el.classList.add('flipped');
-    
-    // 获取具体奖品并显示在卡面上
-    const prizeName = processReward(rarity); 
-    
-    // 在卡片正面添加文字显示
-    const front = el.querySelector('.gacha-front');
-    if(front) {
-        const textDiv = document.createElement('div');
-        textDiv.innerText = prizeName;
-        // 样式：底部白色半透明条
-        textDiv.style.cssText = "position:absolute; bottom:15px; left:0; width:100%; text-align:center; background:rgba(255,255,255,0.85); color:#333; font-size:0.8rem; padding:3px 0; font-weight:bold; z-index:10; border-top:1px solid #eee; border-bottom:1px solid #eee;";
-        front.appendChild(textDiv);
-    }
-    
-    // 十连抽自动翻开逻辑 (保持不变)
-    if (currentPullResults.length > 1 && container.dataset.allOpened === "false") {
-        container.dataset.allOpened = "true";
-        const allCards = container.querySelectorAll('.gacha-card-wrapper');
+    try {
+        const container = document.getElementById('gacha-card-container');
         
-        allCards.forEach((card, i) => {
-            if (i === index) return; 
-            setTimeout(() => {
-                if (!card.classList.contains('flipped')) {
-                    // 模拟点击翻开
-                    card.classList.add('flipped');
-                    // 同样显示奖品
-                    const autoPrize = processReward(currentPullResults[i]);
-                    const autoFront = card.querySelector('.gacha-front');
-                    if(autoFront) {
-                        const autoDiv = document.createElement('div');
-                        autoDiv.innerText = autoPrize;
-                        autoDiv.style.cssText = "position:absolute; bottom:15px; left:0; width:100%; text-align:center; background:rgba(255,255,255,0.85); color:#333; font-size:0.8rem; padding:3px 0; font-weight:bold; z-index:10; border-top:1px solid #eee; border-bottom:1px solid #eee;";
-                        autoFront.appendChild(autoDiv);
+        // 翻转当前张
+        el.classList.add('flipped');
+        
+        // 获取具体奖品并显示在卡面上 (加了防崩溃保护)
+        const prizeName = processReward(rarity); 
+        
+        // 在卡片正面添加文字显示
+        const front = el.querySelector('.gacha-front');
+        if(front) {
+            const textDiv = document.createElement('div');
+            textDiv.innerText = prizeName;
+            textDiv.style.cssText = "position:absolute; bottom:15px; left:0; width:100%; text-align:center; background:rgba(255,255,255,0.85); color:#333; font-size:0.8rem; padding:3px 0; font-weight:bold; z-index:10; border-top:1px solid #eee; border-bottom:1px solid #eee;";
+            front.appendChild(textDiv);
+        }
+        
+        // 十连抽自动翻开逻辑
+        if (currentPullResults.length > 1 && container.dataset.allOpened === "false") {
+            container.dataset.allOpened = "true";
+            const allCards = container.querySelectorAll('.gacha-card-wrapper');
+            
+            allCards.forEach((card, i) => {
+                if (i === index) return; 
+                setTimeout(() => {
+                    if (!card.classList.contains('flipped')) {
+                        card.classList.add('flipped');
+                        const autoPrize = processReward(currentPullResults[i]);
+                        const autoFront = card.querySelector('.gacha-front');
+                        if(autoFront) {
+                            const autoDiv = document.createElement('div');
+                            autoDiv.innerText = autoPrize;
+                            autoDiv.style.cssText = "position:absolute; bottom:15px; left:0; width:100%; text-align:center; background:rgba(255,255,255,0.85); color:#333; font-size:0.8rem; padding:3px 0; font-weight:bold; z-index:10; border-top:1px solid #eee; border-bottom:1px solid #eee;";
+                            autoFront.appendChild(autoDiv);
+                        }
                     }
-                }
-            }, (i + 1) * 200); 
-        });
-        
-        setTimeout(() => {
-            document.getElementById('gacha-close-btn').style.opacity = '1';
-        }, allCards.length * 200 + 500);
-    } else {
-        if (currentPullResults.length === 1) {
-            document.getElementById('gacha-close-btn').style.opacity = '1';
-        }
-    }
-};
-window.processReward = function(rarity) {
-    const data = getGachaData();
-    // 确保从大内存读取最新宠物数据
-    const petData = window.BIG_MEMORY.pet_data;
-    
-    let prizeName = "";
-
-    // R卡：随机获得物品
-    if (rarity === 'R') {
-        if (petData && PET_CONFIG && PET_CONFIG.items) {
-            const randomItem = PET_CONFIG.items[Math.floor(Math.random() * PET_CONFIG.items.length)];
-            if (!petData.inventory.items[randomItem.id]) petData.inventory.items[randomItem.id] = 0;
-            petData.inventory.items[randomItem.id]++;
-            prizeName = randomItem.name; // 记录物品名
+                }, (i + 1) * 200); 
+            });
+            
+            // 显示关闭按钮 (延迟一点)
+            setTimeout(() => {
+                const closeBtn = document.getElementById('gacha-close-btn');
+                closeBtn.style.opacity = '1';
+                closeBtn.style.pointerEvents = 'auto';
+            }, allCards.length * 200 + 500);
         } else {
-            prizeName = "神秘碎片";
+            // 单抽：直接显示关闭按钮
+            if (currentPullResults.length === 1) {
+                const closeBtn = document.getElementById('gacha-close-btn');
+                closeBtn.style.opacity = '1';
+                closeBtn.style.pointerEvents = 'auto';
+            }
         }
-    } 
-    // SR卡：积分
-    else if (rarity === 'SR') {
-        if (petData) petData.inventory.coins += 3;
-        prizeName = "3 积分";
+    } catch (e) {
+        console.error("Flip Error:", e);
+        // 出错兜底：强制显示关闭按钮，防止卡死
+        const closeBtn = document.getElementById('gacha-close-btn');
+        if(closeBtn) {
+            closeBtn.style.opacity = '1';
+            closeBtn.style.pointerEvents = 'auto';
+        }
     }
-    // SSR卡：大量积分
-    else if (rarity === 'SSR') {
-        if (petData) petData.inventory.coins += 88;
-        prizeName = "88 积分";
-    }
-    // UR卡：大奖
-    else if (rarity === 'UR') {
-        prizeName = "UR大奖";
-        setTimeout(() => {
-            alert("🎉 恭喜获得 UR！\n凭此截图私信作者，下次地图主题你来选！");
-        }, 500);
-    }
-    
-    // 记录历史 (包含具体奖品名字)
-    if(!data.history) data.history = [];
-    data.history.unshift({ date: Date.now(), rarity: rarity, prize: prizeName });
-    
-    // 限制历史长度 (防止无限变长卡顿，保留最近50条)
-    if (data.history.length > 50) data.history.pop();
-    
-    // 保存所有数据
-    saveGachaData(data); 
-    
-    // 如果宠物数据变动了，保存宠物数据
-    if (petData && typeof savePetData === 'function') {
-        savePetData(petData);
-    }
-    
-    return prizeName; // 返回奖品名给翻牌函数显示
 };
+
+window.processReward = function(rarity) {
+    try {
+        const data = getGachaData();
+        
+        // 🔥 核心修复：安全获取/初始化宠物数据，防止 undefined 报错
+        if (!window.BIG_MEMORY.pet_data) {
+            window.BIG_MEMORY.pet_data = { inventory: { coins: 0, items: {} } };
+        }
+        const petData = window.BIG_MEMORY.pet_data;
+        if (!petData.inventory) petData.inventory = { coins: 0, items: {} };
+        if (!petData.inventory.items) petData.inventory.items = {};
+
+        let prizeName = "";
+
+        // R卡：随机获得物品
+        if (rarity === 'R') {
+            if (PET_CONFIG && PET_CONFIG.items && PET_CONFIG.items.length > 0) {
+                const randomItem = PET_CONFIG.items[Math.floor(Math.random() * PET_CONFIG.items.length)];
+                
+                if (!petData.inventory.items[randomItem.id]) petData.inventory.items[randomItem.id] = 0;
+                petData.inventory.items[randomItem.id]++;
+                
+                prizeName = randomItem.name; 
+            } else {
+                prizeName = "神秘碎片";
+            }
+        } 
+        // SR卡：积分
+        else if (rarity === 'SR') {
+            petData.inventory.coins = (petData.inventory.coins || 0) + 3;
+            prizeName = "3 积分";
+        }
+        // SSR卡：大量积分
+        else if (rarity === 'SSR') {
+            petData.inventory.coins = (petData.inventory.coins || 0) + 88;
+            prizeName = "88 积分";
+        }
+        // UR卡：大奖
+        else if (rarity === 'UR') {
+            prizeName = "UR大奖";
+            setTimeout(() => {
+                alert("🎉 恭喜获得 UR！\n凭此截图私信作者，下次地图主题你来选！");
+            }, 500);
+        }
+        
+        // 记录历史
+        if(!data.history) data.history = [];
+        data.history.unshift({ date: Date.now(), rarity: rarity, prize: prizeName });
+        if (data.history.length > 50) data.history.pop();
+        
+        saveGachaData(data); 
+        
+        // 保存宠物数据
+        if (typeof savePetData === 'function') {
+            savePetData(petData);
+        }
+        
+        return prizeName;
+    } catch (e) {
+        console.error("Process Reward Failed:", e);
+        return "未知奖励"; // 出错时返回默认文本，不中断流程
+    }
+};
+
 window.closeGachaAnimation = function() {
     document.getElementById('gacha-animation-overlay').style.display = 'none';
     updateGachaUI(); // 刷新主界面
 };
-
+    
 // 6. 设置与作弊
 window.openGachaSettings = function() {
     document.getElementById('gacha-settings-modal').style.display = 'flex';
@@ -16790,6 +16858,20 @@ window.deleteStudyPlan = function() {
                 <div class="input-group"><label>塔罗牌-牌桌背景</label><input type="file" onchange="uploadThemeImage('tarot_table', this)"></div>
                 <div class="input-group"><label>冰箱组件封面</label><input type="file" onchange="uploadThemeImage('fridge_cover', this)"></div>
 <div class="input-group"><label>第二页的游戏机封面</label><input type="file" onchange="uploadThemeImage('game_cover_p2', this)"></div>
+<hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">
+        <h4 style="color:#8e44ad;">📖 故事与屏幕定制</h4>
+        
+        <div class="input-group">
+            <label>RPG故事书-内页背景 (Story Notebook)</label>
+            <!-- 这里的 key 是 rpg_book_paper -->
+            <input type="file" onchange="uploadThemeImage('rpg_book_paper', this)">
+        </div>
+
+        <div class="input-group">
+            <label>RPG游戏机-中间屏幕图 (P3 Screen)</label>
+            <!-- 这里的 key 是 console_p3_screen_img -->
+            <input type="file" onchange="uploadThemeImage('console_p3_screen_img', this)">
+        </div>
 <!-- 下面这些是你提到没生效的，代码逻辑里会修复它们 -->
 <div class="input-group"><label>日记桌面外观 (Card)</label><input type="file" onchange="uploadThemeImage('diary_widget_bg', this)"></div>
 <div class="input-group"><label>报纸封面底图</label><input type="file" onchange="uploadThemeImage('news_cover', this)"></div>
@@ -17483,6 +17565,7 @@ function clearLofterHistory() {
     saveLofterData([]);
     renderLofterFeed();
 }
+
 async function generateLofterFeed() {
     const inputEl = document.getElementById('lofter-user-req');
     const userReq = inputEl.value.trim();
@@ -17495,16 +17578,26 @@ async function generateLofterFeed() {
     const wb = getWBData();
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
-    // 2. 获取 API Key
+        // 2. 获取 API Key (修复版：优先读取本地缓存，无需重新拉取)
     let apiKey = document.getElementById('api-key').value;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
     
-    if(!apiKey) { 
-        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey = s.key; } catch(e){} 
+    // 只要 key 或 model 为空，就强制从缓存读取
+    if(!apiKey || !model) { 
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; // 补全 URL 读取
+            if(!model) model = s.model; // 补全 模型 读取
+        } catch(e){} 
     }
-    if(!apiKey) { btn.disabled = false; btn.innerText = oldText; return alert("请先配置 API Key"); }
 
+    // 兜底默认值
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
+
+    if(!apiKey) { btn.disabled = false; btn.innerText = oldText; return alert("请先配置 API Key"); }
     // 3. 构建 Prompt (强制第三人称 + 减少数量防止截断)
     const prompt = `
 你是一位资深同人作者。请基于以下设定创作：
@@ -21906,12 +21999,40 @@ window.generateGalgameEndingAPI = async function() {
             <button class="m-btn small" onclick="closeRpgApp()" style="background:rgba(255,0,0,0.5); color:#fff;">退出</button>
         </div>
     </div>
+<!-- 📖 新增：全屏故事书弹窗 (独立于游戏界面之外) -->
+<!-- 📖 修改版：单页笔记本弹窗 -->
+<div id="rpg-book-modal">
+    <!-- 1. 封面视图 -->
+    <div id="book-cover-view" class="book-cover-state" onclick="openBookSingle()">
+        <div class="book-spine-deco"></div>
+        <div class="book-title-gold">Our<br>Story</div>
+        <div class="book-subtitle">MEMORIES</div>
+        <div style="position:absolute; bottom:20px; color:rgba(255,255,255,0.6); font-size:0.7rem;">TAP TO OPEN</div>
+    </div>
 
-    <!-- 侧边栏：生成的故事历史 -->
-    <div id="rpg-history-panel" class="chat-settings-panel">
-        <h3>📖 生活片段</h3>
-        <button class="m-btn small" onclick="toggleRpgHistory()" style="margin-bottom:10px; background:#e8d7d7;">关闭</button>
-        <div id="rpg-history-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <!-- 2. 单页内页视图 -->
+    <div id="book-single-view" class="book-single-view custom-paper-bg">
+        <!-- 删除按钮 -->
+        <div class="book-del-icon" onclick="deleteCurrentBookPage()">×</div>
+
+        <!-- 头部信息 -->
+        <div class="book-page-header">
+            <span id="book-page-date" class="book-date">--/--/--</span>
+            <span id="book-page-tag" class="book-tag">EVENT</span>
+        </div>
+
+        <!-- 正文内容 (太长会滚动) -->
+        <div id="book-page-content" class="book-content-area"></div>
+
+        <!-- 底部导航 -->
+        <button class="book-nav-btn btn-prev" onclick="turnBookPage(-1)">❮</button>
+        <span id="book-page-indicator" class="book-page-num">1 / 1</span>
+        <button class="book-nav-btn btn-next" onclick="turnBookPage(1)">❯</button>
+
+        <!-- 关闭按钮 (悬浮在书本外下方) -->
+        <div onclick="closeRpgBook()" style="position:absolute; bottom:-50px; left:50%; transform:translateX(-50%); color:white; cursor:pointer; background:rgba(0,0,0,0.5); padding:8px 20px; border-radius:20px; font-size:0.9rem; border:1px solid rgba(255,255,255,0.3);">
+            合上笔记
+        </div>
     </div>
 </div>
 <div id="rpg-chat-modal" class="modal-overlay" style="display:none; background:#000;">
@@ -22294,7 +22415,7 @@ const RPG_ASSETS = {
     bg_room: "https://i.postimg.cc/4xNTKjLp/IMG_0470.png",
     bg_outside: "https://i.postimg.cc/bwCf1L4q/IMG_0496.png",
     bg_store: "https://i.postimg.cc/BnPmP1hr/IMG_1348.png",
-    bg_hospital: "https://i.postimg.cc/Y09B3W9T/IMG_1558.jpg",
+    bg_hospital: "https://i.postimg.cc/W4zsDv7n/IMG_1558.jpg",
     bg_hospital_room: "https://i.postimg.cc/QCtZbTCG/IMG_1529.jpg",
     bg_seaside: "https://i.postimg.cc/tCcxQKKF/IMG-1623.png",
     bg_seaside_hut: "https://i.postimg.cc/q7V0TqbP/IMG_1581.jpg",
@@ -23038,13 +23159,23 @@ async function finishRpgChat() {
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const chatCtx = (wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
-    // 获取 API Key
-    let apiKey = document.getElementById('api-key').value;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-    if(!apiKey) {
-        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){}
+        let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    // 🟢 修复：强制读取缓存
+    if(!apiKey || !model) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model;
+        } catch(e){}
     }
+    // 默认值
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
+
     if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请先在桌面【设置】中配置 API Key"); }
 
     // === 🌟 原版提示词 (Original Prompt) ===
@@ -24657,6 +24788,117 @@ body, #screen {
     flex: 1;
 }
 
+/* === 📖 修改版：单页牛皮笔记本样式 === */
+#rpg-book-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 12000;
+    display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+/* 封面状态 (保持不变) */
+.book-cover-state {
+    width: 280px; height: 380px;
+    background: #5d4037;
+    background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 4px);
+    border-radius: 6px 16px 16px 6px;
+    box-shadow: 10px 10px 30px rgba(0,0,0,0.7);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; border: 4px solid #3e2723;
+    transition: transform 0.3s;
+}
+.book-cover-state:active { transform: scale(0.98); }
+
+.book-spine-deco {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 25px;
+    background: #3e2723; border-radius: 4px 0 0 4px;
+    box-shadow: inset -2px 0 5px rgba(0,0,0,0.5);
+}
+
+.book-title-gold {
+    font-family: "Old English Text MT", serif; font-size: 2.2rem; color: #ffd700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: 5px;
+}
+.book-subtitle { font-size: 0.8rem; color: #a1887f; letter-spacing: 3px; text-transform: uppercase; }
+/* 📖 单页内页视图 (修正背景平铺问题) */
+.book-single-view {
+    width: 90%; max-width: 500px;
+    height: 80vh; max-height: 750px;
+    background-color: #fdf6e3; /* 默认米黄 */
+    
+    /* 默认方格纹理 (会被自定义背景覆盖) */
+    background-image: 
+        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+    
+    /* 🔥 关键修复：如果你上传了图片，下面的 js 会覆盖这个属性，但在 CSS 里我们要默认铺满 */
+    background-size: 100% 100% !important; 
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+
+    border-radius: 6px 12px 12px 6px;
+    box-shadow: 
+        inset 15px 0 20px rgba(0,0,0,0.1), /* 书脊阴影 */
+        10px 10px 40px rgba(0,0,0,0.6);
+        
+    display: none; 
+    position: relative;
+    padding: 40px 30px 60px 40px; /* 调整边距，给文字留空间 */
+    flex-direction: column;
+}
+
+/* 笔记本侧边的装订线视觉效果 */
+.book-single-view::before {
+    content: ""; position: absolute; left: 15px; top: 0; bottom: 0; width: 2px;
+    border-left: 2px dashed rgba(0,0,0,0.1); z-index: 1;
+}
+
+/* 内容区域 */
+.book-content-area {
+    flex: 1;
+    overflow-y: auto; /* 内容太长时自动滚动 */
+    font-family: "Songti SC", "Noto Serif SC", serif;
+    color: #4e342e;
+    line-height: 1.8;
+    font-size: 1.05rem;
+    white-space: pre-wrap;
+    text-align: justify;
+}
+
+/* 日期头 */
+.book-page-header {
+    border-bottom: 2px double #8d6e63;
+    padding-bottom: 10px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+}
+.book-date { font-family: 'Courier New', monospace; font-weight: bold; color: #5d4037; }
+.book-tag { font-size: 0.7rem; background: #8d6e63; color: white; padding: 2px 6px; border-radius: 4px; }
+
+/* 翻页按钮 (放在书本下方的两侧) */
+.book-nav-btn {
+    position: absolute; bottom: 15px;
+    background: none; border: none; font-size: 1.5rem;
+    color: #8d6e63; cursor: pointer; opacity: 0.7;
+    transition: 0.2s; z-index: 10;
+}
+.book-nav-btn:hover { opacity: 1; transform: scale(1.1); }
+.book-nav-btn:active { transform: scale(0.9); }
+.btn-prev { left: 40px; }
+.btn-next { right: 25px; }
+
+/* 页码指示 */
+.book-page-num {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-size: 0.8rem; color: #aaa; font-family: monospace;
+}
+
+/* 删除按钮 (右上角) */
+.book-del-icon {
+    position: absolute; top: 15px; right: 15px;
+    color: #e57373; cursor: pointer; font-size: 1.2rem; opacity: 0.5;
+}
+.book-del-icon:hover { opacity: 1; }
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -25785,6 +26027,389 @@ window.loadAllBigData = async function() {
     
     console.log("✅ 修复补丁已应用：阴暗面 & 香片");
 };
+// ==================== 📖 故事书核心逻辑 (修复版) ====================
 
+let bookCurrentPage = 0; // 当前页码 (0, 2, 4...)
+
+// 1. 打开书本入口 (替换原有的侧边栏开关)
+window.toggleRpgHistory = function() {
+    const modal = document.getElementById('rpg-book-modal');
+    const cover = document.getElementById('book-cover-view');
+    const spread = document.getElementById('book-spread-view');
+    
+    // 初始化状态：显示封面，隐藏内页
+    modal.style.display = 'flex';
+    cover.style.display = 'flex';
+    spread.style.display = 'none';
+    
+    // 应用美化背景 (如果在美化APP里设置了 'rpg_book_paper')
+    applyBookPaperTheme();
+};
+
+// 2. 点击封面 -> 打开内页
+window.openBookSpread = function() {
+    document.getElementById('book-cover-view').style.display = 'none';
+    document.getElementById('book-spread-view').style.display = 'flex';
+    
+    bookCurrentPage = 0; // 重置到第一页
+    renderBookPages();
+};
+
+// 3. 关闭书本
+window.closeRpgBook = function() {
+    document.getElementById('rpg-book-modal').style.display = 'none';
+};
+
+// 4. 翻页逻辑
+window.turnBookPage = function(delta) {
+    const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    const newPage = bookCurrentPage + (delta * 2); // 每次翻2页 (左右各一)
+    
+    // 边界检查
+    if (newPage < 0) return; // 已经是第一页
+    if (newPage >= list.length) return; // 已经是最后一页
+    
+    bookCurrentPage = newPage;
+    renderBookPages();
+};
+
+// 5. 核心渲染 (左页 + 右页)
+window.renderBookPages = function() {
+    const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    const leftEl = document.getElementById('book-page-left');
+    const rightEl = document.getElementById('book-page-right');
+    
+    // 渲染左页 (Index = bookCurrentPage)
+    renderSinglePage(leftEl, list[bookCurrentPage], bookCurrentPage);
+    
+    // 渲染右页 (Index = bookCurrentPage + 1)
+    renderSinglePage(rightEl, list[bookCurrentPage + 1], bookCurrentPage + 1);
+};
+
+// 辅助渲染函数
+function renderSinglePage(container, item, index) {
+    if (!item) {
+        container.innerHTML = `<div class="book-empty-hint">（空白页）</div>`;
+        return;
+    }
+    
+    const dateObj = new Date(item.date);
+    const dateStr = `${dateObj.getFullYear()}.${dateObj.getMonth()+1}.${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+    
+    container.innerHTML = `
+        <div class="book-story-date">📅 ${dateStr} · ${item.item || '日常'}</div>
+        <div class="book-story-text">${item.text}</div>
+        <div class="book-story-del" onclick="deleteRpgHistoryBook(${index})">✂️ 撕掉这一页</div>
+    `;
+}
+
+// 6. 专用删除函数 (删除后刷新书本)
+window.deleteRpgHistoryBook = function(index) {
+    if(!confirm("确定要撕掉这一页回忆吗？(不可恢复)")) return;
+    
+    window.BIG_MEMORY.rpg_data.history.splice(index, 1);
+    saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
+    
+    // 删除后重新渲染当前页
+    // 如果当前页数据没了，尝试往前翻
+    if (!window.BIG_MEMORY.rpg_data.history[bookCurrentPage] && bookCurrentPage > 0) {
+        bookCurrentPage -= 2;
+    }
+    renderBookPages();
+};
+
+// 7. 应用书页背景 (美化APP支持)
+async function applyBookPaperTheme() {
+    try {
+        const res = await idb.get('settings_heavy', 'rpg_book_paper');
+        if (res && res.data) {
+            document.querySelectorAll('.custom-paper-bg').forEach(el => {
+                el.style.backgroundImage = `url(${res.data})`;
+            });
+        }
+    } catch(e) {}
+}
+// ==================== 📖 单页笔记本逻辑 (Fix) ====================
+
+let bookCurrentIndex = 0; // 当前第几条记录 (0是最新)
+
+// 1. 打开书本
+window.toggleRpgHistory = function() {
+    const modal = document.getElementById('rpg-book-modal');
+    modal.style.display = 'flex';
+    document.getElementById('book-cover-view').style.display = 'flex';
+    document.getElementById('book-single-view').style.display = 'none';
+    applyBookPaperTheme();
+};
+
+window.openBookSingle = function() {
+    document.getElementById('book-cover-view').style.display = 'none';
+    document.getElementById('book-single-view').style.display = 'flex';
+    bookCurrentIndex = 0; // 打开时默认看最新的
+    renderSingleBookPage();
+};
+
+window.closeRpgBook = function() {
+    document.getElementById('rpg-book-modal').style.display = 'none';
+};
+
+// 2. 翻页 (delta: -1 往前翻/更新的, 1 往后翻/更旧的)
+// 这里逻辑是：Index 0 是最新，Index 1 是次新...
+// 所以 "Next Page" (翻过去) 应该看旧记录 -> Index + 1
+// "Prev Page" (翻回来) 应该看新记录 -> Index - 1
+window.turnBookPage = function(delta) {
+    const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    const newIndex = bookCurrentIndex + delta;
+    
+    if (newIndex < 0) return; // 已经是最新了
+    if (newIndex >= list.length) return; // 已经是最后一条了
+    
+    bookCurrentIndex = newIndex;
+    renderSingleBookPage();
+};
+
+// 3. 渲染单页内容
+window.renderSingleBookPage = function() {
+    const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    const contentEl = document.getElementById('book-page-content');
+    const dateEl = document.getElementById('book-page-date');
+    const tagEl = document.getElementById('book-page-tag');
+    const numEl = document.getElementById('book-page-indicator');
+    
+    if (list.length === 0) {
+        contentEl.innerHTML = "<div style='text-align:center; margin-top:50%; color:#aaa;'>（空白的笔记本...）</div>";
+        dateEl.innerText = "--";
+        tagEl.style.display = 'none';
+        numEl.innerText = "0 / 0";
+        return;
+    }
+
+    const item = list[bookCurrentIndex];
+    const dateObj = new Date(item.date);
+    
+    // 渲染内容
+    dateEl.innerText = dateObj.toLocaleDateString();
+    tagEl.innerText = item.item || "RECORD";
+    tagEl.style.display = 'inline-block';
+    contentEl.innerHTML = item.text.replace(/\n/g, '<br>');
+    
+    // 页码：显示 "当前篇数 / 总篇数"
+    // 为了符合书本直觉，最新的在第1页
+    numEl.innerText = `${bookCurrentIndex + 1} / ${list.length}`;
+};
+
+// 4. 删除当前页
+window.deleteCurrentBookPage = function() {
+    const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
+    if(list.length === 0) return;
+
+    if(!confirm("确定要撕掉这一页吗？(不可恢复)")) return;
+    
+    list.splice(bookCurrentIndex, 1);
+    saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
+    
+    // 删除后索引修正：如果删的是最后一页，索引减1
+    if (bookCurrentIndex >= list.length && bookCurrentIndex > 0) {
+        bookCurrentIndex--;
+    }
+    renderSingleBookPage();
+};
+
+// 5. 保存并自动打开 (通用接口)
+window.saveRpgStory = function(title, text) {
+    if(!window.BIG_MEMORY.rpg_data) window.BIG_MEMORY.rpg_data = { history: [], chat_history: [] };
+    if(!window.BIG_MEMORY.rpg_data.history) window.BIG_MEMORY.rpg_data.history = [];
+
+    window.BIG_MEMORY.rpg_data.history.unshift({
+        date: Date.now(),
+        item: title,
+        text: text
+    });
+    
+    if(window.BIG_MEMORY.rpg_data.history.length > 100) window.BIG_MEMORY.rpg_data.history.pop();
+    saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
+    
+    // 自动打开并显示最新页
+    toggleRpgHistory();
+    openBookSingle();
+};
+
+// 1. 🏠 房间互动生成 (原版详细 Prompt)
+window.generateRpgStory = async function(item) {
+    alert(`⏳ 正在观察你与【${item.name}】的互动...\n(AI 正在撰写长篇故事，请耐心等待，生成完毕会有提示)`);
+    
+    const context = await getRpgContext();
+    if(!context) return; 
+
+    // 🔥 恢复原版高质量 Prompt
+    const prompt = `
+你是一位擅长描写细腻情感的治愈系小说家。
+【世界观】：${context.global}
+【场景】：温馨的家中。
+【事件】：用户（你）正在使用房间里的【${item.name}】。
+
+【任务】：
+请以**第二人称“你”**的视角，写一段**不少于 300 字**的生活片段。
+请重点描写：
+1. **感官细节**：物品的触感、声音、房间的光影、空气的味道。
+2. **角色互动**：此刻角色（Ta）在做什么？Ta 是静静地看着你，还是走过来和你一起互动？
+3. **情感流动**：你们之间无声的默契，或者温柔的语言交流。
+
+请直接输出故事正文，不要标题。
+`;
+    
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏠 居家 · ${item.name}`, story);
+        alert(`✅ 与【${item.name}】的互动故事已生成！\n请点击右上角【故事集】查看。`);
+    });
+};
+
+// 2. 🏖️ 朋友祝福生成 (原版详细 Prompt)
+window.generateFriendStory = async function(friend) {
+    alert(`⏳ 正在聆听【${friend.name}】的祝福...\n(AI 正在构思，请稍候)`);
+    
+    const context = await getRpgContext();
+    if(!context) return;
+
+    // 🔥 恢复原版高质量 Prompt
+    const prompt = `
+你是一位情感细腻的小说家。
+【世界观】：${context.global}
+【场景】：阳光明媚的沙滩/户外。
+【事件】：用户（你）和角色（Ta）偶遇了朋友【${friend.name}】。
+【朋友说】："${friend.prompt}"
+
+【任务】：
+请写一段 **300 字左右** 的小故事。
+1. 描写听到朋友这句话后，**你和Ta各自的反应**（是害羞地对视，还是紧紧握住了手？）。
+2. 侧重描写两人之间流动的爱意、确幸感，以及朋友眼中的你们是多么般配。
+3. 氛围：甜蜜、阳光、令人心动。
+
+请直接输出故事正文。
+`;
+
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏖️ 偶遇 · ${friend.name}`, story);
+        alert(`✅ 朋友的祝福已记录！\n请在【故事集】中查看。`);
+    });
+};
+
+// 3. 🛒 便利店购物生成 (原版详细 Prompt)
+window.generateStoreShopping = async function(item) {
+    const itemName = item.name.replace('货架','');
+    alert(`⏳ 正在挑选【${itemName}】...\n(生成中，请耐心等待)`);
+    
+    const context = await getRpgContext();
+    if(!context) return;
+
+    // 🔥 恢复原版高质量 Prompt
+    const prompt = `
+你是一位极具生活气息的小说家（类似吉本芭娜娜风格）。
+【世界观】：${context.global}
+【场景】：深夜/傍晚的便利店。
+【事件】：用户（你）正在货架前挑选【${itemName}】。
+
+【任务】：
+请写一段 **300 字左右** 的片段。
+1. **挑选过程**：详细描写纠结的过程（比如看保质期、比较口味、或者单纯被包装吸引）。
+2. **角色互动**：Ta 给出了什么建议？或者 Ta 趁你不注意偷偷往篮子里放了什么？
+3. **结账插曲**：描写结账时温馨的小互动，或者走出便利店时夜晚的风。
+
+请直接输出故事正文。
+`;
+
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏪 购物 · ${itemName}`, story);
+        alert(`✅ 购物小剧场已生成！\n请在【故事集】中查看。`);
+    });
+};
+
+// 4. 📝 像素剧情生成 (通用接口 - 包含 R18 判断)
+window.generatePixelStory = async function(promptText, isR18 = false) {
+    alert(`⏳ 正在生成剧情...\n主题: ${promptText.substring(0,10)}...`);
+    
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    let apiKey = document.getElementById('api-key').value;
+    if(!apiKey) { 
+        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){} 
+    }
+    if(!apiKey) return alert("请配置 API Key");
+
+    let extraInstruction = isR18 ? 
+        "【特殊模式】：这是私密互动。请描写两人之间极度亲密、甚至带有情色张力的互动。描写触感、喘息、眼神和动作，张力拉满。" : 
+        "请写一段温馨、治愈、充满生活气息的小故事。";
+
+    // 🔥 恢复原版高质量 Prompt
+    const fullPrompt = `
+你是一位细腻的小说家。
+【世界观/角色】：${globalCtx}
+【场景设定】：${pixelCtx}
+【当前事件】：${promptText}
+
+【任务】：
+请根据上述设定，写一段**不少于 400 字**的剧情。
+${extraInstruction}
+视角：第二人称“你”。
+请直接输出正文，不要任何前言后语。
+`;
+
+    try {
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
+                temperature: 0.85,
+                max_tokens: 3000 // 🔥 调大 Token 限制，确保长文不截断
+            })
+        });
+        const json = await res.json();
+        const story = json.choices[0].message.content;
+        
+        saveRpgStory(`像素日常 · ${promptText.substring(0,5)}`, story);
+        
+        // 仅提示，不打开
+        alert("✨ 剧情已生成！\n请去【故事集】里翻阅。");
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    }
+};
+
+// 5. 辅助函数：统一 API 调用 (修正 Token)
+async function callRpgApi(prompt, ctx, callback) {
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ctx.apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:prompt}],
+                temperature: 0.8,
+                max_tokens: 100000 // 🔥 统一调大 Token
+            })
+        });
+        const json = await res.json();
+        const story = json.choices[0].message.content;
+        
+        callback(story);
+
+    } catch(e) {
+        console.error(e);
+        alert(`❌ API 请求失败：${e.message}\n请检查网络或 API Key。`);
+    }
+}
 </script>
+
 </html> 
