@@ -3690,7 +3690,10 @@ canvas {
 </div>
 
 <div id="console-widget-p3" class="game-console-widget" onclick="openRpgApp()" style="grid-column: span 4; grid-row: span 2; background: #2d3436; border:4px solid #57606f;">
-    <div class="gc-dpad" style="left:10px; width:50px; height:50px;"></div>
+    <!-- 新增：摇杆组件 -->
+<div class="joystick-base">
+    <div class="joystick-stick"></div>
+</div>
     <div class="gc-screen-area" style="width: 65%; height: 85%; border: 2px solid #111;">
 
      <img id="p3-screen-img" src="https://i.postimg.cc/ZqXkMnTj/IMG_1126.png" style="width:100%; height:100%; object-fit:cover;">
@@ -3755,7 +3758,16 @@ canvas {
     <div class="modal-header"><span>API 配置中心</span><button class="close-btn" onclick="closeSettings()">×</button></div>
     <div class="modal-body">
         <div class="morandi-card">
-            <h3>连接配置</h3>
+          <!-- 新增：夜间模式开关 -->
+<div class="morandi-card" style="display:flex; justify-content:space-between; align-items:center; background:#2d3436; color:#fff;">
+    <span>🌙 夜间深色模式 (护眼)</span>
+    <label class="switch" style="position:relative; display:inline-block; width:50px; height:24px;">
+        <input type="checkbox" onchange="toggleNightMode(this)" style="opacity:0; width:0; height:0;">
+        <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:34px;"></span>
+        <span style="position:absolute; content:''; height:16px; width:16px; left:4px; bottom:4px; background-color:white; transition:.4s; border-radius:50%;" id="night-slider"></span>
+    </label>
+</div>
+<!-- 插入结束 -->  <h3>连接配置</h3>
 <div class="morandi-card" style="border-left: 4px solid #06c755;">
     <h3>🔔 通知权限</h3>
     <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">
@@ -22690,14 +22702,14 @@ window.generateGalgameEndingAPI = async function() {
         </div>
 
         <!-- UI层：虚拟摇杆 (简单的方向键) -->
-        <div id="rpg-controls" style="position:absolute; bottom:30px; left:20px; z-index:90; display:grid; grid-template-columns:repeat(3, 40px); gap:5px;">
-            <div></div><button class="rpg-dpad-btn" ontouchstart="startMove('up')" ontouchend="stopMove()" onmousedown="startMove('up')" onmouseup="stopMove()">▲</button><div></div>
-            <button class="rpg-dpad-btn" ontouchstart="startMove('left')" ontouchend="stopMove()" onmousedown="startMove('left')" onmouseup="stopMove()">◀</button>
-            <div style="width:40px;height:40px;background:#333;border-radius:50%;"></div>
-            <button class="rpg-dpad-btn" ontouchstart="startMove('right')" ontouchend="stopMove()" onmousedown="startMove('right')" onmouseup="stopMove()">▶</button>
-            <div></div><button class="rpg-dpad-btn" ontouchstart="startMove('down')" ontouchend="stopMove()" onmousedown="startMove('down')" onmouseup="stopMove()">▼</button><div></div>
-        </div>
-
+<!-- === 🕹️ 真实的物理拖拽摇杆 === -->
+<div id="rpg-controls" style="position:absolute; bottom:40px; left:30px; z-index:90; width:120px; height:120px;">
+    <!-- 摇杆底座 -->
+    <div id="joy-base" style="width:100%; height:100%; background:rgba(0,0,0,0.4); border-radius:50%; border:2px solid rgba(255,255,255,0.2); position:relative; backdrop-filter:blur(4px); touch-action:none;">
+        <!-- 摇杆杆头 (可拖动的部分) -->
+        <div id="joy-stick" style="width:50px; height:50px; background:radial-gradient(circle at 30% 30%, #fff, #aaa); border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); box-shadow:0 4px 10px rgba(0,0,0,0.5); pointer-events:none;"></div>
+    </div>
+</div>
         <!-- 顶部功能栏 -->
         <div style="position:absolute; top:calc(var(--safe-top) + 10px); right:10px; z-index:90; display:flex; gap:10px;">
             <button class="m-btn small" onclick="toggleRpgHistory()" style="background:rgba(255,255,255,0.2); color:#fff;">📜 故事集</button>
@@ -23477,70 +23489,109 @@ function stopMove() {
     pDiv.style.transform = 'none';
 }
 
+// === 🏃‍♂️ 升级版游戏循环 (支持8方向/斜向移动) ===
+// === 🏃‍♂️ 修复版：游戏循环 ===
 function gameLoop() {
-    let nextX = rpgState.player.x;
-    let nextY = rpgState.player.y;
-    const speed = 1.5;
+    // 安全检查：如果数据不全，停止移动
+    if (!rpgState.isMoving || !rpgState.moveVector) return;
 
-    if(rpgState.moveDir === 'up') nextY -= speed;
-    if(rpgState.moveDir === 'down') nextY += speed;
-    if(rpgState.moveDir === 'left') nextX -= speed;
-    if(rpgState.moveDir === 'right') nextX += speed;
+    // 速度系数 (0.6 ~ 1.0 之间调整)
+    const speed = 0.5; 
 
+    // 计算位移
+    let nextX = rpgState.player.x + (rpgState.moveVector.x * speed);
+    let nextY = rpgState.player.y + (rpgState.moveVector.y * speed);
+
+    // 边界限制
     if(nextX < 0) nextX = 0; if(nextX > 90) nextX = 90;
     if(nextY < 0) nextY = 0; if(nextY > 90) nextY = 90;
 
-    if (checkCollision(nextX, nextY)) return; 
+    // 更新坐标
+    if (!checkCollision(nextX, nextY)) {
+        rpgState.player.x = nextX;
+        rpgState.player.y = nextY;
+    }
 
-    rpgState.player.x = nextX;
-    rpgState.player.y = nextY;
-    updateSpritePosition('player');
+    // 🧠 核心：判断朝向并传给渲染函数
+    const absX = Math.abs(rpgState.moveVector.x);
+    const absY = Math.abs(rpgState.moveVector.y);
+    
+    let dominantDir = 'down'; 
+    
+    // 如果横向移动比纵向多，就是左右；否则是上下
+    if (absX > absY) {
+        dominantDir = rpgState.moveVector.x > 0 ? 'right' : 'left';
+    } else {
+        dominantDir = rpgState.moveVector.y > 0 ? 'down' : 'up';
+    }
+
+    // 🔥 这里必须传入 dominantDir，否则就会变成 idle
+    updateSpritePosition('player', dominantDir); 
+    
     checkInteraction();
 }
-function updateSpritePosition(role) {
+// === 🎨 修复版：强制渲染角色立绘 ===
+function updateSpritePosition(role, overrideDir) {
     const el = document.getElementById(role === 'player' ? 'rpg-char-player' : 'rpg-char-npc');
+    // 防止报错：如果没有找到元素直接返回
+    if (!el) return;
+
     const data = role === 'player' ? rpgState.player : rpgState.npc;
     
-    // 重置变换，防止翻转状态残留
+    // 优先级：参数传入的方向 > 数据里的方向 > 默认 idle
+    const dir = overrideDir || data.dir || 'idle';
+    
+    // 重置 CSS 变换，防止翻转叠加
     el.style.transform = 'none';
 
-    // === 玩家逻辑 (保持不变) ===
-    if (role === 'player') {
-        if(!rpgState.isMoving) {
-            let src = RPG_SKINS.user_idle || RPG_ASSETS.char_gifs.idle;
-            el.style.backgroundImage = `url(${src})`;
-        }
-        // (玩家移动时的图由 gameLoop 控制，这里主要负责坐标和静止态)
-    } 
-    
-    // === NPC 逻辑 (新增自定义行走) ===
-    else if (role === 'npc') {
-        let src = RPG_SKINS.npc_idle || RPG_ASSETS.char_gifs.idle; // 默认待机图
-        const dir = data.dir; // 从 startNpcAI 获取方向
+    let src = "";
 
-        if (dir === 'down') {
-            // 向前走 (Front)
-            src = RPG_SKINS.npc_front || RPG_ASSETS.char_gifs.front || src;
-        } 
-        else if (dir === 'up') {
-            // 向后走 (Back)
-            src = RPG_SKINS.npc_back || RPG_ASSETS.char_gifs.back || src;
-        } 
-        else if (dir === 'right') {
-            // 向右走
-            src = RPG_SKINS.npc_right || RPG_ASSETS.char_gifs.right || src;
+    // === 玩家逻辑 ===
+    if (role === 'player') {
+        // 1. 优先尝试读取自定义皮肤 (RPG_SKINS)
+        // 2. 如果没有，读取默认资源 (RPG_ASSETS.char_gifs)
+        // 3. 如果还没有，给一个空字符串防止报错
+        
+        if (dir === 'right') {
+            src = RPG_SKINS.user_right || RPG_ASSETS.char_gifs.right;
         } 
         else if (dir === 'left') {
-            // 向左走：使用向右的图 + 镜像翻转
-            src = RPG_SKINS.npc_right || RPG_ASSETS.char_gifs.right || src;
-            el.style.transform = 'scaleX(-1)'; // 👈 核心：镜像反转
+            // 左侧特殊处理：有左图用左图，没左图用右图+镜像翻转
+            if (RPG_SKINS.user_left) {
+                src = RPG_SKINS.user_left;
+            } else {
+                src = RPG_SKINS.user_right || RPG_ASSETS.char_gifs.right; 
+                el.style.transform = 'scaleX(-1)'; 
+            }
         }
-        // 如果 dir === 'idle'，保持默认 src
-
-        el.style.backgroundImage = `url(${src})`;
+        else if (dir === 'up') {
+            src = RPG_SKINS.user_back || RPG_ASSETS.char_gifs.back;
+        }
+        else if (dir === 'down') {
+            src = RPG_SKINS.user_front || RPG_ASSETS.char_gifs.front;
+        }
+        else {
+            // 待机状态
+            src = RPG_SKINS.user_idle || RPG_ASSETS.char_gifs.idle;
+        }
         
-        // 确保 NPC 可交互
-        el.style.cursor = 'pointer';
+        // ⚡️ 强制应用背景图
+        if (src) el.style.backgroundImage = `url(${src})`;
+    }
+    
+    // === NPC 逻辑 (保持不变) ===
+    else if (role === 'npc') {
+        let nSrc = RPG_SKINS.npc_idle || RPG_ASSETS.char_gifs.idle;
+        
+        if (dir === 'down') nSrc = RPG_SKINS.npc_front || RPG_ASSETS.char_gifs.front || nSrc;
+        else if (dir === 'up') nSrc = RPG_SKINS.npc_back || RPG_ASSETS.char_gifs.back || nSrc;
+        else if (dir === 'right') nSrc = RPG_SKINS.npc_right || RPG_ASSETS.char_gifs.right || nSrc;
+        else if (dir === 'left') { 
+            nSrc = RPG_SKINS.npc_right || RPG_ASSETS.char_gifs.right || nSrc; 
+            el.style.transform = 'scaleX(-1)'; 
+        }
+        
+        if (nSrc) el.style.backgroundImage = `url(${nSrc})`;
         el.style.pointerEvents = 'auto';
         el.onclick = () => openRpgChatMode();
     }
@@ -25604,7 +25655,45 @@ body, #screen {
     color: #e57373; cursor: pointer; font-size: 1.2rem; opacity: 0.5;
 }
 .book-del-icon:hover { opacity: 1; }
+/* === 新增：夜间模式与摇杆样式 === */
+html.night-mode {
+    filter: brightness(50%); /* 整体亮度降低50% */
+    background-color: #000;  /* 防止背景穿透白光 */
+}
 
+/* 摇杆底座 */
+.joystick-base {
+    position: absolute; 
+    left: 15px; 
+    top: 50%; 
+    transform: translateY(-50%);
+    width: 60px; 
+    height: 60px; 
+    background: #151515; 
+    border-radius: 50%;
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.1);
+    z-index: 10;
+}
+/* 摇杆杆头 */
+.joystick-stick {
+    position: absolute; 
+    top: 50%; 
+    left: 50%; 
+    transform: translate(-50%, -50%);
+    width: 36px; 
+    height: 36px;
+    background: radial-gradient(circle at 30% 30%, #555, #1a1a1a);
+    border-radius: 50%;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+    border: 1px solid #333;
+}
+/* 给摇杆加个纹理增加真实感 */
+.joystick-stick::after {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    border-radius: 50%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.2) 3px);
+    opacity: 0.5;
+}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -27451,6 +27540,110 @@ async function performSelectiveReset() {
         btn.disabled = false; btn.innerText = "⚠️ 强制重试";
     }
 }
+// === 新增功能：夜间模式控制 ===
+function toggleNightMode(checkbox) {
+    const slider = document.getElementById('night-slider');
+    if (checkbox.checked) {
+        document.documentElement.classList.add('night-mode');
+        // 滑块变绿并移动
+        checkbox.nextElementSibling.style.backgroundColor = "#6c5ce7";
+        slider.style.transform = "translateX(26px)";
+    } else {
+        document.documentElement.classList.remove('night-mode');
+        // 滑块恢复
+        checkbox.nextElementSibling.style.backgroundColor = "#ccc";
+        slider.style.transform = "translateX(0)";
+    }
+}
+// ==================== 🕹️ 360度丝滑摇杆驱动 (Pro版) ====================
+(function initJoystick() {
+    const base = document.getElementById('joy-base');
+    const stick = document.getElementById('joy-stick');
+    
+    // 初始化检查
+    if (!base || !stick) { setTimeout(initJoystick, 1000); return; }
+
+    let isDragging = false;
+    const maxRadius = 35; // 摇杆活动半径
+
+    // 触摸/鼠标开始
+    const startDrag = (e) => {
+        isDragging = true;
+        base.style.borderColor = "rgba(255,255,255,0.8)";
+        stick.style.background = "radial-gradient(circle at 30% 30%, #a29bfe, #6c5ce7)";
+        
+        // 🚀 启动游戏循环 (如果没动的话)
+        if (!rpgState.isMoving) {
+            rpgState.isMoving = true;
+            if(rpgState.moveInterval) clearInterval(rpgState.moveInterval);
+            rpgState.moveInterval = setInterval(gameLoop, 16); // 提高帧率到60fps左右
+        }
+        handleDrag(e);
+    };
+
+    // 触摸/鼠标结束
+    const endDrag = () => {
+        isDragging = false;
+        
+        // 视觉复位
+        stick.style.transition = "0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+        stick.style.transform = `translate(-50%, -50%)`;
+        base.style.borderColor = "rgba(255,255,255,0.2)";
+        stick.style.background = "radial-gradient(circle at 30% 30%, #fff, #aaa)";
+        
+        // 🛑 停止游戏移动状态
+        rpgState.isMoving = false;
+        rpgState.moveVector = { x: 0, y: 0 }; // 归零矢量
+        if(rpgState.moveInterval) clearInterval(rpgState.moveInterval);
+        
+        // 恢复待机立绘
+        updateSpritePosition('player'); 
+    };
+
+    // 拖动处理 (核心矢量计算)
+    const handleDrag = (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const rect = base.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        let dx = clientX - centerX;
+        let dy = clientY - centerY;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+
+        // 限制摇杆活动范围
+        if (distance > maxRadius) {
+            const ratio = maxRadius / distance;
+            dx *= ratio;
+            dy *= ratio;
+        }
+
+        // 移动杆头
+        stick.style.transition = "none";
+        stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+        // ⚡️ 计算归一化矢量 (用于控制速度方向)
+        // 无论拉多远，确保 vx^2 + vy^2 ≈ 1 (也就是全速)
+        const angle = Math.atan2(dy, dx);
+        
+        // 存入全局状态供 gameLoop 使用
+        rpgState.moveVector = {
+            x: Math.cos(angle),
+            y: Math.sin(angle)
+        };
+    };
+
+    base.addEventListener('mousedown', startDrag);
+    base.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('mousemove', handleDrag);
+    window.addEventListener('touchmove', handleDrag, { passive: false });
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+})();
 </script>
 
 </html> 
