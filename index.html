@@ -3094,6 +3094,342 @@ canvas {
         padding: 10px;
     }
 }
+/* === 🧂 仿真调料瓶样式 === */
+.condiments-grid {
+    /* 强制横向滚动，不换行 */
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    /* 隐藏滚动条但保留功能 */
+    scrollbar-width: none; 
+}
+.condiments-grid::-webkit-scrollbar { display: none; }
+
+.real-bottle-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    margin-right: 12px;
+    flex-shrink: 0; /* 禁止被压缩 */
+    opacity: 0.4;
+    filter: grayscale(0.8);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    position: relative;
+    width: 40px; /* 给个固定宽度占位 */
+    height: 90px;
+}
+
+/* === 🧂 仿真调料瓶 (Pro版) === */
+
+/* 容器：横向排列 */
+.condiments-grid {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding: 10px 15px !important;
+    gap: 15px !important;
+    /* 隐藏滚动条 */
+    scrollbar-width: none; 
+}
+.condiments-grid::-webkit-scrollbar { display: none; }
+
+/* 单个瓶子包装 */
+.real-bottle-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    flex-shrink: 0;
+    width: 45px; 
+    height: 100px;
+    opacity: 0.4; /* 未拥有时半透明+灰度 */
+    filter: grayscale(0.8) contrast(0.8);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+}
+
+/* 激活状态 */
+.real-bottle-item.active {
+    opacity: 1;
+    filter: grayscale(0) contrast(1);
+    transform: translateY(-8px) scale(1.05);
+    z-index: 10;
+}
+/* 选中时底部有个光圈效果 */
+.real-bottle-item.active::after {
+    content: ""; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+    width: 30px; height: 5px; background: rgba(0,0,0,0.1); border-radius: 50%;
+    filter: blur(2px); z-index: -1;
+}
+
+/* 通用部件 */
+.b-body {
+    position: relative; overflow: hidden;
+    box-shadow: inset -3px -3px 5px rgba(0,0,0,0.2), 1px 1px 4px rgba(0,0,0,0.15);
+}
+/* 高光 (模拟玻璃反光) */
+.b-highlight {
+    position: absolute; top: 0; left: 5px; width: 3px; height: 100%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.6), rgba(255,255,255,0.1));
+    border-radius: 2px; pointer-events: none;
+}
+.b-label {
+    position: absolute; background: #fff; color: #333; font-weight: bold; font-family: sans-serif;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2); text-align: center;
+}
+.b-label.vertical {
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 16px; padding: 2px 0; font-size: 0.6rem; border-radius: 2px; writing-mode: vertical-rl;
+}
+.b-label.simple {
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    padding: 1px 4px; font-size: 0.5rem; border-radius: 2px;
+}
+
+/* --- 1. 油桶 (Fat Bottle) --- */
+.type-fat .b-body {
+    width: 38px; height: 55px;
+    border-radius: 8px 8px 10px 10px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.type-fat .b-cap {
+    width: 14px; height: 8px; border-radius: 2px 2px 0 0; margin-bottom: 0px; z-index: 2;
+}
+.type-fat .b-handle {
+    position: absolute; top: 38px; right: 0px;
+    width: 10px; height: 20px;
+    border: 3px solid #e15f41; border-left: none;
+    border-radius: 0 8px 8px 0;
+}
+.type-fat .b-liquid {
+    position: absolute; bottom: 0; width: 100%; height: 85%;
+    background: linear-gradient(to top, rgba(243, 156, 18, 0.8), rgba(241, 196, 15, 0.5));
+}
+
+/* --- 2. 细高瓶 (Bottle - 酱油/醋/料酒) --- */
+.type-bottle .b-cap {
+    width: 12px; height: 10px; border-radius: 2px; z-index: 3;
+    box-shadow: inset -1px 0 2px rgba(0,0,0,0.3);
+}
+.type-bottle .b-neck {
+    width: 8px; height: 8px; margin-bottom: -1px; z-index: 2;
+}
+.type-bottle .b-shoulder {
+    width: 24px; height: 6px; border-radius: 10px 10px 0 0; z-index: 2;
+}
+.type-bottle .b-body {
+    width: 24px; height: 50px; border-radius: 0 0 6px 6px;
+}
+
+/* --- 3. 耗油 (Oyster) --- */
+.type-oyster .b-pump {
+    width: 16px; height: 10px; border-radius: 3px; z-index: 3;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.type-oyster .b-neck {
+    width: 10px; height: 8px; margin-bottom: -1px; border-radius: 2px;
+}
+.type-oyster .b-body {
+    width: 26px; height: 58px; border-radius: 6px 6px 8px 8px;
+    display: flex; align-items: center; justify-content: center;
+}
+.type-oyster .b-label {
+    position: static; transform: none; writing-mode: vertical-rl; height: 70%;
+    font-family: serif; border: 1px solid #ddd;
+}
+
+/* --- 4. 矮罐 (Jar - 盐/糖) --- */
+.type-jar .b-lid {
+    width: 30px; height: 6px; border-radius: 3px; z-index: 2;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.type-jar .b-body {
+    width: 28px; height: 35px; border-radius: 0 0 5px 5px;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.3); /* 玻璃感 */
+}
+.type-jar .b-powders {
+    position: absolute; bottom: 2px; left: 2px; right: 2px; height: 70%;
+    border-radius: 0 0 4px 4px;
+    background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-size: 3px 3px;
+}
+
+/* --- 5. 研磨瓶 (Shaker - 胡椒) --- */
+.type-shaker .b-knob {
+    width: 22px; height: 12px; border-radius: 4px 4px 0 0; margin-bottom: 0;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+.type-shaker .b-body {
+    width: 22px; height: 40px; border-radius: 0 0 4px 4px;
+}
+.type-shaker .b-grain {
+    position: absolute; bottom: 0; width: 100%; height: 80%;
+    background-image: radial-gradient(#555 1px, transparent 1px);
+    background-size: 2px 2px;
+}
+
+/* 底部文字 */
+.b-name-text {
+    font-size: 0.65rem; color: #555; margin-top: 5px; font-weight: bold;
+    text-shadow: 0 1px 0 #fff;
+}
+/* === 🧂 极简仿真调料瓶 (Morandi Style) === */
+
+/* 横向滚动容器 */
+.condiments-grid {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding: 15px 20px !important;
+    gap: 18px !important; /* 增加间距 */
+    scrollbar-width: none; 
+    align-items: flex-end !important; /* 底部对齐 */
+}
+.condiments-grid::-webkit-scrollbar { display: none; }
+
+/* 单个瓶子容器 */
+.real-bottle-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    flex-shrink: 0;
+    width: 40px; 
+    height: 90px;
+    opacity: 0.3; /* 未激活时更淡，融入背景 */
+    filter: grayscale(0.5); /* 微微灰度 */
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+}
+
+/* 激活状态 */
+.real-bottle-item.active {
+    opacity: 1;
+    filter: grayscale(0);
+    transform: translateY(-5px);
+}
+
+/* === 通用组件 === */
+
+/* 瓶身玻璃质感 */
+.min-body {
+    position: relative;
+    background: rgba(255, 255, 255, 0.2); /* 半透明玻璃底 */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 
+        inset 1px 1px 3px rgba(255,255,255,0.2), 
+        2px 2px 5px rgba(0,0,0,0.05); /* 柔和投影 */
+    overflow: hidden;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* 液体 */
+.min-liquid {
+    position: absolute; bottom: 0; left: 0; width: 100%;
+    /* 液体表面微微弯曲，增加真实感 */
+    border-radius: 50% 50% 0 0 / 5px 5px 0 0; 
+    opacity: 0.9;
+}
+
+/* 高光反光条 (画龙点睛之笔) */
+.min-gloss {
+    position: absolute; top: 5%; left: 15%; width: 20%; height: 80%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+    border-radius: 10px;
+    pointer-events: none;
+}
+
+/* === 1. 油桶 (Fat) === */
+.style-fat .min-body {
+    width: 36px; height: 50px;
+    border-radius: 8px 8px 10px 10px;
+}
+.style-fat .min-cap {
+    width: 12px; height: 6px; background: #ccc;
+    border-radius: 2px 2px 0 0; margin-bottom: 0px; z-index: 2;
+}
+/* 把手：用圆环模拟 */
+.style-fat .min-handle {
+    position: absolute; top: 38px; right: -2px;
+    width: 10px; height: 22px;
+    border: 3px solid rgba(255,255,255,0.6); 
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+}
+
+/* === 2. 细高瓶 (Tall Bottle) === */
+.style-bottle .min-body {
+    width: 24px; height: 55px;
+    border-radius: 6px 6px 8px 8px;
+}
+.style-bottle .min-neck {
+    width: 10px; height: 8px; background: rgba(255,255,255,0.3);
+    margin-bottom: -2px; z-index: 1; border: 1px solid rgba(255,255,255,0.2);
+}
+.style-bottle .min-cap {
+    width: 12px; height: 10px; border-radius: 2px; z-index: 2;
+    box-shadow: inset -1px 0 2px rgba(0,0,0,0.1);
+}
+
+/* === 3. 耗油瓶 (Oyster) === */
+.style-oyster .min-body {
+    width: 26px; height: 60px;
+    border-radius: 6px 6px 8px 8px;
+}
+/* 泵头 */
+.style-oyster .min-pump {
+    width: 18px; height: 8px; border-radius: 4px 4px 2px 2px; z-index: 2;
+    position: relative;
+}
+.style-oyster .min-pump::after { /* 泵嘴 */
+    content: ""; position: absolute; left: -3px; top: 2px;
+    width: 6px; height: 3px; background: inherit; border-radius: 2px 0 0 2px;
+}
+.style-oyster .min-neck {
+    width: 10px; height: 6px; background: rgba(255,255,255,0.3); margin-bottom: -1px;
+}
+
+/* === 4. 矮罐 (Jar) === */
+.style-jar .min-body {
+    width: 32px; height: 36px;
+    border-radius: 4px 4px 8px 8px;
+    background: rgba(255,255,255,0.15);
+}
+.style-jar .min-lid {
+    width: 34px; height: 5px; border-radius: 2px; z-index: 2;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* === 5. 研磨瓶 (Shaker) === */
+.style-shaker .min-body {
+    width: 22px; height: 45px;
+    border-radius: 4px;
+}
+.style-shaker .min-knob {
+    width: 22px; height: 14px; border-radius: 4px 4px 0 0;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+}
+
+/* 底部文字 (更高级的灰色) */
+.b-name-text {
+    font-size: 0.65rem; color: #7f8c8d; 
+    margin-top: 6px; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: 0.5px;
+}
+/* 选中后文字变深 */
+.real-bottle-item.active .b-name-text {
+    color: #2c3e50; font-weight: 600;
+}
     </style>
 </head>
 <body>
@@ -3388,13 +3724,13 @@ canvas {
 
     <!-- UI 图标 -->
     <!-- 右上角：设置 -->
-    <img src="https://i.postimg.cc/QxrKcChy/%E6%9C%AA%E5%91%BD%E5%90%8D%E4%BD%9C%E5%93%81.png" onclick="openPetSettings()" style="position:absolute; top:calc(20px + env(safe-area-inset-top)); right:20px; width:40px; height:40px; z-index:100; cursor:pointer;">
+    <img src="https://i.postimg.cc/xTT4JSkB/IMG_1806.png" onclick="openPetSettings()" style="position:absolute; top:calc(20px + env(safe-area-inset-top)); right:20px; width:40px; height:40px; z-index:100; cursor:pointer;">
     
     <!-- 左下角：商店 -->
-    <img src="https://i.postimg.cc/nct9qrp2/%E6%9C%AA%E5%91%BD%E5%90%8D%E4%BD%9C%E5%93%81.png" onclick="openPetShop()" style="position:absolute; bottom:30px; left:20px; width:50px; height:50px; z-index:100; cursor:pointer;">
+    <img src="https://i.postimg.cc/KvvHkyKd/IMG_1805.png" onclick="openPetShop()" style="position:absolute; bottom:30px; left:20px; width:50px; height:50px; z-index:100; cursor:pointer;">
     
     <!-- 右下角：背包 -->
-    <img src="https://i.postimg.cc/9Fdp3sJ8/wei-ming-ming-zuo-pin.png" onclick="openPetBag()" style="position:absolute; bottom:30px; right:20px; width:50px; height:50px; z-index:100; cursor:pointer;">
+    <img src="https://i.postimg.cc/155jnZgT/IMG_1804.png" onclick="openPetBag()" style="position:absolute; bottom:30px; right:20px; width:50px; height:50px; z-index:100; cursor:pointer;">
 </div>
 </div>
         </div>
@@ -3439,6 +3775,22 @@ canvas {
         <button class="m-btn secondary" onclick="document.getElementById('restore-file-input').click()">📥 导入恢复</button>
         <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importFullRestore(this)">
     </div>
+</div>
+<div class="morandi-card" style="border:1px solid #ff7675;">
+    <h3 style="color:#d63031;">🧹 内存救援 (无需重传)</h3>
+    <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">
+        自动扫描现有的相册、背景、表情包，将大图片进行无损压缩。<br>
+        <span style="color:red;">如果你觉得卡顿，请点这里！GIF不会被影响。</span>
+    </p>
+    <button id="btn-optimize-start" class="m-btn primary" onclick="runSystemOptimization()" style="width:100%; background:#d63031;">🚀 开始全库瘦身</button>
+</div>
+<div class="morandi-card" style="border:1px solid #ff4757; background:#fff5f5;">
+    <h3 style="color:#c0392b;">🗑️ 极简模式 (一键重置)</h3>
+    <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">
+        删除所有聊天、剧情、日记等<b>历史记录</b>，让系统回到刚安装时的清爽状态。<br>
+        <span style="color:#27ae60; font-weight:bold;">✅ 绝对保留：</span>美化素材、塔罗牌文件、世界书、词库、API设置、宠物状态、Line收藏夹。
+    </p>
+    <button class="m-btn primary" onclick="performSelectiveReset()" style="width:100%; background:#ff4757;">⚠️ 删除所有历史 (慎点)</button>
 </div>
             <div class="input-group"><label>API Address</label><input type="text" id="api-url" placeholder="https://api.openai.com/v1" oninput="autoSaveApiSettings()"></div>
            <div class="input-group"><label>API Key</label><input type="password" id="api-key" placeholder="sk-..." oninput="autoSaveApiSettings()"></div>
@@ -3548,15 +3900,22 @@ canvas {
             <div id="delete-footer-content" class="delete-toolbar">
                 <button class="m-btn small" onclick="quitDeleteMode()" style="background:#ccc;">取消</button>
                 <span id="delete-count-text">已选 0 条</span>
-                <button class="m-btn small" onclick="confirmDeleteMessages()" style="background:#ff4444; color:white;">删除</button>
-            </div>
+              <button class="m-btn small" onclick="confirmCollectMessages()" style="background:#f1c40f; color:#333; margin-right:5px;">⭐ 收藏</button>
+    <button class="m-btn small" onclick="confirmDeleteMessages()" style="background:#ff4444; color:white;">🗑️ 删除</button>
+</div>
         </div>
         <div class="chat-settings-panel" id="chat-settings">
             <h3>聊天设置</h3>
             <div style="display:flex; gap:10px; margin-bottom:15px">
                 <button class="m-btn small" onclick="toggleChatSettings()" style="background:#e8d7d7;">关闭面板</button>
-                <button class="m-btn small" onclick="clearChatHistory()" style="background:#d4a5a5; color:white;">清空记录</button>
-            </div>
+                <button class="m-btn small" onclick="clearChatHistory()" style="background:#d4a5a5; color:white;">清空记录</button><button class="m-btn small" onclick="toggleCollectionList()" style="background:#ffeaa7; color:#d35400;">⭐ 查看收藏夹</button>
+    </div>
+
+    <!-- 新增：收藏列表容器 (默认隐藏) -->
+    <div id="chat-collection-container" style="display:none; margin-bottom:20px; border-top:2px dashed #ffeaa7; padding-top:10px;">
+        <h4 style="color:#e67e22;">⭐ 永久收藏 (点击图片查看)</h4>
+        <div id="chat-collection-list" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
              <div class="input-group">
                 <label>聊天背景图</label>
                 <input type="text" id="set-chat-bg" placeholder="输入链接..." onblur="saveChatSettings()">
@@ -3728,6 +4087,65 @@ canvas {
     </div>
 </div>
     <script>
+// === 🖼️ 图片压缩工具 (核心优化补丁) ===
+// 将大图片压缩到 1280px 宽，质量 0.7，大幅降低内存占用
+// === 🖼️ 智能图片处理工具 (修复GIF变静图、图标黑底问题) ===
+function compressImage(file, callback) {
+    // 1. 如果是 GIF，为了保留动效，直接不压缩！
+    if (file.type === 'image/gif') {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => callback(e.target.result);
+        return;
+    }
+
+    // 2. 如果文件本来就很小 (小于 500KB)，直接不压缩！
+    // (这样图标的透明度、小图的清晰度都能完美保留)
+    if (file.size < 500 * 1024) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => callback(e.target.result);
+        return;
+    }
+
+    // 3. 只有大图片才进压缩机
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function(e) {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let width = img.width;
+            let height = img.height;
+            
+            // 限制最大尺寸 (背景图可以稍大一点，1920够清晰了)
+            const MAX_SIZE = 1920;
+            if (width > height) {
+                if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+            } else {
+                if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // 智能判断输出格式
+            let outputType = 'image/jpeg';
+            let quality = 0.7;
+
+            // 如果原图是 PNG，为了保留透明度，必须输出为 PNG
+            if (file.type === 'image/png') {
+                outputType = 'image/png';
+                quality = 0.8; 
+            }
+
+            const compressedBase64 = canvas.toDataURL(outputType, quality);
+            callback(compressedBase64);
+        }
+    }
+}
         // === 全局变量 ===
         let chatDisplayLimit = 20; 
         let currentQuoteData = null; 
@@ -4257,21 +4675,30 @@ async function openChatApp() {
         document.getElementById('kaomoji-prob-display').innerText = prob;
     }
         }
-
+function handleFileToInput(inputEl, type) {
+    const file = inputEl.files[0];
+    if(file) {
+        // 修改：使用压缩函数
+        compressImage(file, (base64) => {
+            idb.put('settings_heavy', { key: type, data: base64 }).then(() => {
+                applyChatSettings(); 
+                alert("保存成功！");
+            });
+        });
+    }
+}
         function handleFileToInput(inputEl, type) {
-            const file = inputEl.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    idb.put('settings_heavy', { key: type, data: e.target.result }).then(() => {
-                        applyChatSettings(); 
-                        alert("保存成功！");
-                    });
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-        
+    const file = inputEl.files[0];
+    if(file) {
+        // 修改：使用压缩函数
+        compressImage(file, (base64) => {
+            idb.put('settings_heavy', { key: type, data: base64 }).then(() => {
+                applyChatSettings(); 
+                alert("保存成功！");
+            });
+        });
+    }
+}
         function saveLineTitle() { saveChatSettings(); }
 
         let passiveTimer = null;
@@ -4507,19 +4934,17 @@ async function openChatApp() {
             cancelQuote(); 
             triggerBotReply(); 
         }
-
-        function handleChatImageUpload(input) {
-            const file = input.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    appendMessage(e.target.result, true, 'image');
-                    triggerBotReply();
-                };
-                reader.readAsDataURL(file);
-            }
-            input.value = ''; 
-        }
+function handleChatImageUpload(input) {
+    const file = input.files[0];
+    if(file) {
+        // 修改：使用压缩函数
+        compressImage(file, (base64) => {
+            appendMessage(base64, true, 'image');
+            triggerBotReply();
+        });
+    }
+    input.value = ''; 
+}
         let isStickerDeleteMode = false;
         async function getStickers() { 
             const list = await idb.getAll('chat_stickers');
@@ -4834,69 +5259,79 @@ function exportCategory() {
             }; input.click();
         }
         let currentCity = "Unknown Location"; 
-function initRealWeather() {
-    document.getElementById('real-desc').innerText = "定位请求中...";
-
-    const fetchWeather = async (lat, lon, cityName = "") => {
-        try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-            const data = await res.json();
-            const w = data.current_weather;
-            document.getElementById('real-temp').innerText = Math.round(w.temperature) + "°";
-            
-            const code = w.weathercode;
-            let icon = "☁️";
-            if (code === 0) icon = "☀️";
-            else if (code <= 3) icon = "⛅";
-            else if (code >= 45) icon = "🌫️";
-            else if (code >= 51) icon = "🌧️";
-            else if (code >= 95) icon = "⛈️";
-            
-            document.getElementById('real-icon').innerText = icon;
-            document.getElementById('real-desc').innerText = cityName ? cityName : "已定位";
-            window.currentCity = cityName || "本地";
-        } catch (e) { 
-            document.getElementById('real-desc').innerText = "数据错误";
-            alert("获取天气数据失败，请检查网络");
+// === 🌍 定位系统 (自动记忆版) ===
+function initRealWeather(forceRefresh = false) {
+    const descEl = document.getElementById('real-desc');
+    const tempEl = document.getElementById('real-temp');
+    
+    // 1. 尝试读取上次保存的定位
+    if (!forceRefresh) {
+        const savedCity = localStorage.getItem('geo_city');
+        const savedTemp = localStorage.getItem('geo_temp');
+        if (savedCity && savedTemp) {
+            descEl.innerText = savedCity;
+            tempEl.innerText = savedTemp;
+            window.currentCity = savedCity;
+            console.log("📍 已自动加载上次定位:", savedCity);
+            return;
         }
-    };
-    if (!navigator.geolocation) {
-        alert("你的浏览器不支持定位功能");
-        return;
-    }navigator.geolocation.getCurrentPosition(
+    }
+
+    // 2. 如果没有保存，或强制刷新，则请求定位
+    descEl.innerText = "定位中...";
+
+    if (!navigator.geolocation) return alert("浏览器不支持定位");
+
+    navigator.geolocation.getCurrentPosition(
         (pos) => {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
+            
+            // 获取地名
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
                 .then(res => res.json())
                 .then(data => {
                     const addr = data.address;
+                    // 优先取城市，没有则取区县
                     const city = addr.city || addr.town || addr.district || "本地";
-                    fetchWeather(lat, lon, city);
+                    
+                    // 获取天气
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                        .then(r => r.json())
+                        .then(wData => {
+                            const temp = Math.round(wData.current_weather.temperature) + "°";
+                            
+                            // 更新 UI
+                            descEl.innerText = city;
+                            tempEl.innerText = temp;
+                            window.currentCity = city;
+                            
+                            // 🔥 核心：保存到本地，下次自动加载
+                            localStorage.setItem('geo_city', city);
+                            localStorage.setItem('geo_temp', temp);
+                        });
                 })
-                .catch(() => {
-                    fetchWeather(lat, lon, "已定位");
-                });
+                .catch(() => { descEl.innerText = "定位超时"; });
         }, 
         (err) => {
-            console.log(err);
-            let errorMsg = "定位失败";
-            if (err.code === 1) errorMsg = "你拒绝了定位权限，请在系统设置中允许 Safari 访问位置。";
-            else if (err.code === 3) errorMsg = "定位超时，请重试。";
-            
-            alert("⚠️ " + errorMsg + "\n(你可以手动输入城市拼音)");
-            const inputCity = prompt("手动输入城市拼音 (例如 Shanghai):", "Beijing");
-            if(inputCity) {
-                document.getElementById('real-desc').innerText = inputCity;
-                document.getElementById('real-temp').innerText = "25°"; 
-                window.currentCity = inputCity;
+            // 失败时允许手动输入
+            const input = prompt("定位失败 (可能需https)。\n请输入城市拼音 (如 Beijing):", window.currentCity || "");
+            if(input) {
+                descEl.innerText = input;
+                tempEl.innerText = "20°"; 
+                window.currentCity = input;
+                localStorage.setItem('geo_city', input);
+                localStorage.setItem('geo_temp', "20°");
             } else {
-                document.getElementById('real-desc').innerText = "点击设置";
+                descEl.innerText = "点击设置";
             }
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 5000 }
     );
 }
+
+// 在页面加载完成的那个 addEventListener('load', ...) 里，添加一行：
+// initRealWeather(); 
 function openSettings() {
     const modal = document.getElementById('settings-modal');
     if(modal) modal.style.display = 'flex';
@@ -7939,54 +8374,121 @@ function renderFridgeContent() {
     const data = getFridgeData();
     const s1 = document.getElementById('new-shelf-condiments');
     s1.innerHTML = '';
-    const bottleClasses = {
-        "耗油": "b-dark", "生抽": "b-black", "盐": "b-white", "糖": "b-white",
-        "醋": "b-black", "料酒": "b-wine", "油": "b-oil"
+
+    // === 🧂 莫兰迪色系配置表 (无标签版) ===
+    // type: bottle(细瓶), fat(油桶), jar(罐子), shaker(研磨瓶), oyster(泵头瓶)
+    const BOTTLE_CONFIG = {
+        // 耗油：深褐色液体，红棕色泵头
+        "耗油": { type: "oyster", liquid: "#4e342e", cap: "#8d6e63" },
+        // 生抽：通透的红褐色
+        "生抽": { type: "bottle", liquid: "rgba(62, 39, 35, 0.9)", cap: "#d7ccc8" },
+        // 老抽：浓郁的深黑色
+        "老抽": { type: "bottle", liquid: "#212121", cap: "#ef9a9a" },
+        // 醋：深紫黑色
+        "醋":   { type: "bottle", liquid: "#263238", cap: "#37474f" },
+        // 料酒：琥珀色
+        "料酒": { type: "bottle", liquid: "rgba(255, 179, 0, 0.7)", cap: "#ffe082" },
+        // 油：金黄色，带把手
+        "油":   { type: "fat",    liquid: "rgba(253, 216, 53, 0.8)", cap: "#ffcc80" }, 
+        // 盐：纯白磨砂
+        "盐":   { type: "jar",    liquid: "#f5f5f5", cap: "#b0bec5" },
+        // 糖：乳白磨砂
+        "糖":   { type: "jar",    liquid: "#fafafa", cap: "#ffcc80" },
+        // 胡椒：高级灰
+        "胡椒粉":{ type: "shaker", liquid: "#cfd8dc", cap: "#546e7a" }
     };
 
+    // 渲染调料区
     for (let [name, has] of Object.entries(data.condiments)) {
-        const div = document.createElement('div');
-        const colorClass = bottleClasses[name] || "b-white";
-        div.className = `flat-bottle ${colorClass} ${has ? 'active' : ''}`;
+        // 默认兜底
+        const conf = BOTTLE_CONFIG[name] || { type: "jar", liquid: "#e0e0e0", cap: "#bdbdbd" };
         
-        div.innerHTML = `
-            <div class="bottle-shape"></div>
-            <div class="bottle-name">${name}</div>
-        `;
+        const div = document.createElement('div');
+        div.className = `real-bottle-item ${has ? 'active' : ''} style-${conf.type}`;
         div.onclick = () => toggleCondiment(name);
+
+        let innerHtml = '';
+
+        // --- 1. 油桶 (Fat) - 有把手 ---
+        if (conf.type === 'fat') {
+            innerHtml = `
+                <div class="min-cap" style="background:${conf.cap}"></div>
+                <div class="min-handle"></div>
+                <div class="min-body fat">
+                    <div class="min-liquid" style="background:${conf.liquid}; height:75%;"></div>
+                    <div class="min-gloss"></div>
+                </div>
+            `;
+        } 
+        // --- 2. 细高玻璃瓶 (Bottle) - 酱油/醋 ---
+        else if (conf.type === 'bottle') {
+            innerHtml = `
+                <div class="min-cap small" style="background:${conf.cap}"></div>
+                <div class="min-neck"></div>
+                <div class="min-body tall">
+                    <div class="min-liquid" style="background:${conf.liquid}; height:85%;"></div>
+                    <div class="min-gloss"></div>
+                </div>
+            `;
+        }
+        // --- 3. 耗油瓶 (Oyster) - 泵头 ---
+        else if (conf.type === 'oyster') {
+            innerHtml = `
+                <div class="min-pump" style="background:${conf.cap}"></div>
+                <div class="min-neck thick"></div>
+                <div class="min-body tall oyster">
+                    <div class="min-liquid" style="background:${conf.liquid}; height:90%;"></div>
+                    <div class="min-gloss"></div>
+                </div>
+            `;
+        }
+        // --- 4. 矮罐 (Jar) - 盐/糖 ---
+        else if (conf.type === 'jar') {
+            innerHtml = `
+                <div class="min-lid" style="background:${conf.cap}"></div>
+                <div class="min-body jar">
+                    <div class="min-liquid" style="background:${conf.liquid}; height:100%;"></div>
+                    <div class="min-gloss"></div>
+                </div>
+            `;
+        }
+        // --- 5. 研磨瓶 (Shaker) - 胡椒 ---
+        else if (conf.type === 'shaker') {
+            innerHtml = `
+                <div class="min-knob" style="background:${conf.cap}"></div>
+                <div class="min-body shaker">
+                    <div class="min-liquid" style="background:${conf.liquid}; height:70%;"></div>
+                    <div class="min-gloss"></div>
+                </div>
+            `;
+        }
+
+        div.innerHTML = innerHtml + `<div class="b-name-text">${name}</div>`;
         s1.appendChild(div);
     }
+    // === 以下保持原代码不变，负责主食和食材的渲染 ===
     const s2 = document.getElementById('new-shelf-staples');
     s2.innerHTML = '';
     const riceDiv = document.createElement('div');
     riceDiv.className = `staple-icon-btn ${data.staples['米'] ? 'active' : ''}`;
-    riceDiv.innerHTML = `
-        <div class="staple-img">🍚</div>
-        ${data.staples['米'] ? '<div class="staple-badge">有</div>' : ''}
-        <div class="staple-label">米饭</div>
-    `;
+    riceDiv.innerHTML = `<div class="staple-img">🍚</div>${data.staples['米'] ? '<div class="staple-badge">有</div>' : ''}<div class="staple-label">米饭</div>`;
     riceDiv.onclick = () => toggleRice();
     s2.appendChild(riceDiv);
+
     const noodleDiv = document.createElement('div');
     const hasNoodle = !!data.staples['面'];
     noodleDiv.className = `staple-icon-btn ${hasNoodle ? 'active' : ''}`;
-    noodleDiv.innerHTML = `
-        <div class="staple-img">🍜</div>
-        ${hasNoodle ? `<div class="staple-badge">${data.staples['面']}</div>` : ''}
-        <div class="staple-label">面条</div>
-    `;
+    noodleDiv.innerHTML = `<div class="staple-img">🍜</div>${hasNoodle ? `<div class="staple-badge">${data.staples['面']}</div>` : ''}<div class="staple-label">面条</div>`;
     noodleDiv.onclick = () => editStaple('面', '请输入面的数量 (如: 4把)');
     s2.appendChild(noodleDiv);
+
     const breadDiv = document.createElement('div');
     const hasBread = !!data.staples['面包'];
     breadDiv.className = `staple-icon-btn ${hasBread ? 'active' : ''}`;
-    breadDiv.innerHTML = `
-        <div class="staple-img">🍞</div>
-        ${hasBread ? `<div class="staple-badge">${data.staples['面包']}</div>` : ''}
-        <div class="staple-label">面包</div>
-    `;
+    breadDiv.innerHTML = `<div class="staple-img">🍞</div>${hasBread ? `<div class="staple-badge">${data.staples['面包']}</div>` : ''}<div class="staple-label">面包</div>`;
     breadDiv.onclick = () => editStaple('面包', '请输入面包数量', true);
     s2.appendChild(breadDiv);
+
     renderNewTags('new-shelf-veg', data.vegetables, 'veg');
     renderNewTags('new-shelf-meat', data.meat, 'meat');
 }
@@ -9977,19 +10479,17 @@ async function renderAppBgList() {
         list.appendChild(div);
     }
 }
-
-// 保存独立背景
 async function saveAppBg(appId, input) {
     const file = input.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        await idb.put('settings_heavy', { key: `bg_${appId}`, data: e.target.result });
+    
+    // 修改：使用压缩函数
+    compressImage(file, async (base64) => {
+        await idb.put('settings_heavy', { key: `bg_${appId}`, data: base64 });
         alert("背景已保存！");
-        renderAppBgList(); // 刷新列表状态
-        applyAllThemeSettings(); // 立即应用
-    };
-    reader.readAsDataURL(file);
+        renderAppBgList(); 
+        applyAllThemeSettings(); 
+    });
 }
 
 // 清除独立背景
@@ -10075,13 +10575,14 @@ async function saveAppIcon(appId, input) {
 async function uploadThemeImage(key, input) {
     const file = input.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        await idb.put('settings_heavy', { key: key, data: e.target.result });
+    
+    // 修改：使用压缩函数
+    compressImage(file, async (base64) => {
+        await idb.put('settings_heavy', { key: key, data: base64 });
         alert("设置成功！下次打开对应组件时生效。");
         applyAllThemeSettings(); 
-    };
-    reader.readAsDataURL(file);
+    });
+    input.value = ''; // 清空输入框防止重复触发
 }
 function renderThemeFontsList() {
     const list = document.getElementById('font-config-list');
@@ -13990,16 +14491,16 @@ if (typeof loadAllBigData === 'function') {
 // 资源配置
 const GACHA_ASSETS = {
     back: {
-        r: 'https://i.postimg.cc/52FCmfPy/IMG_1642.png',
-        sr: 'https://i.postimg.cc/YCmWxtXS/IMG_1643.png',
-        ssr: 'https://i.postimg.cc/JzBkQRTH/IMG_1644.png',
-        ur: 'https://i.postimg.cc/3xDvZ3LK/IMG_1645.png'
+        r: 'https://i.postimg.cc/VkP49Q5s/IMG_1816.png',
+        sr: 'https://i.postimg.cc/qvHQcVgM/IMG_1817.png',
+        ssr: 'https://i.postimg.cc/Z5zjPt0J/IMG_1818.png',
+        ur: 'https://i.postimg.cc/MpJt02Xq/IMG_1819.png'
     },
     frame: {
-        r: 'https://i.postimg.cc/fLXCq6wn/IMG_1637.png',
-        sr: 'https://i.postimg.cc/L5pTcNXR/IMG_1638.png',
-        ssr: 'https://i.postimg.cc/SRfrkC2C/IMG_1639.png',
-        ur: 'https://i.postimg.cc/mkswv8Dk/IMG_1640.png'
+        r: 'https://i.postimg.cc/SxbVLFjC/IMG_1812.png',
+        sr: 'https://i.postimg.cc/FHXGb51c/IMG_1813.png',
+        ssr: 'https://i.postimg.cc/y8Cnh4WR/IMG_1814.png',
+        ur: 'https://i.postimg.cc/Hk130Djc/IMG_1815.png'
     },
     // 概率配置
     probs: { ur: 0.0005, ssr: 0.01, sr: 0.10 } // 剩下是 R
@@ -14954,6 +15455,152 @@ if (typeof loadAllBigData === 'function') {
         } catch(e) {}
     }
 }
+// ==================== ⭐ 聊天收藏功能核心逻辑 ====================
+
+// 1. 初始化收藏数据 (无限存储)
+if (!window.BIG_MEMORY.chat_collections) window.BIG_MEMORY.chat_collections = [];
+
+function getChatCollections() { return window.BIG_MEMORY.chat_collections || []; }
+function saveChatCollections(list) {
+    window.BIG_MEMORY.chat_collections = list;
+    if(typeof idb !== 'undefined') idb.put('universal_store', { id: 'chat_collections', data: list });
+}
+
+// 2. 执行收藏 (点击黄色按钮触发)
+async function confirmCollectMessages() {
+    if(selectedDeleteIds.size === 0) return;
+    
+    const allMsgs = await idb.getAll('chat_history'); // 获取当前聊天记录
+    const list = getChatCollections();
+    let count = 0;
+
+    // 遍历选中的ID，找到对应消息并存入收藏夹
+    selectedDeleteIds.forEach(id => {
+        const msg = allMsgs.find(m => m.id === id);
+        if(msg) {
+            // 复制一份，生成新的 ID 防止冲突
+            const copy = { ...msg, id: Date.now() + Math.random(), collectedDate: Date.now() };
+            list.unshift(copy); // 存入头部
+            count++;
+        }
+    });
+
+    saveChatCollections(list);
+    alert(`🎉 已成功收藏 ${count} 条消息！\n即使清空聊天记录，它们也会在[设置->收藏夹]中保留。`);
+    
+    quitDeleteMode(); // 退出选择模式
+}
+
+// 3. 切换显示收藏列表
+function toggleCollectionList() {
+    const container = document.getElementById('chat-collection-container');
+    if(container.style.display === 'none') {
+        container.style.display = 'block';
+        renderChatCollections();
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// === ⭐ 升级版：渲染收藏列表 (带头像、时间、气泡) ===
+async function renderChatCollections() {
+    const list = getChatCollections();
+    const container = document.getElementById('chat-collection-list');
+    container.innerHTML = '';
+
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem; padding:20px;">暂无收藏内容</div>';
+        return;
+    }
+
+    // 1. 先加载头像资源 (为了显示漂亮的头像)
+    let myAvatar = '', botAvatar = '';
+    try {
+        const myRes = await idb.get('settings_heavy', 'myAvatar');
+        const botRes = await idb.get('settings_heavy', 'botAvatar');
+        if (myRes) myAvatar = myRes.data;
+        if (botRes) botAvatar = botRes.data;
+    } catch (e) { console.log("头像加载失败", e); }
+
+    // 获取对方的名字 (Line 风格通常显示名字)
+    const chatTitle = document.getElementById('chat-title-input').value || "对方";
+
+    // 2. 遍历渲染
+    list.forEach((msg, index) => {
+        // --- A. 时间格式化 (几月几日 下午HH:mm) ---
+        const date = new Date(msg.timestamp);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hour = date.getHours();
+        const minute = String(date.getMinutes()).padStart(2, '0');
+        const period = hour >= 12 ? "下午" : "上午";
+        const timeStr = `${month}月${day}日 ${period} ${hour}:${minute}`;
+
+        // --- B. 头像与名字 ---
+        const avatarSrc = msg.isMe ? myAvatar : botAvatar;
+        const nameStr = msg.isMe ? "我" : chatTitle;
+        // 默认灰色头像兜底
+        const avatarStyle = avatarSrc ? `background-image: url(${avatarSrc});` : `background-color: #ccc;`;
+
+        // --- C. 内容处理 (图片/语音/文字) ---
+        let contentHtml = "";
+        if (msg.type === 'image') {
+            contentHtml = `<img src="${msg.text}" style="max-width:120px; max-height:120px; border-radius:8px; cursor:zoom-in; border:1px solid #eee;" onclick="viewPhotoSimple('${msg.text}')">`;
+        } else if (msg.type === 'audio') {
+            contentHtml = `
+                <div style="display:flex; align-items:center; gap:5px; background:#f1f2f6; padding:5px 10px; border-radius:15px; width:fit-content;">
+                    <span>🎤</span> <span>语音存档</span>
+                </div>`;
+        } else {
+            // 文字内容 (允许换行)
+            contentHtml = `<div style="white-space: pre-wrap; word-break: break-word; line-height: 1.5;">${msg.text}</div>`;
+        }
+
+        // --- D. 构建 HTML 卡片 ---
+        const div = document.createElement('div');
+        div.style.cssText = "background:#fff; padding:12px; border-radius:8px; border-bottom:1px solid #f0f0f0; display:flex; gap:12px; position:relative;";
+        
+        div.innerHTML = `
+            <!-- 头像 -->
+            <div style="width:40px; height:40px; border-radius:50%; background-size:cover; background-position:center; flex-shrink:0; border:1px solid rgba(0,0,0,0.1); ${avatarStyle}"></div>
+            
+            <!-- 右侧主体 -->
+            <div style="flex:1; min-width:0;">
+                <!-- 头部：名字 + 时间 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:0.8rem; font-weight:bold; color:#555;">${nameStr}</span>
+                    <span style="font-size:0.65rem; color:#aaa;">${timeStr}</span>
+                </div>
+                
+                <!-- 内容区域 -->
+                <div style="font-size:0.9rem; color:#333;">
+                    ${contentHtml}
+                </div>
+            </div>
+
+            <!-- 删除按钮 (右上角悬浮) -->
+            <div onclick="deleteCollectionItem(${index})" style="position:absolute; top:10px; right:0px; width:30px; height:30px; text-align:center; color:#ffb8b8; cursor:pointer; font-size:1.2rem; opacity:0.6;">×</div>
+        `;
+        
+        container.appendChild(div);
+    });
+}
+
+// 5. 删除收藏
+function deleteCollectionItem(index) {
+    if(!confirm("移除这条收藏？")) return;
+    const list = getChatCollections();
+    list.splice(index, 1);
+    saveChatCollections(list);
+    renderChatCollections();
+}
+
+// 简单图片预览 (复用)
+window.viewPhotoSimple = function(src) {
+    const win = window.open("", "_blank");
+    win.document.write(`<img src="${src}" style="max-width:100%">`);
+};
+
 // ==================== 🧩 记忆拼图 APP 核心逻辑 ====================
 
 let puzzleDeck = [];
@@ -17193,9 +17840,28 @@ async function migrateAllRestrictedData() {
     console.log("🎉 所有受限数据已解放！系统现已完全运行在无限存储模式。");
 }
 window.getFridgeData = function() {
-    return window.BIG_MEMORY.fridge || {
-        condiments: {}, staples: {}, vegetables: [], meat: []
-    };
+    const data = window.BIG_MEMORY.fridge || {};
+
+    // 1. 核心修复：补全调料，并加入新成员
+    if (!data.condiments || Object.keys(data.condiments).length === 0) {
+        data.condiments = {
+            "耗油": false, "生抽": false, "老抽": false, // 新增
+            "醋": false, "料酒": false, "油": false,
+            "盐": false, "糖": false, "胡椒粉": false    // 新增
+        };
+    } else {
+        // 如果是老用户，数据里可能没有新调料，这里强制补上
+        if (data.condiments["老抽"] === undefined) data.condiments["老抽"] = false;
+        if (data.condiments["胡椒粉"] === undefined) data.condiments["胡椒粉"] = false;
+    }
+
+    // 2. 补全主食
+    if (!data.staples) data.staples = { "米": false, "面": null, "面包": null };
+    // 3. 补全数组
+    if (!data.vegetables) data.vegetables = [];
+    if (!data.meat) data.meat = [];
+
+    return data;
 };
 window.saveFridgeData = function(data) {
     window.BIG_MEMORY.fridge = data;
@@ -18543,47 +19209,47 @@ if (typeof loadAllBigData === 'function') {
 // --- 1. 数据配置 ---
 const PET_CONFIG = {
     pets: [
-        { id: 'cat_black', name: '黑猫', type: 'cat', img: 'https://i.postimg.cc/2S0qpxv9/IMG_0429.png' },
-        { id: 'cat_white', name: '白猫', type: 'cat', img: 'https://i.postimg.cc/HLjrT79Y/IMG_0428.png' },
-        { id: 'dog', name: '狗', type: 'dog', img: 'https://i.postimg.cc/RZg3rTf8/IMG_0427.png' },
-        { id: 'fish', name: '鱼', type: 'fish', img: 'https://i.postimg.cc/g0rxG6Hm/IMG_0426.png' },
-        { id: 'bird', name: '鸟', type: 'bird', img: 'https://i.postimg.cc/Gp94bsJ7/IMG_0425.png' }
+        { id: 'cat_black', name: '黑猫', type: 'cat', img: 'https://i.postimg.cc/hjtSZ5yH/IMG_1786.png' },
+        { id: 'cat_white', name: '白猫', type: 'cat', img: 'https://i.postimg.cc/Kz8ZpHqw/IMG_1789.png' },
+        { id: 'dog', name: '狗', type: 'dog', img: 'https://i.postimg.cc/nzhHSPRy/IMG_1787.png' },
+        { id: 'fish', name: '鱼', type: 'fish', img: 'https://i.postimg.cc/NGbXMhvy/IMG-1773.png' },
+        { id: 'bird', name: '鸟', type: 'bird', img: 'https://i.postimg.cc/PfMWwpY1/IMG-1771.png' }
     ],
     bg: [
-        { id: 'bg_default', src: 'https://i.postimg.cc/Z5w9kL3B/IMG_0435.png', price: 0 },
-        { id: 'bg_yellow', src: 'https://i.postimg.cc/rwfd69Wx/IMG_0434.png', price: 20 },
-        { id: 'bg_redblack', src: 'https://i.postimg.cc/FHTftxcn/IMG_0433.png', price: 20 },
-        { id: 'bg_pink', src: 'https://i.postimg.cc/3x8ybqy2/IMG_0432.png', price: 20 },
-        { id: 'bg_blue', src: 'https://i.postimg.cc/ht2JF0x0/IMG_0431.png', price: 20 }
+        { id: 'bg_default', src: 'https://i.postimg.cc/sDDNQRB6/IMG_1808.png', price: 0 },
+        { id: 'bg_yellow', src: 'https://i.postimg.cc/m225zGcp/IMG_1809.png', price: 20 },
+        { id: 'bg_redblack', src: 'https://i.postimg.cc/gkkTXPwM/IMG_1811.png', price: 20 },
+        { id: 'bg_pink', src: 'https://i.postimg.cc/3JJc4Hyq/IMG_1807.png', price: 20 },
+        { id: 'bg_blue', src: 'https://i.postimg.cc/HsshcCJ6/IMG_1810.png', price: 20 }
     ],
     decor: [
-        { id: 'ac', src: 'https://i.postimg.cc/J7yds1Q5/IMG_0450.png', price: 20, name: '空调', style: 'top:0%; right:0%; width:100px;' },
-        { id: 'clock_deco', src: 'https://i.postimg.cc/fW3gVwv3/IMG_0451.png', price: 0, name: '复古挂钟', style: 'top:0%; right:15%; transform:translateX(-50%); width:70px;' },
-        { id: 'tub_deco', src: 'https://i.postimg.cc/14hFt0rW/IMG_0461.png', price: 20, name: '豪华浴缸', style: 'bottom:0%; right:80%; width:100px;' },
-        { id: 'tub', src: 'https://i.postimg.cc/Rq5tF1LR/IMG_0462.png', price: 20, name: '浴缸', style: 'bottom:0%; right:80%; width:100px;' },
-        { id: 'tv', src: 'https://i.postimg.cc/Y2xF1PzF/IMG_0463.png', price: 20, name: '电视', style: 'bottom:0%; right:10%; width:200px;' },
-        { id: 'plant1', src: 'https://i.postimg.cc/DmkGZQc7/IMG_0452.png', price: 20, name: '盆栽1', style: 'bottom:0%; right:0%; width:70px;' },
-        { id: 'plant2', src: 'https://i.postimg.cc/dQ7Shq9k/IMG_0453.png', price: 20, name: '盆栽2', style: 'top:20%; left:0%; width:100px;' },
-        { id: 'lamp_night', src: 'https://i.postimg.cc/c6y3H7B5/IMG_0460.png', price: 20, name: '落地灯(夜)', style: 'top:10%; right:18%; width:100px;' },
-        { id: 'lamp', src: 'https://i.postimg.cc/xqDmCG3g/IMG_0459.png', price: 20, name: '落地灯', style: 'top:10%; right:18%; width:100px;' },
-{ id: 'win_night', src: 'https://i.postimg.cc/0rRSQGCx/IMG_0455.png', price: 20, name: '窗户(夜)', style: 'top:0%; left:0%; width:150px; ' },
-{ id: 'win_day', src: 'https://i.postimg.cc/fW3gVwv9/IMG_0454.png', price: 20, name: '窗户(日)', style: 'top:0%; left:0%; width:150px; ' }, 
-{ id: 'curtain', src: 'https://i.postimg.cc/gkqXsp2S/IMG_0438.png', price: 20, name: '窗帘', style: 'top:0; left:0%; width:100%; ' },
-        { id: 'desk', src: 'https://i.postimg.cc/G3jDkfxy/IMG_0465.png', price: 20, name: '书桌', style: 'bottom:30%; left:0%; width:110px;' },
-        { id: 'flower', src: 'https://i.postimg.cc/5ypFbHty/IMG_0464.png', price: 20, name: '花', style: 'top:20%; left:0%; width:80px;' }
+        { id: 'ac', src: 'https://i.postimg.cc/7YYWGyCF/IMG_1800.png', price: 20, name: '空调', style: 'top:0%; right:0%; width:100px;' },
+        { id: 'clock_deco', src: 'https://i.postimg.cc/kXXp6d6C/IMG_1798.png', price: 0, name: '复古挂钟', style: 'top:0%; right:15%; transform:translateX(-50%); width:70px;' },
+        { id: 'tub_deco', src: 'https://i.postimg.cc/X77zG0GM/IMG_1802.png', price: 20, name: '豪华浴缸', style: 'bottom:0%; right:80%; width:100px;' },
+        { id: 'tub', src: 'https://i.postimg.cc/xTT4JSJ1/IMG_1794.png', price: 20, name: '浴缸', style: 'bottom:0%; right:80%; width:100px;' },
+        { id: 'tv', src: 'https://i.postimg.cc/9FFnRjRM/IMG_1791.png', price: 20, name: '电视', style: 'bottom:0%; right:10%; width:200px;' },
+        { id: 'plant1', src: 'https://i.postimg.cc/nccPjtjf/IMG_1801.png', price: 20, name: '盆栽1', style: 'bottom:0%; right:0%; width:70px;' },
+        { id: 'plant2', src: 'https://i.postimg.cc/BQQVLGLs/IMG_1797.png', price: 20, name: '盆栽2', style: 'top:20%; left:0%; width:100px;' },
+        { id: 'lamp_night', src: 'https://i.postimg.cc/vHHNgdgY/IMG_1792.png', price: 20, name: '落地灯(夜)', style: 'top:10%; right:18%; width:100px;' },
+        { id: 'lamp', src: 'https://i.postimg.cc/Qxxy9r9G/IMG_1803.png', price: 20, name: '落地灯', style: 'top:10%; right:18%; width:100px;' },
+{ id: 'curtain', src: 'https://i.postimg.cc/Qxxy9r9x/IMG_1795.png', price: 20, name: '窗帘', style: 'top:0; left:0%; width:35%; ' },
+{ id: 'win_night', src: 'https://i.postimg.cc/8PP0JVJk/IMG_1796.png', price: 20, name: '窗户(夜)', style: 'top:0%; left:0%; width:150px; ' },
+{ id: 'win_day', src: 'https://i.postimg.cc/c44bgNgS/IMG_1799.png', price: 20, name: '窗户(日)', style: 'top:0%; left:0%; width:150px; ' }, 
+        { id: 'desk', src: 'https://i.postimg.cc/bNNBDjDz/IMG_1793.png', price: 20, name: '书桌', style: 'bottom:30%; left:0%; width:110px;' },
+        { id: 'flower', src: 'https://i.postimg.cc/rFFP0L0d/IMG_1790.png', price: 20, name: '花', style: 'top:20%; left:0%; width:80px;' }
     ],
     items: [
-        { id: 'food_unk', name: '不知名食物', price: 1, type: 'food', target: 'custom', img: 'https://i.postimg.cc/d0DhJTjF/IMG_0421.png' },
-        { id: 'food_cat', name: '猫粮', price: 1, type: 'food', target: 'cat', img: 'https://i.postimg.cc/vmD4G6L3/IMG_0412.png' },
-        { id: 'food_dog', name: '狗粮', price: 1, type: 'food', target: 'dog', img: 'https://i.postimg.cc/VkKSyFMV/IMG_0413.png' },
-        { id: 'food_fish', name: '鱼食', price: 1, type: 'food', target: 'fish', img: 'https://i.postimg.cc/R0qWvnLN/IMG_0414.png' },
-        { id: 'food_seed', name: '瓜子', price: 1, type: 'food', target: 'bird', img: 'https://i.postimg.cc/R0qWvnLq/IMG_0415.png' },
+        { id: 'food_unk', name: '不知名食物', price: 1, type: 'food', target: 'custom', img: 'https://i.postimg.cc/BZ1WZ3F4/IMG-1759.png' },
+        { id: 'food_cat', name: '猫粮', price: 1, type: 'food', target: 'cat', img: 'https://i.postimg.cc/1zS2JVCL/IMG-1751.png' },
+        { id: 'food_dog', name: '狗粮', price: 1, type: 'food', target: 'dog', img: 'https://i.postimg.cc/KcWWCHpP/IMG-1753.png' },
+        { id: 'food_fish', name: '鱼食', price: 1, type: 'food', target: 'fish', img: 'https://i.postimg.cc/XYfDG7js/IMG-1755.png' },
+        { id: 'food_seed', name: '瓜子', price: 1, type: 'food', target: 'bird', img: 'https://i.postimg.cc/gJTMFxs3/IMG-1757.png' },
         
-        { id: 'bath_cat', name: '猫沐浴露', price: 1, type: 'bath', target: 'cat', img: 'https://i.postimg.cc/43MmyNW3/IMG_0416.png' },
-        { id: 'bath_dog', name: '狗沐浴露', price: 1, type: 'bath', target: 'dog', img: 'https://i.postimg.cc/SKjnmzfR/IMG_0417.png' },
-        { id: 'bath_fish', name: '鱼沐浴露', price: 1, type: 'bath', target: 'fish', img: 'https://i.postimg.cc/d0DhJTjV/IMG_0418.png' },
-        { id: 'bath_bird', name: '鸟沐浴露', price: 1, type: 'bath', target: 'bird', img: 'https://i.postimg.cc/mrhPTFNn/IMG_0419.png' },
-        { id: 'bath_unk', name: '不知名沐浴露', price: 1, type: 'bath', target: 'custom', img: 'https://i.postimg.cc/s21M3Z4R/IMG_0420.png' }
+        { id: 'bath_cat', name: '猫沐浴露', price: 1, type: 'bath', target: 'cat', img: 'https://i.postimg.cc/gJCTLwZv/IMG-1761.png' },
+        { id: 'bath_dog', name: '狗沐浴露', price: 1, type: 'bath', target: 'dog', img: 'https://i.postimg.cc/MKD9q39q/IMG-1763.png' },
+        { id: 'bath_fish', name: '鱼沐浴露', price: 1, type: 'bath', target: 'fish', img: 'https://i.postimg.cc/C504VbDV/IMG-1765.png' },
+        { id: 'bath_bird', name: '鸟沐浴露', price: 1, type: 'bath', target: 'bird', img: 'https://i.postimg.cc/13dc3k6V/IMG-1767.png' },
+        { id: 'bath_unk', name: '不知名沐浴露', price: 1, type: 'bath', target: 'custom', img: 'https://i.postimg.cc/NM61bLVq/IMG-1769.png' }
     ]
 };
 
@@ -21992,8 +22658,8 @@ window.generateGalgameEndingAPI = async function() {
     <div id="rpg-char-player" class="rpg-sprite" style="z-index:11;"></div>
 
     <!-- 🚗 新增：开车动画层 (默认隐藏) -->
-    <div id="rpg-driving-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:20; background-image:url('https://i.postimg.cc/L8gxgZyb/IMG_1343.png'); background-size:cover; background-position:center;">
-        <img id="rpg-car-sprite" src="https://i.postimg.cc/MKFsGYDS/IMG_1344.png" style="position:absolute; bottom:45%; width:120px; transition: transform 0.1s;">
+    <div id="rpg-driving-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:20; background-image:url('https://i.postimg.cc/hGtSGYL9/IMG_1841.png'); background-size:cover; background-position:center;">
+        <img id="rpg-car-sprite" src="https://i.postimg.cc/wBj6BrXX/IMG_1840.png" style="position:absolute; bottom:45%; width:120px; transition: transform 0.1s;">
     </div>
 
     <!-- 🚗 新增：外出地点选择弹窗 (默认隐藏) -->
@@ -22454,14 +23120,14 @@ const RPG_ASSETS = {
     bg_room: "https://i.postimg.cc/4xNTKjLp/IMG_0470.png",
     bg_outside: "https://i.postimg.cc/bwCf1L4q/IMG_0496.png",
     bg_store: "https://i.postimg.cc/BnPmP1hr/IMG_1348.png",
-    bg_hospital: "https://i.postimg.cc/W4zsDv7n/IMG_1558.jpg",
-    bg_hospital_room: "https://i.postimg.cc/QCtZbTCG/IMG_1529.jpg",
-    bg_seaside: "https://i.postimg.cc/tCcxQKKF/IMG-1623.png",
-    bg_seaside_hut: "https://i.postimg.cc/q7V0TqbP/IMG_1581.jpg",
-    bg_sakura: "https://i.postimg.cc/hjMqTrSr/IMG_1560.jpg",
-    bg_church: "https://i.postimg.cc/BbV9wnP2/IMG_1610.png",
-    bg_new_year: "https://i.postimg.cc/QNFb9ZpY/IMG-1629.png",
-    bg_cafe: "https://i.postimg.cc/CKTYg5Pc/IMG_1608.jpg",
+    bg_hospital: "https://i.postimg.cc/GpVZ1gqG/IMG_1848.jpg",
+    bg_hospital_room: "https://i.postimg.cc/cJ2VNkX8/IMG_1849.jpg",
+    bg_seaside: "https://i.postimg.cc/BvkdG7MB/IMG_1843.png",
+    bg_seaside_hut: "https://i.postimg.cc/25MPf92v/IMG_1846.jpg",
+    bg_sakura: "https://i.postimg.cc/fbp6hqBY/IMG_1847.jpg",
+    bg_church: "https://i.postimg.cc/xdhWSpty/IMG_1844.png",
+    bg_new_year: "https://i.postimg.cc/YSZJwDb3/IMG_1842.png",
+    bg_cafe: "https://i.postimg.cc/fbp6hqBx/IMG_1845.jpg",
 
     collision_map: "https://i.postimg.cc/SKH0vRS0/IMG_0488.png",
 
@@ -22474,27 +23140,27 @@ const RPG_ASSETS = {
 
     // === ☕ 咖啡厅商品列表 (用于商店弹窗) ===
     cafe_items: [
-        {name: "奶茶", img: "https://i.postimg.cc/7YzJMG2n/IMG_1605.png"},
-        {name: "果汁", img: "https://i.postimg.cc/NfX279H8/IMG_1606.png"},
-        {name: "慕斯小蛋糕", img: "https://i.postimg.cc/tRwVxtYb/IMG_1604.png"},
-        {name: "抹茶蛋糕", img: "https://i.postimg.cc/PxZCHNkb/IMG_1596.png"},
-        {name: "草莓蛋糕", img: "https://i.postimg.cc/3RpkhWHF/IMG_1597.png"},
-        {name: "巧克力蛋糕", img: "https://i.postimg.cc/RFfWmqzQ/IMG_1598.png"},
-        {name: "蓝莓蛋糕", img: "https://i.postimg.cc/wB1tW0ff/IMG_1599.png"},
-        {name: "芒果蛋糕", img: "https://i.postimg.cc/LXfJShMJ/IMG_1600.png"},
-        {name: "婚礼三层蛋糕", img: "https://i.postimg.cc/q7Ntmjbw/IMG_1601.png"},
-        {name: "生日切块蛋糕", img: "https://i.postimg.cc/3wkyLnSt/IMG_1602.png"},
-        {name: "小曲奇", img: "https://i.postimg.cc/PqCL623W/IMG_1603.png"}
+        {name: "奶茶", img: "https://i.postimg.cc/P564gL2X/IMG_1831.png"},
+        {name: "果汁", img: "https://i.postimg.cc/htCrkJpP/IMG_1832.png"},
+        {name: "慕斯小蛋糕", img: "https://i.postimg.cc/Bnhgr8M3/IMG_1830.png"},
+        {name: "抹茶蛋糕", img: "https://i.postimg.cc/CxvN3ZmH/IMG_1820.png"},
+        {name: "草莓蛋糕", img: "https://i.postimg.cc/FHPZMfDc/IMG_1822.png"},
+        {name: "巧克力蛋糕", img: "https://i.postimg.cc/XY28RZQB/IMG_1823.png"},
+        {name: "蓝莓蛋糕", img: "https://i.postimg.cc/T3k9zyCb/IMG_1824.png"},
+        {name: "芒果蛋糕", img: "https://i.postimg.cc/9Qxp64JR/IMG_1825.png"},
+        {name: "婚礼三层蛋糕", img: "https://i.postimg.cc/JzTqfyP0/IMG_1828.png"},
+        {name: "生日切块蛋糕", img: "https://i.postimg.cc/6pH0k7Y7/IMG_1827.png"},
+        {name: "小曲奇", img: "https://i.postimg.cc/HkS2qJBj/IMG_1829.png"}
     ],
 
     items: [
         // === 🏠 房间 (Room) - 原有内容完全保留 ===
-        { id: 'bed', scene: 'room', name: '床', src: 'https://i.postimg.cc/tCzj495W/IMG_0490.png', x: 1, y: 53, w: 28, h: 20, prompt: '要躺下休息吗？' },
-        { id: 'tv', scene: 'room', name: '电视', src: 'https://i.postimg.cc/XY70ZtHp/IMG_0492.png', x: 18, y: 10, w: 30, h: 20, prompt: '要看会儿电视吗？' },
-        { id: 'kitchen', scene: 'room', name: '厨房', src: 'https://i.postimg.cc/3xJHyzSC/IMG_0493.png', x: 60, y: 4, w: 40, h: 30, prompt: '要做点吃的吗？' },
-        { id: 'catbed', scene: 'room', name: '猫窝', src: 'https://i.postimg.cc/QdxrBv4K/IMG_0494.png', x: 70, y: 50, w: 25, h: 25, prompt: '要和宠物互动吗？' },
-        { id: 'tub', scene: 'room', name: '浴缸', src: 'https://i.postimg.cc/135ZgbCp/IMG_0495.png', x: 65, y: 70, w: 30, h: 20, prompt: '要泡个澡吗？' },
-        { id: 'carpet', scene: 'room', name: '地毯', src: 'https://i.postimg.cc/YCqw4Tn9/IMG_0491.png', x: 40, y: 85, w: 20, h: 10, prompt: '准备出门吗？', action: 'show_travel_options' },
+        { id: 'bed', scene: 'room', name: '床', src: 'https://i.postimg.cc/d0wYxxN7/IMG_1834.png', x: 1, y: 53, w: 28, h: 20, prompt: '要躺下休息吗？' },
+        { id: 'tv', scene: 'room', name: '电视', src: 'https://i.postimg.cc/N0BczzCX/IMG_1838.png', x: 18, y: 10, w: 30, h: 20, prompt: '要看会儿电视吗？' },
+        { id: 'kitchen', scene: 'room', name: '厨房', src: 'https://i.postimg.cc/Bv40VV7D/IMG_1837.png', x: 60, y: 4, w: 40, h: 30, prompt: '要做点吃的吗？' },
+        { id: 'catbed', scene: 'room', name: '猫窝', src: 'https://i.postimg.cc/5tbVRRKY/IMG_1835.png', x: 70, y: 50, w: 25, h: 25, prompt: '要和宠物互动吗？' },
+        { id: 'tub', scene: 'room', name: '浴缸', src: 'https://i.postimg.cc/tgpjMMvn/IMG_1836.png', x: 65, y: 70, w: 30, h: 20, prompt: '要泡个澡吗？' },
+        { id: 'carpet', scene: 'room', name: '地毯', src: 'https://i.postimg.cc/jjtbFF3C/IMG_1839.png', x: 40, y: 85, w: 20, h: 10, prompt: '准备出门吗？', action: 'show_travel_options' },
 
         // === 🏖️ 沙滩 (Outside) - 原有内容完全保留 ===
         { id: 'door', scene: 'outside', name: '门', src: 'https://i.postimg.cc/BnYf2NkR/IMG_0501.png', x: 40, y: 0, w: 20, h: 10, prompt: '要开车回家吗？', action: 'drive_home' },
@@ -24938,6 +25604,7 @@ body, #screen {
     color: #e57373; cursor: pointer; font-size: 1.2rem; opacity: 0.5;
 }
 .book-del-icon:hover { opacity: 1; }
+
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -25694,7 +26361,227 @@ window.addEventListener('load', function() {
         });
     }, 500);
 });
+// ==================== 🧹 一键瘦身工具 (无需重新上传) ====================
 
+// 核心：处理单张 Base64 图片字符串
+function optimizeBase64(base64Str) {
+    return new Promise((resolve) => {
+        // 1. 如果不是图片，或者是 GIF，或者太小(<500KB)，直接原样返回
+        if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) {
+            return resolve(base64Str);
+        }
+        if (base64Str.startsWith('data:image/gif')) {
+            return resolve(base64Str); // 保护 GIF 不动
+        }
+        if (base64Str.length < 600000) { 
+            return resolve(base64Str); // 小于约450KB的不动
+        }
+
+        // 2. 开始压缩
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 限制最大宽高 1280 (足够手机看了)
+            const MAX_SIZE = 1280;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+            } else {
+                if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // 如果原图是 PNG，保持 PNG (防黑底)，否则转 JPG 0.7
+            let type = 'image/jpeg';
+            let quality = 0.7;
+            if (base64Str.startsWith('data:image/png')) {
+                type = 'image/png';
+                quality = 0.8; 
+            }
+
+            resolve(canvas.toDataURL(type, quality));
+        };
+        img.onerror = () => resolve(base64Str); // 坏图直接跳过
+    });
+}
+// ==================== 🧹 终极内存救援 (全覆盖版) ====================
+// ==================== 🧹 终极内存救援 Pro (含文件库压缩) ====================
+// ==================== 🧹 终极内存救援 (卡牌极限压缩版) ====================
+async function runSystemOptimization() {
+    const btn = document.getElementById('btn-optimize-start');
+    if(btn) { btn.innerText = "🧹 正在极限压缩 (可能需要1分钟)..."; btn.disabled = true; }
+    
+    let totalFreed = 0;
+    let count = 0;
+
+    // --- 通用压缩 (画质0.7, 宽1280) ---
+    function optimizeNormal(base64Str) {
+        return new Promise((resolve) => {
+            if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) return resolve(base64Str);
+            if (base64Str.startsWith('data:image/gif') || base64Str.length < 500000) return resolve(base64Str); // GIF或小图跳过
+
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX = 1280; // 普通图片保持清晰
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > MAX) { h *= MAX/w; w = MAX; } } 
+                else { if (h > MAX) { w *= MAX/h; h = MAX; } }
+                
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                let type = 'image/jpeg', q = 0.7;
+                if (base64Str.startsWith('data:image/png')) { type = 'image/png'; q = 0.8; }
+                resolve(canvas.toDataURL(type, q));
+            };
+            img.onerror = () => resolve(base64Str);
+        });
+    }
+
+    // --- 🔥 卡牌极限压缩 (画质0.4, 宽480) ---
+    function optimizeCard(base64Str) {
+        return new Promise((resolve) => {
+            if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) return resolve(base64Str);
+            // 卡牌不需要GIF判断，全部压
+            
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX = 480; // ⚡️ 缩小到手机屏幕卡片大小
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > MAX) { h *= MAX/w; w = MAX; } } 
+                else { if (h > MAX) { w *= MAX/h; h = MAX; } }
+                
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                // ⚡️ 强制转 JPG，画质 0.4 (模糊一点但体积极小)
+                resolve(canvas.toDataURL('image/jpeg', 0.4));
+            };
+            img.onerror = () => resolve(base64Str);
+        });
+    }
+
+    // 辅助：处理对象数组
+    async function processArrayImages(arrayName, fieldName) {
+        let list = window.BIG_MEMORY[arrayName];
+        if (!list || list.length === 0) {
+            const res = await idb.get('universal_store', arrayName);
+            if (res) list = res.data;
+        }
+        if (!list || !Array.isArray(list)) return;
+
+        let changed = false;
+        for (let item of list) {
+            if (item[fieldName]) {
+                const oldLen = item[fieldName].length;
+                const newData = await optimizeNormal(item[fieldName]); // 普通压缩
+                if (newData.length < oldLen) {
+                    totalFreed += (oldLen - newData.length);
+                    item[fieldName] = newData;
+                    changed = true;
+                    count++;
+                }
+            }
+        }
+        if (changed) {
+            window.BIG_MEMORY[arrayName] = list;
+            await idb.put('universal_store', { id: arrayName, data: list });
+        }
+    }
+
+    // 辅助：处理卡牌库 (使用极限压缩)
+    async function processDeckStore(storeName) {
+        const items = await idb.getAll(storeName);
+        for (let item of items) {
+            if (item.data) {
+                const oldLen = item.data.length;
+                // 只要大于 100KB 就压，卡牌不需要太高清
+                if (oldLen > 100000) { 
+                    const newData = await optimizeCard(item.data); // 🔥 使用极限压缩
+                    if (newData.length < oldLen) {
+                        totalFreed += (oldLen - newData.length);
+                        item.data = newData;
+                        await idb.put(storeName, item);
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+
+    try {
+        console.log("🚀 开始压缩...");
+
+        // 1. 处理美化素材 (普通压缩)
+        const settings = await idb.getAll('settings_heavy');
+        for (let item of settings) {
+            const newData = await optimizeNormal(item.data);
+            if (newData.length < item.data.length) {
+                totalFreed += (item.data.length - newData.length);
+                item.data = newData;
+                await idb.put('settings_heavy', item);
+                count++;
+            }
+        }
+        
+        // 2. 处理聊天记录 (普通压缩)
+        const chatMsgs = await idb.getAll('chat_history');
+        for (let msg of chatMsgs) {
+            if (msg.type === 'image' && msg.text) {
+                const newData = await optimizeNormal(msg.text);
+                if (newData.length < msg.text.length) {
+                    totalFreed += (msg.text.length - newData.length);
+                    msg.text = newData;
+                    await idb.put('chat_history', msg);
+                    count++;
+                }
+            }
+        }
+
+        // 3. 处理各个APP的历史图片 (普通压缩)
+        await processArrayImages('chat_collections', 'text');
+        await processArrayImages('puzzle_data', 'img'); 
+        
+        // 4. 🔥 处理卡牌库 (极限压缩)
+        await processDeckStore('tarot_deck');
+        await processDeckStore('lenormand_deck');
+        
+        // 5. 表情包 (普通压缩)
+        const stickers = await idb.getAll('chat_stickers');
+        for (let item of stickers) {
+            const newData = await optimizeNormal(item.data);
+            if (newData.length < item.data.length) {
+                totalFreed += (item.data.length - newData.length);
+                item.data = newData;
+                await idb.put('chat_stickers', item);
+                count++;
+            }
+        }
+
+        const mbFreed = (totalFreed / 1024 / 1024).toFixed(2);
+        alert(`🎉 极限瘦身完成！\n\n处理图片：${count} 张\n释放空间：${mbFreed} MB\n\n卡牌已大幅压缩，系统将更流畅。`);
+        location.reload();
+
+    } catch (e) {
+        console.error(e);
+        alert("优化中断：" + e.message);
+        if(btn) btn.disabled = false;
+    }
+}
 </script>
 <script>
 // ============================================================
@@ -26463,6 +27350,105 @@ async function callRpgApi(prompt, ctx, callback) {
         // 移除 loading 提示防止卡死
         const loading = document.getElementById('rpg-temp-loading');
         if(loading) loading.remove();
+    }
+}
+// ==================== 🗑️ 一键重置历史 (修复版：绝不报错) ====================
+async function performSelectiveReset() {
+    // 1. 双重确认
+    if (!confirm("⚠️ 高能预警 ⚠️\n\n你确定要【删除所有】历史记录吗？\n\n这将清空：\n- 所有聊天记录 (Line/RPG/捡手机)\n- 所有日记、剧本、分析报告\n- 所有抽卡结果\n\n✅ 你的【美化/图片/设定/宠物/收藏夹】会保留。")) return;
+    if (!confirm("再次确认：数据删除后【无法恢复】。\n\n是否立即执行？")) return;
+
+    const btn = event.target;
+    btn.innerText = "⏳ 正在暴力清理..."; btn.disabled = true;
+
+    try {
+        // --- A. 清空 IndexedDB 里的历史表 ---
+        // 直接清空，不需要查 Key，解决报错问题
+        const historyStores = [
+            'chat_history', 'game_history', 'tarot_history', 
+            'his_phone_history', 'dream_history', 'fridge_history', 
+            'gashapon_history'
+        ];
+        
+        for (let storeName of historyStores) {
+            await idb.clear(storeName);
+        }
+
+        // --- B. 复杂对象的重置 (先清空，再重建空结构) ---
+        
+        // 1. 捡手机 (Pickup)
+        await idb.clear('pickup_data'); 
+        await idb.put('pickup_data', { id: 'history_list', data: [] });
+
+        // 2. 论坛 (Forum)
+        await idb.clear('forum_data');
+        await idb.put('forum_data', { id: 'history_list', data: [] });
+
+        // 3. 剧场 (Theater)
+        await idb.clear('theater_data');
+        await idb.put('theater_data', { id: 'history_list', data: [] });
+
+        // --- C. 清空大容量内存里的数组 (通用存储) ---
+        const simpleLists = [
+            'diary_history', 'lofter_data', 'shadow_data', 
+            'summary_data', 'work_data', 'scent_data', 
+            'puzzle_data', 'tacit_data', 'witch_data' // 确保女巫也被清空
+        ];
+        
+        for (let key of simpleLists) {
+            window.BIG_MEMORY[key] = [];
+            await idb.put('universal_store', { id: key, data: [] });
+        }
+
+        // --- D. 复杂对象重置 ---
+        
+        // RPG: 清空 chat_history 和 history
+        if(window.BIG_MEMORY.rpg_data) {
+            window.BIG_MEMORY.rpg_data.history = [];
+            window.BIG_MEMORY.rpg_data.chat_history = [];
+            await idb.put('universal_store', { id: 'rpg_data', data: window.BIG_MEMORY.rpg_data });
+        }
+
+        // 宠物: 清空 history，保留 inventory/stats/config
+        if(window.BIG_MEMORY.pet_data) {
+            window.BIG_MEMORY.pet_data.history = [];
+            await idb.put('universal_store', { id: 'pet_data', data: window.BIG_MEMORY.pet_data });
+        }
+
+        // 痛苦 (Pain): 清空
+        window.BIG_MEMORY.pain_data = { his: [], my: [] };
+        await idb.put('universal_store', { id: 'pain_data', data: { his:[], my:[] } });
+
+        // 学习计划 (Study): 清空
+        window.BIG_MEMORY.study = null;
+        await idb.put('universal_store', { id: 'study', data: null });
+
+        // 经期: 清空 records
+        if(window.BIG_MEMORY.period) {
+            window.BIG_MEMORY.period.records = [];
+            window.BIG_MEMORY.period.lastAnalysis = null;
+            await idb.put('universal_store', { id: 'period', data: window.BIG_MEMORY.period });
+        }
+
+        // Galgame: 清空 archives
+        if(window.BIG_MEMORY.galgame_data) {
+            window.BIG_MEMORY.galgame_data.archives = [];
+            window.BIG_MEMORY.galgame_data.current = null;
+            await idb.put('universal_store', { id: 'galgame_data', data: window.BIG_MEMORY.galgame_data });
+        }
+        
+        // 信件 & 记账 & 备忘录
+        await idb.put('universal_store', { id: 'letters', data: [] });
+        await idb.put('universal_store', { id: 'finance', data: [] });
+        await idb.put('universal_store', { id: 'memo', data: "" });
+
+        alert("🧹 清理完毕！\n所有对话和历史记录已消失，系统已重置为轻量状态。\n(美化素材和设定已保留)");
+        location.reload();
+
+    } catch(e) {
+        console.error(e);
+        alert("清理部分内容时出错 (可能已经是空的): " + e.message);
+        btn.disabled = false; btn.innerText = "⚠️ 强制重试";
     }
 }
 </script>
