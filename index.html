@@ -7553,9 +7553,8 @@ async function finishLetterReading() {
 
     // 3. 准备数据
     // (A) 骰子数据：决定回信的语气基调 + 礼物的核心灵感 (这是原版逻辑的核心)
-    let dice = pendingRegenMode ? 
-        (getLetters().find(x=>x.id===currentLetterId)?.diceResult || rollAstroDice()) 
-        : rollAstroDice();
+        // (A) 骰子数据：修改为每次都强制重新投掷
+    let dice = rollAstroDice();
     
     // (B) 翻牌数据：只用来决定“是否已读” (New Logic)
     const tableCardsDesc = letterPickedCards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
