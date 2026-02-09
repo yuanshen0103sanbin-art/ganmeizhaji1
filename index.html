@@ -2321,16 +2321,28 @@ canvas {
     transform-style: preserve-3d;
     perspective: 1000px;
 }
+/* --- 找到原有的 .hp-app-icon 并替换为以下内容 --- */
 .hp-app-icon {
-    width: 55px; height: 55px;
-    border-radius: 12px;
-    display: flex; justify-content: center; align-items: center;
-    font-size: 1.8rem;
-    color: white;
+    width: 60px; 
+    height: 60px;
+    border-radius: 12px; /* 如果图标本身有圆角，可以设为0或更小 */
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     transition: transform 0.1s;
+    
+    /*以此下是关键修改：让它显示图片 */
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-color: transparent !important; /* 去掉原来的背景色 */
+    font-size: 0 !important; /* 隐藏原来的 emoji */
+    color: transparent !important;
+    border: none !important;
 }
+.hp-app-icon:active { transform: scale(0.9); }
 .hp-app-icon:active { transform: scale(0.9); }
 .hp-icon-label {
     font-size: 0.7rem; color: white; text-align: center; margin-top: 5px; text-shadow: 0 1px 2px black;
@@ -4099,6 +4111,7 @@ canvas {
     </div>
 </div>
     <script>
+
 // === 🖼️ 图片压缩工具 (核心优化补丁) ===
 // 将大图片压缩到 1280px 宽，质量 0.7，大幅降低内存占用
 // === 🖼️ 智能图片处理工具 (修复GIF变静图、图标黑底问题) ===
@@ -4192,6 +4205,7 @@ const LENORMAND_NAMES = {
     19: "塔", 20: "花园", 21: "山", 22: "路", 23: "老鼠", 24: "心", 25: "戒指", 26: "书", 27: "信",
     28: "男人", 29: "女人", 30: "百合", 31: "太阳", 32: "月亮", 33: "钥匙", 34: "鱼", 35: "锚", 36: "十字架"
 };
+
         // === 基础逻辑 ===
         function updateTime() {
             const now = new Date();
@@ -5912,7 +5926,15 @@ function fallbackSave(blob) {
     }
 }
 function getPeriodData() {
-    return window.BIG_MEMORY.period || { records: [], isBleeding: false, lastAnalysis: null };
+    // 自动修复：如果数据不存在或格式错误，强制重置
+    if (!window.BIG_MEMORY.period || typeof window.BIG_MEMORY.period !== 'object') {
+        window.BIG_MEMORY.period = { records: [], isBleeding: false, lastAnalysis: null };
+    }
+    // 自动修复：如果记录数组丢失，强制补全
+    if (!Array.isArray(window.BIG_MEMORY.period.records)) {
+        window.BIG_MEMORY.period.records = [];
+    }
+    return window.BIG_MEMORY.period;
 }
 
 function savePeriodData(data) {
@@ -5921,14 +5943,18 @@ function savePeriodData(data) {
         idb.put('universal_store', { id: 'period', data: data });
     }
 }
+
 function openPeriodApp() {
     document.getElementById('period-modal').style.display = 'flex';
     renderPeriodUI(); 
 }
+
 function renderPeriodUI() {
     const data = getPeriodData();
     let statusText = "等待记录..."; 
     let predictText = "请在下方记录开始时间";
+    
+    // 确保 records 是数组后再排序，防止报错
     const sortedRecords = (data.records || []).sort((a, b) => new Date(b.start) - new Date(a.start));
     const listEl = document.getElementById('p-history-list');
     
@@ -5948,22 +5974,24 @@ function renderPeriodUI() {
                     const diff = (endD - startD) / (1000 * 60 * 60 * 24) + 1;
                     duration = ` (${Math.floor(diff)}天)`;
                 }
-                
                 div.innerHTML = `<span>${rec.start} 至 ${endStr} ${duration}</span><span style="color:red; cursor:pointer;" onclick="deletePeriodRecord(${index})">×</span>`;
                 listEl.appendChild(div);
             });
         }
     }
+
     const btn = document.getElementById('p-toggle-btn');
     if(btn) {
+        // 强制移除旧类名，确保状态刷新
+        btn.classList.remove('active');
         if (data.isBleeding) {
             btn.classList.add('active');
             btn.innerHTML = "🔴 经期中 (点击结束)";
         } else {
-            btn.classList.remove('active');
             btn.innerHTML = "⚪ 未在经期 (点击开始)";
         }
     }
+
     if (sortedRecords.length > 0) {
         const lastStart = new Date(sortedRecords[0].start);
         const today = new Date();
@@ -5975,54 +6003,36 @@ function renderPeriodUI() {
         } else {
             let phase = "";
             let emoji = "";
-            
-            if (diffDays <= 7) { 
-                phase = "经期/恢复期"; emoji = "💧";
-            } else if (diffDays <= 13) { 
-                phase = "卵泡期 (元气满满)"; emoji = "✨";
-            } else if (diffDays <= 16) { 
-                phase = "排卵期 (易孕)"; emoji = "🥚";
-            } else if (diffDays <= 28) { 
-                phase = "黄体期 (情绪波动)"; emoji = "🌙";
-            } else { 
-                phase = "周期延后"; emoji = "⚠️";
-            }
-
+            if (diffDays <= 7) { phase = "经期/恢复期"; emoji = "💧"; }
+            else if (diffDays <= 13) { phase = "卵泡期 (元气满满)"; emoji = "✨"; }
+            else if (diffDays <= 16) { phase = "排卵期 (易孕)"; emoji = "🥚"; }
+            else if (diffDays <= 28) { phase = "黄体期 (情绪波动)"; emoji = "🌙"; }
+            else { phase = "周期延后"; emoji = "⚠️"; }
             statusText = `${emoji} ${phase}`;
             predictText = `周期第 ${diffDays} 天`;
-            const nextDate = new Date(lastStart);
-            nextDate.setDate(lastStart.getDate() + 28); 
-            const daysToNext = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
-            
-            if(daysToNext > 0) predictText += ` | 还有 ${daysToNext} 天`;
-            else predictText += ` | 已延期 ${Math.abs(daysToNext)} 天`;
         }
     }
+
     const lastAI = data.lastAnalysis;
     const aiSection = document.getElementById('p-ai-section');
-    
-    if (sortedRecords.length > 0 && lastAI) {
+    if (sortedRecords.length > 0 && lastAI && aiSection) {
+        if(!data.isBleeding && lastAI.phase) statusText = lastAI.phase;
+        if(lastAI.next_prediction) predictText = lastAI.next_prediction;
         
-        if(!data.isBleeding && lastAI.phase) {
-            statusText = lastAI.phase;
-        }
-        if(lastAI.next_prediction) {
-            predictText = lastAI.next_prediction;
-        }
-        if(aiSection) {
-            aiSection.style.display = 'block';
-            document.getElementById('p-care-msg').innerText = lastAI.care_message || "暂无信息";
-            document.getElementById('p-recipe-title').innerText = lastAI.recipe_name || "推荐食谱";
-            document.getElementById('p-recipe-content').innerText = lastAI.recipe_steps || "暂无详情";
-        }
-    } else {
-        if(aiSection) aiSection.style.display = 'none';
+        aiSection.style.display = 'block';
+        document.getElementById('p-care-msg').innerText = lastAI.care_message || "暂无信息";
+        document.getElementById('p-recipe-title').innerText = lastAI.recipe_name || "推荐食谱";
+        document.getElementById('p-recipe-content').innerText = lastAI.recipe_steps || "暂无详情";
+    } else if(aiSection) {
+        aiSection.style.display = 'none';
     }
+
     const statusEl = document.getElementById('p-status-display');
     const predEl = document.getElementById('p-prediction-display');
     if (statusEl) statusEl.innerText = statusText;
     if (predEl) predEl.innerText = predictText;
 }
+
 function addPeriodRecord() {
     const start = document.getElementById('p-start-date').value;
     const end = document.getElementById('p-end-date').value;
@@ -6031,54 +6041,41 @@ function addPeriodRecord() {
     
     const data = getPeriodData();
     data.records.push({ start, end }); 
-    if (end) {
-        data.isBleeding = false;
-    } else {
-        data.isBleeding = true; 
-    }
+    if (end) data.isBleeding = false;
+    else data.isBleeding = true; 
     
     savePeriodData(data);
     renderPeriodUI();
-    // 自动触发AI分析
-    if(confirm("记录成功！是否让 AI 根据当前状态分析身体并推荐食谱？")) {
-        analyzeCycleWithAI();
-    }
+    alert("✅ 记录已保存");
 }
+
 function deletePeriodRecord(index) {
     if(!confirm("删除这条记录？")) return;
     const data = getPeriodData();
     data.records.sort((a, b) => new Date(b.start) - new Date(a.start));
     data.records.splice(index, 1);
-    data.lastAnalysis = null; 
-    
     savePeriodData(data);
     renderPeriodUI();
 }
+
 function togglePeriodStatus() {
     const data = getPeriodData();
-    
     data.isBleeding = !data.isBleeding;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 逻辑修复：确保 records 数组存在
+    if (!data.records) data.records = [];
+
     if (data.isBleeding) {
-        const today = new Date().toISOString().split('T')[0];
-        const hasTodayRecord = data.records.some(r => r.start === today);
-        
-        if (!hasTodayRecord) {
-            data.records.unshift({ start: today, end: "" });
-            if(document.getElementById('p-start-date')) {
-                document.getElementById('p-start-date').value = today;
-            }
-        }
-    } 
-    else {
-        const today = new Date().toISOString().split('T')[0];
+        data.records.unshift({ start: today, end: "" });
+        if(document.getElementById('p-start-date')) document.getElementById('p-start-date').value = today;
+    } else {
         if (data.records.length > 0) {
             data.records.sort((a, b) => new Date(b.start) - new Date(a.start));
-            if (!data.records[0].end) {
-                data.records[0].end = today;
-            }
+            if (!data.records[0].end) data.records[0].end = today;
         }
     }
-
     savePeriodData(data);
     renderPeriodUI(); 
 }
@@ -8631,23 +8628,6 @@ async function startWeChatCall() {
 function endWeChatCall() {
     document.getElementById('wechat-call-overlay').style.display = 'none';
     if (window.callTimerInterval) clearInterval(window.callTimerInterval);
-    if (window.pendingRecipeNote) {
-
-        saveFridgeHistory({
-            dish_name: window.pendingRecipeNote.dish_name,
-            dialogue: window.pendingRecipeNote.dialogue, 
-            shopping_advice: window.pendingRecipeNote.simple_recipe 
-        });
-
-        // 2. 准备显示的文本 (组合：通话回顾 + 简易菜谱)
-        const combinedContent = `【📞 通话回顾】\n${window.pendingRecipeNote.dialogue}\n\n----------------\n\n【🥣 简易菜谱】\n${window.pendingRecipeNote.simple_recipe}`;
-        document.getElementById('note-detail-title').innerText = window.pendingRecipeNote.dish_name;
-        document.getElementById('note-detail-content').innerText = combinedContent;
-        document.getElementById('note-detail-date').innerText = new Date().toLocaleDateString();
-        document.getElementById('sticky-note-modal').style.display = 'flex';
-        window.pendingRecipeNote = null; 
-        renderFridgeHistory();
-    }
 }
 async function generateWeChatRecipe(fridgeData) {
     const subEl = document.getElementById('wx-call-subtitle'); 
@@ -8721,28 +8701,35 @@ ${fridgeCtx}
         let raw = json.choices[0].message.content;
         raw = raw.replace(/```json/g, "").replace(/```/g, "").trim();
         const result = JSON.parse(raw);
-        subEl.style.display = 'block';
-        let i = 0;
-        subEl.innerText = "";
-        const txt = result.dialogue;
         
-        const typeLoop = setInterval(() => {
-            subEl.innerText += txt.charAt(i);
-            subEl.scrollTop = subEl.scrollHeight; 
-            i++;
-            if (i >= txt.length) clearInterval(typeLoop);
-        }, 70);
-        window.pendingRecipeNote = {
+        saveFridgeHistory({
             dish_name: result.dish_name,
-            dialogue: result.dialogue,           
-            simple_recipe: result.simple_recipe_note 
-        };
+            dialogue: result.dialogue, 
+            shopping_advice: result.simple_recipe_note 
+        });
+
+        alert(`✅ 生成完毕！\n大厨的【${result.dish_name}】教学已自动存入冰箱历史记录。`);
+
+        if(document.getElementById('wechat-call-overlay').style.display !== 'none') {
+            subEl.style.display = 'block';
+            let i = 0;
+            subEl.innerText = "";
+            const txt = result.dialogue;
+            
+            const typeLoop = setInterval(() => {
+                subEl.innerText += txt.charAt(i);
+                subEl.scrollTop = subEl.scrollHeight; 
+                i++;
+                if (i >= txt.length) clearInterval(typeLoop);
+            }, 70);
+        }
 
     } catch(e) {
         console.error(e);
-        subEl.style.display = 'block';
-        subEl.innerText = "信号中断: " + e.message;
-        window.pendingRecipeNote = null;
+        if(document.getElementById('wechat-call-overlay').style.display !== 'none') {
+            subEl.style.display = 'block';
+            subEl.innerText = "信号中断: " + e.message;
+        }
     }
 }
 function getFridgeHistory() {
@@ -9845,6 +9832,8 @@ async function finishHisPhoneReading() {
     }
     // 兜底默认
     if (!apiUrl) apiUrl = "https://api.openai.com/v1";
+    /* --- 找到 window.finishHisPhoneReading 函数，修改 prompt 变量部分 --- */
+
     const prompt = `
 你现在正在模拟**目标角色**的手机内容。
 【角色/世界设定】：
@@ -9872,9 +9861,11 @@ ${cardsDesc}
       "messages": [ {"role": "other", "text": "..."} ]
     }
   ],
-  "taobao": [ {"item": "商品名", "date": "1天前"}, ... ],  "photos": [ {"desc": "一张模糊的夜景照片，配文：又是加班..."}, {"desc": "一只流浪猫的照片，阳光很好"} ], 
+  "taobao": [ {"item": "商品名", "date": "1天前"}, ... ],  
+  "photos": [ {"desc": "一张模糊的夜景照片，配文：又是加班..."}, {"desc": "一只流浪猫的照片，阳光很好"} ], 
   "memo": [ "备忘录内容1...", "..." ],
-  "diary": "今天的日记正文..."
+  "diary": "今天的日记正文...",
+  "map": [ "导航记录1 (地点+原因)", "导航记录2..." ] 
 }
 只输出 JSON，不要 Markdown。
 `;
@@ -9905,21 +9896,32 @@ ${cardsDesc}
         btn.disabled = false;
     }
 }
+/* --- 找到 window.renderHisPhoneOS 函数，完全替换为以下内容 --- */
+
 function renderHisPhoneOS(data) {
     document.getElementById('hp-card-view').style.display = 'none';
-    document.getElementById('hp-os-view').style.display = 'flex';
+    const osView = document.getElementById('hp-os-view');
+    osView.style.display = 'flex';
+    
+    // 1. 修改背景图
+    osView.style.backgroundImage = "url('https://i.postimg.cc/BQtvjmdG/IMG-1934.jpg')";
+    osView.style.backgroundSize = "cover";
+    osView.style.backgroundPosition = "center";
     
     const grid = document.getElementById('hp-home-screen');
     grid.innerHTML = '';
+
+    // 2. 修改图标列表 (使用你提供的图片链接)
     const apps = [
-        { id: 'xiaohongshu', icon: '📕', label: '小红书', color: '#ff2d55' },
-        { id: 'wechat', icon: '💬', label: '微信', color: '#07c160' },
-        { id: 'browser', icon: '🧭', label: '浏览器', color: '#007aff' },
-        { id: 'taobao', icon: '🛍️', label: '淘宝', color: '#ff9500' },
-        { id: 'memo', icon: '📝', label: '备忘录', color: '#ffcc00' },
-        { id: 'diary', icon: '📒', label: '日记', color: '#5856d6' },
-        { id: 'settings', icon: '⚙️', label: '设置', color: '#8e8e93' }, // 装饰用
-        { id: 'photos', icon: '🖼️', label: '相册', color: '#af52de' }  
+        { id: 'xiaohongshu', img: 'https://i.postimg.cc/VNrTM8Dd/IMG_1924.png', label: '小红书' },
+        { id: 'wechat',      img: 'https://i.postimg.cc/JhDgJLPt/IMG_1923.png', label: '微信' },
+        { id: 'browser',     img: 'https://i.postimg.cc/9fRSThJX/IMG_1929.png', label: '浏览器' },
+        { id: 'taobao',      img: 'https://i.postimg.cc/fbtFXNBb/IMG_1925.png', label: '淘宝' },
+        { id: 'memo',        img: 'https://i.postimg.cc/XvGhFbQq/IMG_1926.png', label: '备忘录' },
+        { id: 'diary',       img: 'https://i.postimg.cc/d0kXdY4t/IMG_1927.png', label: '日记' },
+        // 原来的 Settings 改为 Map
+        { id: 'map',         img: 'https://i.postimg.cc/3w46pTn8/IMG_1928.png', label: '地图' }, 
+        { id: 'photos',      img: 'https://i.postimg.cc/pdh78HqP/IMG_1930.png', label: '相册' }  
     ];
 
     apps.forEach(app => {
@@ -9927,16 +9929,18 @@ function renderHisPhoneOS(data) {
         div.style.display = 'flex';
         div.style.flexDirection = 'column';
         div.style.alignItems = 'center';
+        
+        // 注意：这里用 style.backgroundImage 设置图片
         div.innerHTML = `
-            <div class="hp-app-icon" style="background:${app.color}" onclick="openFakeApp('${app.id}')">${app.icon}</div>
-            <div class="hp-icon-label">${app.label}</div>
+            <div class="hp-app-icon" style="background-image:url('${app.img}')" onclick="openFakeApp('${app.id}')"></div>
+            <div class="hp-icon-label" style="text-shadow: 0 1px 3px rgba(0,0,0,0.8);">${app.label}</div>
         `;
         grid.appendChild(div);
     });
 }
 function openFakeApp(appId) {
     if(!hpCurrentResult) return;
-    if(['settings'].includes(appId)) return alert("需要面容解锁 (内容未生成)");
+   
 
     const modal = document.getElementById('hp-app-detail-modal');
     const titleEl = document.getElementById('hp-app-title');
@@ -10034,8 +10038,27 @@ function openFakeApp(appId) {
             <div style="padding:20px; line-height:1.8; font-family:serif; color:#333;">
                 <div style="color:#999; margin-bottom:15px;">${new Date().toLocaleDateString()}</div>
                 ${(data.diary || "").replace(/\n/g, "<br>")}
-            </div>
+                     </div>
         `;
+    }
+    
+    // 🔥 新增：地图逻辑 🔥
+    else if (appId === 'map') {
+        titleEl.innerText = "导航足迹";
+        contentEl.style.background = "#f7f7f7";
+        contentEl.innerHTML = `<div style="padding:15px; color:#666; font-size:0.8rem;">基于牌意生成的今日行程：</div>`;
+        
+        // 兼容旧数据（如果旧数据没有 map 字段）
+        const mapRecords = data.map || ["暂无导航记录"];
+        
+        mapRecords.forEach(record => {
+            contentEl.innerHTML += `
+                <div style="margin:10px 15px; background:#fff; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); border-left:4px solid #3498db;">
+                    <div style="font-weight:bold; color:#2c3e50; margin-bottom:5px;">📍 ${record}</div>
+                    <div style="font-size:0.7rem; color:#95a5a6;">已到达</div>
+                </div>
+            `;
+        });
     }
 }
 
@@ -16586,44 +16609,58 @@ async function importFullRestore(input) {
     input.value = ''; 
 }
 const NotificationManager = {
-    requestPermission: async function() {
-        if (!("Notification" in window)) return alert("此设备不支持系统通知");
+    requestPermission: function() {
+        // 修改：增加提示，告知用户 APK 环境可能仅支持应用内通知
+        if (!("Notification" in window)) {
+            return alert("此设备/容器不支持原生系统通知，将使用App内弹窗替代。");
+        }
         
-        const permission = await Notification.requestPermission();
-        if (permission === "granted") {
-            this.send({ title: "通知已开启", body: "现在你可以在后台收到消息了！", icon: "🎉" });
-        } else {
-            alert("需要通知权限才能在后台接收消息。请在系统设置中允许。");
-        }
+        // 兼容写法：同时支持 Promise 和 回调，防止部分旧安卓 WebView 报错
+        Notification.requestPermission().then((permission) => {
+            if (permission === "granted") {
+                this.send({ title: "通知测试", body: "权限获取成功！(若无状态栏通知，说明APK不支持)", icon: "🎉" });
+            } else {
+                alert("权限被拒绝或被拦截。将仅使用App内弹窗提醒。");
+            }
+        }).catch(err => {
+            console.log(err);
+            // 即使报错也不弹窗打扰用户了，反正会自动降级为 App 内弹窗
+        });
     },
+
     send: function({ title, body, icon = "🔔", tag = "default", onClick = null }) {
-        if (document.visibilityState === 'visible') {
-            this.showToast(title, body, icon, onClick);
-            return;
-        }
-        if (Notification.permission === "granted") {
+        // 🔥【核心修复】
+        // 无论是在前台还是后台，始终显示 App 内的美化弹窗 (Toast)。
+        // 这样在安卓 APK 里，即使发不出系统通知，用户也能看到漂亮的提示卡片。
+        this.showToast(title, body, icon, onClick);
+
+        // 尝试发送原生系统通知 (状态栏通知)
+        // 仅在支持的环境下生效 (如 iOS Safari添加到主屏幕后、PC 浏览器)
+        if ("Notification" in window && Notification.permission === "granted") {
             try {
                 const noti = new Notification(title, {
                     body: body,
-                    icon: "https://i.postimg.cc/Sstb57LV/065da10de10365d9519422da09e26142.jpg", // 你的App图标
+                    icon: "https://i.postimg.cc/Sstb57LV/065da10de10365d9519422da09e26142.jpg", 
                     tag: tag,
                     renotify: true
                 });
                 
                 noti.onclick = function() {
-                    window.focus(); // 尝试唤醒窗口
+                    window.focus(); 
                     if (onClick) onClick();
                     noti.close();
                 };
             } catch (e) {
-                console.log("系统通知发送失败，转为Toast", e);
+                // APK 环境下这里报错是正常的，忽略即可，因为上面已经弹了 Toast
+                console.log("原生通知调用被拦截 (APK环境正常现象)");
             }
         }
     },
 
-    // 3. 显示 App 内美化弹窗
+    // 3. 显示 App 内美化弹窗 (保持原样，无需修改)
     showToast: function(title, body, icon, onClick) {
         const container = document.getElementById('sys-toast-container');
+        if(!container) return; 
         container.classList.add('show');
 
         const el = document.createElement('div');
@@ -16636,7 +16673,6 @@ const NotificationManager = {
             </div>
         `;
         
-        // 点击逻辑
         el.onclick = () => {
             if (onClick) onClick();
             el.remove();
@@ -17429,11 +17465,26 @@ window.deleteStudyPlan = function() {
         </div>
         <div id="hp-home-screen" style="flex:1; display:grid; grid-template-columns:repeat(4, 1fr); grid-template-rows:repeat(5, 1fr); padding:20px; gap:15px; align-content:start;">
         </div>
-        <div style="height:80px; background:rgba(255,255,255,0.1); backdrop-filter:blur(10px); display:flex; justify-content:space-around; align-items:center; padding:10px; border-radius:20px; margin:10px;">
-             <div class="hp-app-icon" onclick="openFakeApp('wechat')">💬</div>
-             <div class="hp-app-icon" onclick="openFakeApp('browser')">🧭</div>
-             <div class="hp-app-icon" onclick="openFakeApp('memo')">📝</div>
-        </div>
+<!-- 找到 id="hp-os-view" 内部 -->
+
+<!-- ... 上面是 hp-home-screen ... -->
+
+<!-- 👇👇👇 将原来的 Dock 栏替换为这个 👇👇👇 -->
+<div style="height:90px; background:rgba(255,255,255,0.2); backdrop-filter:blur(15px); display:flex; justify-content:space-around; align-items:center; padding:10px; border-radius:24px; margin:15px 10px 30px 10px; border:1px solid rgba(255,255,255,0.3);">
+     <!-- 电话 (这里用微信图标代替，或者你可以换别的链接) -->
+     <div class="hp-app-icon" style="background-image:url('https://i.postimg.cc/JhDgJLPt/IMG_1923.png'); width:55px; height:55px;" onclick="openFakeApp('wechat')"></div>
+     
+     <!-- 浏览器 -->
+     <div class="hp-app-icon" style="background-image:url('https://i.postimg.cc/9fRSThJX/IMG_1929.png'); width:55px; height:55px;" onclick="openFakeApp('browser')"></div>
+     
+     <!-- 备忘录 -->
+     <div class="hp-app-icon" style="background-image:url('https://i.postimg.cc/XvGhFbQq/IMG_1926.png'); width:55px; height:55px;" onclick="openFakeApp('memo')"></div>
+     
+     <!-- 相册 -->
+     <div class="hp-app-icon" style="background-image:url('https://i.postimg.cc/pdh78HqP/IMG_1930.png'); width:55px; height:55px;" onclick="openFakeApp('photos')"></div>
+</div>
+
+
         <!-- 修改 top 的值为 calc(var(--safe-top) + 20px) -->
 <div style="position:absolute; top:calc(var(--safe-top) + 20px); right:10px; z-index:100;">
      <button class="m-btn small" onclick="closeHisPhoneApp()" style="background:rgba(0,0,0,0.5); color:white;">关机</button>
@@ -20430,7 +20481,7 @@ window.finishGalgameDraw = async function() {
 
             任务：
             1. 牌意是牌意和牌面的能量流动和牌转换为角色的潜意识：根据牌意判断角色选A/B/C哪一个。正文也根据牌意走向生成。
-            2. 生成剧情，描写角色的反应，需体现好感度变化。
+            2. 生成剧情，描写角色的反应，需体现好感度变化。（好感度是用户对角色的好感度，角色可以感知到些许）
             
             输出严格JSON：
             { "chosen_option": "A", "reason": "...", "story": "..." }
@@ -21207,7 +21258,7 @@ window.generateGalgameEndingAPI = async function() {
                 model: model,
                 messages: [{role:"system", content:"Creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.9,
-                max_tokens: 1000 // 限制返回长度，防止超时
+                max_tokens: 2000 // 限制返回长度，防止超时
             })
         });
         
@@ -22692,13 +22743,14 @@ window.generateGalgameEndingAPI = async function() {
 </div> 
 
         <!-- UI层：对话框 -->
-        <div id="rpg-dialog-overlay" style="display:none; position:absolute; bottom:20px; left:10px; right:10px; background:rgba(0,0,0,0.9); border:2px solid #fff; border-radius:4px; padding:10px; z-index:100; color:#fff; font-family:'Courier New';">
-            <div id="rpg-dialog-text">这里显示提示信息...</div>
-            <div id="rpg-dialog-actions" style="margin-top:10px; display:flex; gap:10px; justify-content:flex-end;">
-                <button class="m-btn small" id="rpg-btn-yes" style="background:#00b894; color:fff;">确定</button>
-                <button class="m-btn small" onclick="closeRpgDialog()" style="background:#636e72; color:#ccc;">取消</button>
-            </div>
-        </div>
+      <div id="rpg-dialog-overlay" style="display:none; position:absolute; bottom:20px; left:10px; right:10px; background:rgba(0,0,0,0.9); border:2px solid #fff; border-radius:4px; padding:10px; z-index:100; color:#fff; font-family:'Courier New';">
+    <div id="rpg-dialog-text">这里显示提示信息...</div>
+    <input type="text" id="rpg-interact-input" placeholder="输入你的动作或补充设定(可选)..." style="width:100%; margin-top:8px; background:rgba(255,255,255,0.2); border:1px solid #666; color:#fff; padding:5px; border-radius:4px; outline:none;">
+    <div id="rpg-dialog-actions" style="margin-top:10px; display:flex; gap:10px; justify-content:flex-end;">
+        <button class="m-btn small" id="rpg-btn-yes" style="background:#00b894; color:fff;">确定</button>
+        <button class="m-btn small" onclick="closeRpgDialog()" style="background:#636e72; color:#ccc;">取消</button>
+    </div>
+</div>
 
         <!-- UI层：虚拟摇杆 (简单的方向键) -->
 <!-- === 🕹️ 真实的物理拖拽摇杆 === -->
@@ -23604,23 +23656,15 @@ function checkCollision(xPercent, yPercent) {
     // 直接返回 false，意味着“没有碰撞”，允许玩家走到地图任何坐标
     return false;
 }
-// ==================== 2. 交互判定逻辑 (宽容版) ====================
 function checkInteraction() {
     let nearItem = null;
     const px = rpgState.player.x;
     const py = rpgState.player.y;
 
-    // 1. 寻找附近的物品
     for (let item of RPG_ASSETS.items) {
         if (item.scene !== rpgState.currentScene) continue;
-        
-        // --- 新算法：矩形检测 (更适合扁长货架) ---
-        // 判定玩家是否站在物品的图片范围内 (稍微放宽一点边界)
-        // 假设物品高度 h 默认为 15 (如果没写)
         const h = item.h || 15;
         const w = item.w || 15;
-        
-        // 只要玩家坐标进入了 [x-5, x+w+5] 和 [y-5, y+h+5] 的范围，就算接触
         if (px >= item.x - 5 && px <= item.x + w + 5 &&
             py >= item.y - 5 && py <= item.y + h + 5) {
             nearItem = item;
@@ -23629,56 +23673,48 @@ function checkInteraction() {
     }
 
     const dialog = document.getElementById('rpg-dialog-overlay');
+    const inputEl = document.getElementById('rpg-interact-input');
     
     if (nearItem && nearItem.prompt) {
+        if (dialog.style.display === 'none') inputEl.value = ''; 
+        
         dialog.style.display = 'block';
         document.getElementById('rpg-dialog-text').innerText = nearItem.prompt;
         
         const yesBtn = document.getElementById('rpg-btn-yes');
+        yesBtn.onclick = null; // 解绑旧事件
         
-                yesBtn.onclick = () => {
-            // === 路由逻辑 ===
-            if (nearItem.action === 'show_travel_options') {
-                showTravelOptions(); 
-            } else if (nearItem.action === 'drive_home') {
-                startDrivingHome(); 
-            } 
-            // === 商店逻辑 ===
-            else if (nearItem.action === 'open_cafe_shop') {
-                openCafeShop(); 
-                closeRpgDialog();
-            } 
-            // === 跳转逻辑 ===
-            else if (nearItem.action === 'jump_hospital_room') {
-                switchScene('hospital_room');
-                closeRpgDialog();
-            } else if (nearItem.action === 'jump_back_hospital') {
-                switchScene('hospital');
-                closeRpgDialog();
-            } else if (nearItem.action === 'jump_seaside_hut') {
-                switchScene('seaside_hut');
-                closeRpgDialog();
-            } else if (nearItem.action === 'jump_back_seaside') {
-                switchScene('seaside');
-                closeRpgDialog();
-            } 
-            // === 剧情生成逻辑 ===
+        yesBtn.onclick = () => {
+            // 获取用户输入
+            const userExtra = inputEl.value.trim();
+
+            if (nearItem.action === 'show_travel_options') showTravelOptions(); 
+            else if (nearItem.action === 'drive_home') startDrivingHome(); 
+            else if (nearItem.action === 'open_cafe_shop') { openCafeShop(); closeRpgDialog(); } 
+            else if (nearItem.action === 'jump_hospital_room') { switchScene('hospital_room'); closeRpgDialog(); } 
+            else if (nearItem.action === 'jump_back_hospital') { switchScene('hospital'); closeRpgDialog(); } 
+            else if (nearItem.action === 'jump_seaside_hut') { switchScene('seaside_hut'); closeRpgDialog(); } 
+            else if (nearItem.action === 'jump_back_seaside') { switchScene('seaside'); closeRpgDialog(); } 
+            
+            // 剧情生成类 (传入 userExtra)
             else if (nearItem.action === 'pixel_story' || nearItem.action === 'pixel_story_npc' || nearItem.action === 'pixel_story_hut') {
-                generatePixelStory(nearItem.prompt);
-                closeRpgDialog();
-            } else if (nearItem.action === 'pixel_story_r18') {
-                generatePixelStory(nearItem.prompt, true); // 开启 R18 模式
+                generatePixelStory(nearItem.prompt, false, userExtra);
                 closeRpgDialog();
             } 
-            // === 旧有逻辑保持 ===
+            else if (nearItem.action === 'pixel_story_r18') {
+                generatePixelStory(nearItem.prompt, true, userExtra); 
+                closeRpgDialog();
+            } 
             else if (nearItem.type === 'person') {
-                generateFriendStory(nearItem); 
+                generateFriendStory(nearItem, userExtra); 
                 closeRpgDialog();
-            } else if (nearItem.type === 'shelf') {
-                generateStoreShopping(nearItem); 
+            } 
+            else if (nearItem.type === 'shelf') {
+                generateStoreShopping(nearItem, userExtra); 
                 closeRpgDialog();
-            } else {
-                generateRpgStory(nearItem); 
+            } 
+            else {
+                generateRpgStory(nearItem, userExtra); 
                 closeRpgDialog();
             }
         };
@@ -23686,7 +23722,6 @@ function checkInteraction() {
         dialog.style.display = 'none';
     }
 }
-
 function closeRpgDialog() { 
     document.getElementById('rpg-dialog-overlay').style.display = 'none'; 
 }
@@ -23998,82 +24033,83 @@ async function finishRpgChat() {
 // ==================== 3. 故事生成函数群 (无限存储支持) ====================
 
 // A. 房间互动故事 (修复：确保调用成功)
-async function generateRpgStory(item) {
-    showRpgLoading(`正在生成与【${item.name}】的日常...`);
+async function generateRpgStory(item, userExtra) {
+    showRpgLoading(`正在生成与【${item.name}】的互动...`);
     
     const context = await getRpgContext();
-    if(!context) return; // API Key 检查失败
+    if(!context) return; 
 
+    // 🔥 融合逻辑
     const prompt = `
 你是一位治愈系小说家。
 【世界观】：${context.global}
 【场景】：家中。
 【事件】：用户使用了房间里的【${item.name}】。
+【用户补充细节】：${userExtra || "（无）"}
 
 【任务】：
 写一段 150-250 字的温馨生活片段。
 视角：第二人称“你”。
-内容：描写互动的细节、触感、声音，以及此刻角色（Ta）在做什么，你们之间有什么眼神或语言的交流。
+内容：请描写用户使用${item.name}的过程，并结合用户的补充细节（如果有）。
+重点描写感官细节、触感、声音，以及此刻角色（Ta）在做什么。
 `;
     
     callRpgApi(prompt, context, (story) => {
         saveRpgStory(`🏠 居家 · ${item.name}`, story);
-        alert(`✨ 与${item.name}的互动故事已生成！`);
+        alert(`✨ 故事已生成！`);
     });
 }
-
-// B. 沙滩朋友故事 (新增：根据朋友的话生成反应)
-async function generateFriendStory(friend) {
+async function generateFriendStory(friend, userExtra) {
     showRpgLoading(`正在聆听${friend.name}的祝福...`);
     
     const context = await getRpgContext();
     if(!context) return;
 
+    // 🔥 融合逻辑
     const prompt = `
 你是一位情感细腻的小说家。
 【世界观】：${context.global}
-【场景】：阳光明媚的沙滩。
+【场景】：户外。
 【事件】：用户和角色（Ta）偶遇了朋友【${friend.name}】。
 【朋友说】："${friend.prompt}"
+【用户此时的反应】：${userExtra || "（害羞或默认）"}
 
 【任务】：
 写一段 200 字左右的小故事。
-内容：
-1. 描写听到朋友这句话后，**用户和角色（Ta）各自的反应**（害羞、相视一笑、紧握双手等）。
-2. 侧重描写两人之间流动的爱意和默契。
-3. 氛围：甜蜜、确幸。
+1. 描写听到朋友这句话后，你和Ta各自的反应。
+2. **请重点体现用户输入的反应**，并描写角色对此的回应。
+3. 氛围：甜蜜、阳光、令人心动。
 `;
 
     callRpgApi(prompt, context, (story) => {
         saveRpgStory(`🏖️ 偶遇 · ${friend.name}`, story);
-        alert(`💌 听到了祝福！故事已生成。`);
+        alert(`💌 故事已生成！`);
     });
 }
-
-// C. 便利店购物故事 (修复：确保货架有反应)
-async function generateStoreShopping(item) {
-    showRpgLoading(`正在挑选${item.name}...`);
+async function generateStoreShopping(item, userExtra) {
+    showRpgLoading(`正在货架前...`);
     
     const context = await getRpgContext();
     if(!context) return;
 
+    // 🔥 融合逻辑
     const prompt = `
 你是一位生活观察家。
 【世界观】：${context.global}
-【场景】：深夜便利店。
+【场景】：便利店。
 【事件】：用户正在货架前挑选【${item.name}】。
+【用户具体想买/做的】：${userExtra || "（随意浏览）"}
 
 【任务】：
-写一段 150-200 字的片段。
-内容：
-1. 描写挑选商品的过程（纠结口味、看保质期等）。
+请写一段 150-200 字的片段。
+1. 描写挑选商品的过程。如果用户指定了要买什么，请围绕该物品展开。
 2. 角色（Ta）给出了什么建议？或者Ta偷偷往篮子里放了什么？
 3. 结账时的小插曲。
 `;
 
     callRpgApi(prompt, context, (story) => {
         saveRpgStory(`🏪 购物 · ${item.name}`, story);
-        alert(`🛒 买了${item.name}！故事已生成。`);
+        alert(`🛒 故事已生成！`);
     });
 }
 
@@ -24372,68 +24408,61 @@ function buyCafeItem(itemName) {
 }
 
 // === 📝 通用像素剧情生成器 (300字+) ===
-async function generatePixelStory(promptText, isR18 = false) {
-    showRpgLoading("正在读取世界线并生成剧情...");
+async function generatePixelStory(promptText, isR18 = false, userExtra = "") {
+    alert(`⏳ 正在生成剧情...\n主题: ${promptText.substring(0,10)}...`);
     
     const wb = window.BIG_MEMORY.world_book || {};
     const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    // 读取新分类：像素小屋
     const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-    
-    if(!apiKey) { 
-        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){} 
-    }
-    if(!apiKey) { 
-        const loading = document.getElementById('rpg-temp-loading'); if(loading) loading.remove();
-        return alert("请配置 API Key"); 
-    }
+    if(!apiKey) { try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){} }
+    if(!apiKey) return alert("请配置 API Key");
 
-    let extraInstruction = "";
-    if (isR18) {
-        extraInstruction = "【特殊模式】：这是病房内的私密互动（病房Play）。请描写两人之间极度亲密、甚至带有情色张力的互动。描写触感、喘息、眼神和动作。";
-    } else {
-        extraInstruction = "请写一段温馨、治愈、充满生活气息的小故事。";
-    }
+    let extraInstruction = isR18 ? 
+        "【特殊模式】：这是私密互动。请描写两人之间极度亲密、甚至带有情色张力的互动。" : 
+        "请写一段温馨、治愈、充满生活气息的小故事。";
 
+    // 🔥 融合逻辑：将原来的 promptText 和 userExtra 并列
     const fullPrompt = `
 你是一位细腻的小说家。
 【世界观/角色】：${globalCtx}
-【像素场景设定】：${pixelCtx}
+【场景设定】：${pixelCtx}
 
-【当前事件】：${promptText}
+【当前情境】：
+1. **基础事件**：${promptText}
+2. **用户具体动作**：${userExtra || "无（顺其自然）"}
 
 【任务】：
-请根据上述设定，写一段不少于 **300字** 的剧情。
+请根据上述设定，写一段**不少于 400 字**的剧情。
+**请将【基础事件】和【用户动作】自然地融合在一起**。
 ${extraInstruction}
 视角：第二人称“你”。
 请直接输出正文。
 `;
 
     try {
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
-                temperature: 0.85
+                temperature: 0.85,
+                max_tokens: 5000
             })
         });
         const json = await res.json();
         const story = json.choices[0].message.content;
         
-        saveRpgStory(`像素日常 · ${promptText.substring(0,10)}...`, story);
-        
-        const loading = document.getElementById('rpg-temp-loading'); if(loading) loading.remove();
-        alert("✨ 剧情已生成！请查看故事集。");
+        saveRpgStory(`像素日常`, story);
+        alert("✨ 剧情已生成！\n请去【故事集】里翻阅。");
 
     } catch(e) {
         console.error(e);
-        const loading = document.getElementById('rpg-temp-loading'); if(loading) loading.remove();
         alert("生成失败: " + e.message);
     }
 }
@@ -26439,13 +26468,20 @@ window.addEventListener('load', function() {
             if(typeof loadTVContent === 'function') loadTVContent();
             if(typeof loadMemoFromLocal === 'function') loadMemoFromLocal();
             
-            // 绑定女巫的保存按钮 (防止 onclick 在 HTML 中失效)
+            // 🔥 新增：加载全局 CSS
+            if(typeof applyGlobalCSS === 'function') applyGlobalCSS();
+            
+            // 加载游戏机皮肤
+            if(typeof loadGameWidgetTheme === 'function') loadGameWidgetTheme();
+            try { await idb.get('settings_heavy', 'myAvatar'); } catch(e){}
+
+            // 绑定女巫的保存按钮
             const witchSaveBtn = document.querySelector('#witch-log-panel button[onclick="manualSaveWitchGame()"]');
             if(witchSaveBtn) {
                 witchSaveBtn.onclick = function() { window.manualSaveWitchGame(); };
             }
             
-            console.log("✅ [补丁] 系统就绪，所有功能已切换至无限存储。");
+            console.log("✅ [补丁] 系统就绪，无限存储与全局样式已激活。");
         });
     }, 500);
 });
@@ -26786,7 +26822,7 @@ window.finishWitchDraw = async function() {
 
 【⚡️ 核心原则】：
 **所有生成的内容（陷阱选择、反应台词、故事走向）必须严格遵守抽到的【命运牌】的牌意（牌面的能量波动）。**
-例如：牌意是“欺骗/隐瞒”，角色可能会假装没事；牌意是“冲动/热情”，角色可能会挑衅。
+例如：牌面的能量流动是“欺骗/隐瞒”，角色可能会假装没事；牌面的能量流动是“冲动/热情”，角色可能会挑衅。
 
 【任务要求】
 请生成以下内容：
@@ -26962,7 +26998,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-                max_tokens: 150000 // 🔴 增大 Token 限制
+                max_tokens: 6000 // 🔴 增大 Token 限制
             })
         });
         const json = await res.json();
@@ -27041,7 +27077,6 @@ window.loadAllBigData = async function() {
     
     console.log("✅ 修复补丁已应用：阴暗面 & 香片");
 };
-// ==================== 📖 故事书核心逻辑 (修复版) ====================
 
 let bookCurrentPage = 0; // 当前页码 (0, 2, 4...)
 
@@ -27059,35 +27094,25 @@ window.toggleRpgHistory = function() {
     // 应用美化背景 (如果在美化APP里设置了 'rpg_book_paper')
     applyBookPaperTheme();
 };
-
-// 2. 点击封面 -> 打开内页
 window.openBookSpread = function() {
     document.getElementById('book-cover-view').style.display = 'none';
     document.getElementById('book-spread-view').style.display = 'flex';
     
-    bookCurrentPage = 0; // 重置到第一页
+    bookCurrentPage = 0; 
     renderBookPages();
 };
-
-// 3. 关闭书本
 window.closeRpgBook = function() {
     document.getElementById('rpg-book-modal').style.display = 'none';
 };
-
-// 4. 翻页逻辑
 window.turnBookPage = function(delta) {
     const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
-    const newPage = bookCurrentPage + (delta * 2); // 每次翻2页 (左右各一)
-    
-    // 边界检查
-    if (newPage < 0) return; // 已经是第一页
-    if (newPage >= list.length) return; // 已经是最后一页
+    const newPage = bookCurrentPage + (delta * 2); 
+    if (newPage < 0) return; 
+    if (newPage >= list.length) return; 
     
     bookCurrentPage = newPage;
     renderBookPages();
 };
-
-// 5. 核心渲染 (左页 + 右页)
 window.renderBookPages = function() {
     const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     const leftEl = document.getElementById('book-page-left');
@@ -27099,8 +27124,6 @@ window.renderBookPages = function() {
     // 渲染右页 (Index = bookCurrentPage + 1)
     renderSinglePage(rightEl, list[bookCurrentPage + 1], bookCurrentPage + 1);
 };
-
-// 辅助渲染函数
 function renderSinglePage(container, item, index) {
     if (!item) {
         container.innerHTML = `<div class="book-empty-hint">（空白页）</div>`;
@@ -27116,23 +27139,15 @@ function renderSinglePage(container, item, index) {
         <div class="book-story-del" onclick="deleteRpgHistoryBook(${index})">✂️ 撕掉这一页</div>
     `;
 }
-
-// 6. 专用删除函数 (删除后刷新书本)
 window.deleteRpgHistoryBook = function(index) {
     if(!confirm("确定要撕掉这一页回忆吗？(不可恢复)")) return;
-    
-    window.BIG_MEMORY.rpg_data.history.splice(index, 1);
+  window.BIG_MEMORY.rpg_data.history.splice(index, 1);
     saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
-    
-    // 删除后重新渲染当前页
-    // 如果当前页数据没了，尝试往前翻
     if (!window.BIG_MEMORY.rpg_data.history[bookCurrentPage] && bookCurrentPage > 0) {
         bookCurrentPage -= 2;
     }
     renderBookPages();
 };
-
-// 7. 应用书页背景 (美化APP支持)
 async function applyBookPaperTheme() {
     try {
         const res = await idb.get('settings_heavy', 'rpg_book_paper');
@@ -27143,11 +27158,8 @@ async function applyBookPaperTheme() {
         }
     } catch(e) {}
 }
-// ==================== 📖 单页笔记本逻辑 (Fix) ====================
 
-let bookCurrentIndex = 0; // 当前第几条记录 (0是最新)
-
-// 1. 打开书本
+let bookCurrentIndex = 0; 
 window.toggleRpgHistory = function() {
     const modal = document.getElementById('rpg-book-modal');
     modal.style.display = 'flex';
@@ -27175,14 +27187,12 @@ window.turnBookPage = function(delta) {
     const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     const newIndex = bookCurrentIndex + delta;
     
-    if (newIndex < 0) return; // 已经是最新了
-    if (newIndex >= list.length) return; // 已经是最后一条了
+    if (newIndex < 0) return; 
+    if (newIndex >= list.length) return; 
     
     bookCurrentIndex = newIndex;
     renderSingleBookPage();
 };
-
-// 3. 渲染单页内容
 window.renderSingleBookPage = function() {
     const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     const contentEl = document.getElementById('book-page-content');
@@ -27200,19 +27210,12 @@ window.renderSingleBookPage = function() {
 
     const item = list[bookCurrentIndex];
     const dateObj = new Date(item.date);
-    
-    // 渲染内容
     dateEl.innerText = dateObj.toLocaleDateString();
     tagEl.innerText = item.item || "RECORD";
     tagEl.style.display = 'inline-block';
     contentEl.innerHTML = item.text.replace(/\n/g, '<br>');
-    
-    // 页码：显示 "当前篇数 / 总篇数"
-    // 为了符合书本直觉，最新的在第1页
     numEl.innerText = `${bookCurrentIndex + 1} / ${list.length}`;
 };
-
-// 4. 删除当前页
 window.deleteCurrentBookPage = function() {
     const list = window.BIG_MEMORY.rpg_data ? window.BIG_MEMORY.rpg_data.history : [];
     if(list.length === 0) return;
@@ -27221,15 +27224,11 @@ window.deleteCurrentBookPage = function() {
     
     list.splice(bookCurrentIndex, 1);
     saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
-    
-    // 删除后索引修正：如果删的是最后一页，索引减1
     if (bookCurrentIndex >= list.length && bookCurrentIndex > 0) {
         bookCurrentIndex--;
     }
     renderSingleBookPage();
 };
-
-// 5. 保存并自动打开 (通用接口)
 window.saveRpgStory = function(title, text) {
     if(!window.BIG_MEMORY.rpg_data) window.BIG_MEMORY.rpg_data = { history: [], chat_history: [] };
     if(!window.BIG_MEMORY.rpg_data.history) window.BIG_MEMORY.rpg_data.history = [];
@@ -27242,13 +27241,9 @@ window.saveRpgStory = function(title, text) {
     
     if(window.BIG_MEMORY.rpg_data.history.length > 100) window.BIG_MEMORY.rpg_data.history.pop();
     saveToBigDB('rpg_data', window.BIG_MEMORY.rpg_data);
-    
-    // 自动打开并显示最新页
     toggleRpgHistory();
     openBookSingle();
 };
-
-// 1. 🏠 房间互动生成 (原版详细 Prompt)
 window.generateRpgStory = async function(item) {
     alert(`⏳ 正在观察你与【${item.name}】的互动...\n(AI 正在撰写长篇故事，请耐心等待，生成完毕会有提示)`);
     
@@ -27277,15 +27272,11 @@ window.generateRpgStory = async function(item) {
         alert(`✅ 与【${item.name}】的互动故事已生成！\n请点击右上角【故事集】查看。`);
     });
 };
-
-// 2. 🏖️ 朋友祝福生成 (原版详细 Prompt)
 window.generateFriendStory = async function(friend) {
     alert(`⏳ 正在聆听【${friend.name}】的祝福...\n(AI 正在构思，请稍候)`);
     
     const context = await getRpgContext();
     if(!context) return;
-
-    // 🔥 恢复原版高质量 Prompt
     const prompt = `
 你是一位情感细腻的小说家。
 【世界观】：${context.global}
@@ -27337,8 +27328,6 @@ window.generateStoreShopping = async function(item) {
         alert(`✅ 购物小剧场已生成！\n请在【故事集】中查看。`);
     });
 };
-
-// 4. 📝 像素剧情生成 (通用接口 - 包含 R18 判断)
 window.generatePixelStory = async function(promptText, isR18 = false) {
     alert(`⏳ 正在生成剧情...\n主题: ${promptText.substring(0,10)}...`);
     
@@ -27356,7 +27345,6 @@ window.generatePixelStory = async function(promptText, isR18 = false) {
         "【特殊模式】：这是私密互动。请描写两人之间极度亲密、甚至带有情色张力的互动。描写触感、喘息、眼神和动作，张力拉满。" : 
         "请写一段温馨、治愈、充满生活气息的小故事。";
 
-    // 🔥 恢复原版高质量 Prompt
     const fullPrompt = `
 你是一位细腻的小说家。
 【世界观/角色】：${globalCtx}
@@ -27364,7 +27352,7 @@ window.generatePixelStory = async function(promptText, isR18 = false) {
 【当前事件】：${promptText}
 
 【任务】：
-请根据上述设定，写一段**不少于 400 字**的剧情。
+请根据上述设定，写一段**不少于 400 字**的剧情。温暖，温馨。
 ${extraInstruction}
 视角：第二人称“你”。
 请直接输出正文，不要任何前言后语。
@@ -27381,15 +27369,13 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                max_tokens: 3000 // 🔥 调大 Token 限制，确保长文不截断
+                max_tokens: 6000
             })
         });
         const json = await res.json();
         const story = json.choices[0].message.content;
         
         saveRpgStory(`像素日常 · ${promptText.substring(0,5)}`, story);
-        
-        // 仅提示，不打开
         alert("✨ 剧情已生成！\n请去【故事集】里翻阅。");
 
     } catch(e) {
@@ -27397,17 +27383,11 @@ ${extraInstruction}
         alert("生成失败: " + e.message);
     }
 };
-// 5. 辅助函数：统一 API 调用 (修正 Token + 自动读取缓存)
 async function callRpgApi(prompt, ctx, callback) {
-    // === 修改开始：优先读取缓存中的 API 设置 ===
     let s = {};
     try { s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); } catch(e){}
-
-    // 逻辑：输入框有值用输入框 -> 没值用缓存 -> 还没值用默认
     let apiUrl = document.getElementById('api-url').value || s.url || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || s.model || "gpt-3.5-turbo";
-    // === 修改结束 ===
-
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
             method: 'POST',
@@ -27416,17 +27396,13 @@ async function callRpgApi(prompt, ctx, callback) {
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.8,
-                max_tokens: 100000 // 保持大 Token 限制
+                max_tokens: 6000
             })
         });
         const json = await res.json();
-        
-        // 错误检查
         if (json.error) throw new Error(json.error.message);
         
         const story = json.choices[0].message.content;
-        
-        // 移除 loading 提示
         const loading = document.getElementById('rpg-temp-loading');
         if(loading) loading.remove();
         
@@ -27440,7 +27416,6 @@ async function callRpgApi(prompt, ctx, callback) {
         if(loading) loading.remove();
     }
 }
-// ==================== 🗑️ 一键重置历史 (修复版：绝不报错) ====================
 async function performSelectiveReset() {
     // 1. 双重确认
     if (!confirm("⚠️ 高能预警 ⚠️\n\n你确定要【删除所有】历史记录吗？\n\n这将清空：\n- 所有聊天记录 (Line/RPG/捡手机)\n- 所有日记、剧本、分析报告\n- 所有抽卡结果\n\n✅ 你的【美化/图片/设定/宠物/收藏夹】会保留。")) return;
@@ -27450,8 +27425,6 @@ async function performSelectiveReset() {
     btn.innerText = "⏳ 正在暴力清理..."; btn.disabled = true;
 
     try {
-        // --- A. 清空 IndexedDB 里的历史表 ---
-        // 直接清空，不需要查 Key，解决报错问题
         const historyStores = [
             'chat_history', 'game_history', 'tarot_history', 
             'his_phone_history', 'dream_history', 'fridge_history', 
@@ -27461,26 +27434,17 @@ async function performSelectiveReset() {
         for (let storeName of historyStores) {
             await idb.clear(storeName);
         }
-
-        // --- B. 复杂对象的重置 (先清空，再重建空结构) ---
-        
-        // 1. 捡手机 (Pickup)
         await idb.clear('pickup_data'); 
         await idb.put('pickup_data', { id: 'history_list', data: [] });
-
-        // 2. 论坛 (Forum)
         await idb.clear('forum_data');
         await idb.put('forum_data', { id: 'history_list', data: [] });
-
-        // 3. 剧场 (Theater)
         await idb.clear('theater_data');
         await idb.put('theater_data', { id: 'history_list', data: [] });
 
-        // --- C. 清空大容量内存里的数组 (通用存储) ---
         const simpleLists = [
             'diary_history', 'lofter_data', 'shadow_data', 
             'summary_data', 'work_data', 'scent_data', 
-            'puzzle_data', 'tacit_data', 'witch_data' // 确保女巫也被清空
+            'puzzle_data', 'tacit_data', 'witch_data' 
         ];
         
         for (let key of simpleLists) {
@@ -27524,8 +27488,6 @@ async function performSelectiveReset() {
             window.BIG_MEMORY.galgame_data.current = null;
             await idb.put('universal_store', { id: 'galgame_data', data: window.BIG_MEMORY.galgame_data });
         }
-        
-        // 信件 & 记账 & 备忘录
         await idb.put('universal_store', { id: 'letters', data: [] });
         await idb.put('universal_store', { id: 'finance', data: [] });
         await idb.put('universal_store', { id: 'memo', data: "" });
@@ -27539,67 +27501,46 @@ async function performSelectiveReset() {
         btn.disabled = false; btn.innerText = "⚠️ 强制重试";
     }
 }
-// === 新增功能：夜间模式控制 ===
 function toggleNightMode(checkbox) {
     const slider = document.getElementById('night-slider');
     if (checkbox.checked) {
-        document.documentElement.classList.add('night-mode');
-        // 滑块变绿并移动
-        checkbox.nextElementSibling.style.backgroundColor = "#6c5ce7";
+  document.documentElement.classList.add('night-mode');        checkbox.nextElementSibling.style.backgroundColor = "#6c5ce7";
         slider.style.transform = "translateX(26px)";
     } else {
         document.documentElement.classList.remove('night-mode');
-        // 滑块恢复
         checkbox.nextElementSibling.style.backgroundColor = "#ccc";
         slider.style.transform = "translateX(0)";
     }
 }
-// ==================== 🕹️ 360度丝滑摇杆驱动 (Pro版) ====================
 (function initJoystick() {
     const base = document.getElementById('joy-base');
     const stick = document.getElementById('joy-stick');
-    
-    // 初始化检查
     if (!base || !stick) { setTimeout(initJoystick, 1000); return; }
 
     let isDragging = false;
-    const maxRadius = 35; // 摇杆活动半径
-
-    // 触摸/鼠标开始
+    const maxRadius = 35;
     const startDrag = (e) => {
         isDragging = true;
         base.style.borderColor = "rgba(255,255,255,0.8)";
         stick.style.background = "radial-gradient(circle at 30% 30%, #a29bfe, #6c5ce7)";
-        
-        // 🚀 启动游戏循环 (如果没动的话)
         if (!rpgState.isMoving) {
             rpgState.isMoving = true;
             if(rpgState.moveInterval) clearInterval(rpgState.moveInterval);
-            rpgState.moveInterval = setInterval(gameLoop, 16); // 提高帧率到60fps左右
+            rpgState.moveInterval = setInterval(gameLoop, 16); 
         }
         handleDrag(e);
     };
-
-    // 触摸/鼠标结束
     const endDrag = () => {
         isDragging = false;
-        
-        // 视觉复位
         stick.style.transition = "0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
         stick.style.transform = `translate(-50%, -50%)`;
         base.style.borderColor = "rgba(255,255,255,0.2)";
         stick.style.background = "radial-gradient(circle at 30% 30%, #fff, #aaa)";
-        
-        // 🛑 停止游戏移动状态
         rpgState.isMoving = false;
-        rpgState.moveVector = { x: 0, y: 0 }; // 归零矢量
+        rpgState.moveVector = { x: 0, y: 0 }; 
         if(rpgState.moveInterval) clearInterval(rpgState.moveInterval);
-        
-        // 恢复待机立绘
-        updateSpritePosition('player'); 
+ updateSpritePosition('player'); 
     };
-
-    // 拖动处理 (核心矢量计算)
     const handleDrag = (e) => {
         if (!isDragging) return;
         e.preventDefault();
@@ -27613,36 +27554,246 @@ function toggleNightMode(checkbox) {
         let dx = clientX - centerX;
         let dy = clientY - centerY;
         const distance = Math.sqrt(dx*dx + dy*dy);
-
-        // 限制摇杆活动范围
         if (distance > maxRadius) {
             const ratio = maxRadius / distance;
             dx *= ratio;
             dy *= ratio;
         }
-
-        // 移动杆头
         stick.style.transition = "none";
         stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-
-        // ⚡️ 计算归一化矢量 (用于控制速度方向)
-        // 无论拉多远，确保 vx^2 + vy^2 ≈ 1 (也就是全速)
         const angle = Math.atan2(dy, dx);
-        
-        // 存入全局状态供 gameLoop 使用
         rpgState.moveVector = {
             x: Math.cos(angle),
             y: Math.sin(angle)
         };
     };
-
-    base.addEventListener('mousedown', startDrag);
+  base.addEventListener('mousedown', startDrag);
     base.addEventListener('touchstart', startDrag, { passive: false });
     window.addEventListener('mousemove', handleDrag);
     window.addEventListener('touchmove', handleDrag, { passive: false });
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('touchend', endDrag);
 })();
+
+</script>
+<script>
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = async function(url, options) {
+        if (url.includes('/chat/completions') && options && options.method === 'POST') {
+            let body = JSON.parse(options.body);
+            let headers = options.headers || {};
+            let hasKey = false;
+            if (headers['Authorization'] && headers['Authorization'].length > 10) hasKey = true;
+            if (headers.Authorization && headers.Authorization.length > 10) hasKey = true;
+            
+            if (!hasKey || !body.model) {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
+                    if (saved.key && saved.key.startsWith('sk-')) {
+                        if (!hasKey) {
+                            headers['Authorization'] = 'Bearer ' + saved.key;
+                        }
+                        if (!url.startsWith('http')) {
+                            let savedUrl = saved.url || "https://api.openai.com/v1";
+                            if (savedUrl.endsWith('/')) savedUrl = savedUrl.slice(0, -1);
+                            url = savedUrl + "/chat/completions";
+                        }
+                        if (!body.model && saved.model) {
+                            body.model = saved.model;
+                        }
+                        options.headers = headers;
+                        options.body = JSON.stringify(body);
+                    }
+                } catch (e) {}
+            }
+        }
+        return originalFetch(url, options);
+    };
+})();
+</script>
+<!-- ================== ⚖️ 平衡补丁：让系统设定与用户输入同等重要 ================== -->
+<script>
+// 1. 居家互动 (平衡版)
+window.generateRpgStory = async function(item, userExtra) {
+    // 提示用户正在生成
+    alert(`⏳ 正在生成...\n(事件: 使用${item.name} + 你的动作: ${userExtra || "默认"})`);
+    
+    const context = await getRpgContext();
+    if(!context) return; 
+
+    // 🔥 核心修改：明确告诉 AI 两者结合
+    const prompt = `
+你是一位治愈系生活小说家。
+【世界观】：${context.global}
+【场景】：家中。
+
+【当前发生的两个要素】：
+1. **客观事件**：用户使用了房间里的【${item.name}】。
+2. **用户主观动作**：${userExtra || "（用户没有特殊动作，顺其自然地使用）"}
+
+【任务】：
+请写一段 300-500 字的生活片段。
+**请将上述两个要素完美融合：**
+描写用户在进行【主观动作】的同时，是如何使用【${item.name}】的。
+（例如：如果事件是“床”，动作是“哭”，请描写“趴在床上哭泣”；如果动作是“开心”，请描写“在床上开心地打滚”。）
+请重点描写感官细节、氛围以及角色（Ta）在旁边的反应。
+
+请直接输出正文。
+`;
+    
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏠 居家 · ${item.name}`, story);
+        alert(`✨ 故事已生成！`);
+    });
+};
+
+// 2. 偶遇朋友 (平衡版)
+window.generateFriendStory = async function(friend, userExtra) {
+    alert(`⏳ 正在生成偶遇剧情...`);
+    
+    const context = await getRpgContext();
+    if(!context) return;
+
+    const prompt = `
+你是一位情感细腻的小说家。
+【世界观】：${context.global}
+【场景】：户外。
+
+【当前发生的两个要素】：
+1. **客观事件**：偶遇了朋友【${friend.name}】，朋友说："${friend.prompt}"
+2. **用户回应/反应**：${userExtra || "（害羞或默认回应）"}
+
+【任务】：
+请写一段 300-500 字的小故事。
+**请平等地处理朋友的话语和用户的反应：**
+描写听到朋友这句话后，用户做出了【${userExtra}】的反应，并描写角色（Ta）对此的看法和互动。
+氛围：甜蜜、自然、生活化。
+
+请直接输出正文。
+`;
+
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏖️ 偶遇 · ${friend.name}`, story);
+        alert(`💌 故事已生成！`);
+    });
+};
+
+// 3. 便利店/场景购物 (平衡版)
+window.generateStoreShopping = async function(item, userExtra) {
+    const itemName = item.name.replace('货架','');
+    alert(`⏳ 正在生成购物剧情...`);
+    
+    const context = await getRpgContext();
+    if(!context) return;
+
+    const prompt = `
+你是一位极具生活气息的小说家。
+【世界观】：${context.global}
+【场景】：便利店/商店。
+
+【当前发生的两个要素】：
+1. **客观事件**：用户站在货架前，准备挑选【${itemName}】。
+2. **用户具体意图**：${userExtra || "（随意浏览挑选）"}
+
+【任务】：
+请写一段 300左右 字的片段。
+**请将物品属性和用户意图结合：**
+描写用户在挑选【${itemName}】的过程，并具体体现出【${userExtra}】这个意图。
+同时描写角色（Ta）在旁边的建议或小动作。
+
+请直接输出正文。
+`;
+
+    callRpgApi(prompt, context, (story) => {
+        saveRpgStory(`🏪 购物 · ${itemName}`, story);
+        alert(`🛒 故事已生成！`);
+    });
+};
+</script>
+<script>
+// ================= 🛠️ 通用场景修正补丁：新年/医院/海边等 =================
+
+// 覆盖通用的剧情生成器 (适用于：新年广场、医院、海边、樱花、教堂、咖啡厅)
+window.generatePixelStory = async function(promptText, isR18 = false, userExtra = "") {
+    // 提示用户正在生成
+    alert(`⏳ 正在生成剧情...\n事件: ${promptText.substring(0,10)}...\n(你的动作: ${userExtra || "无"})`);
+    
+    // 获取数据
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    let apiKey = document.getElementById('api-key').value;
+    if(!apiKey) { 
+        try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){} 
+    }
+    if(!apiKey) return alert("请配置 API Key");
+
+    // R18 模式判断
+    let extraInstruction = isR18 ? 
+        "【特殊模式】：这是私密互动。请描写两人之间极度亲密、甚至带有情色张力的互动。描写触感、喘息、眼神和动作，张力拉满。" : 
+        "请写一段温馨、治愈、充满生活气息的小故事。";
+
+    // 🔥 核心 Prompt：融合“默认事件”与“用户输入”
+    const fullPrompt = `
+你是一位细腻的小说家。
+【世界观/角色】：${globalCtx}
+【场景设定】：${pixelCtx}
+
+【当前情境】：
+1. **基础事件 (场景默认)**：${promptText}
+2. **用户具体动作/指令**：${userExtra || "（用户未指定，顺其自然）"}
+
+【任务】：
+请根据上述设定，写一段**不少于 400 字**的剧情。
+**核心要求：请将【基础事件】与【用户动作】同等重视。**
+不要只写基础事件而忽略了用户的动作，也不要只写动作而脱离了场景。
+请描写用户做这个动作时，角色的反应、神态以及周围环境的氛围（光影、声音、气味）。
+
+${extraInstruction}
+视角：第二人称“你”。
+请直接输出正文，不要任何前言后语。
+`;
+
+    try {
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
+                temperature: 0.85,
+                max_tokens: 6000
+            })
+        });
+        const json = await res.json();
+        const story = json.choices[0].message.content;
+        
+        // 保存并提示
+        saveRpgStory(`像素日常 · ${promptText.substring(0,5)}`, story);
+        alert("✨ 剧情已生成！\n请去【故事集】里翻阅。");
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    }
+};
+// 强制修复经期数据补丁
+setTimeout(async () => {
+    if(typeof idb !== 'undefined') {
+        const res = await idb.get('universal_store', 'period');
+        if (!res || !res.data || !Array.isArray(res.data.records)) {
+            console.log("检测到经期数据损坏，正在重置...");
+            const cleanData = { records: [], isBleeding: false, lastAnalysis: null };
+            window.BIG_MEMORY.period = cleanData;
+            await idb.put('universal_store', { id: 'period', data: cleanData });
+        }
+    }
+}, 3000);
 </script>
 
 </html> 
