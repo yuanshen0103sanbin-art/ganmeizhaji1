@@ -4192,7 +4192,7 @@ canvas {
     <h3 style="color:#2c3e50;">💾 全局数据备份</h3>
     <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">
         备份所有文字数据（世界书、聊天记录、纪念日、所有App记录）。<br>
-        <span style="color:#d81b60;">注意：不包含文件的数据。</span>
+        <span style="color:#d81b60;">注意：不包含文件的数据。这个小手机散梦向禁止使用！</span>
     </p>
     <div style="display:flex; gap:10px;">
         <button class="m-btn secondary" onclick="exportFullBackup()">📤 导出备份 (.json)</button>
@@ -30160,6 +30160,77 @@ window.executeAdvLogic = function(logicKey) {
 };
 </style>
 <!-- ================= 🚑 文游紧急修复补丁 END ================= -->
+<script>
+// ============================================================
+// 💰 金钱归零特殊剧情补丁 (修正版：带弹窗确认)
+// ============================================================
+(function() {
+    // 1. 获取当前已存在的逻辑
+    const _previousLogic = window.executeAdvLogic;
 
+    // 2. 覆盖逻辑函数
+    window.executeAdvLogic = function(logicKey) {
+        const data = getAdvData(); 
+
+        // 触发条件：没钱 + 不是去赚钱/移动/洗澡
+        if (data.money <= 10 && logicKey !== 'side_job' && logicKey !== 'bath_normal') {
+            
+            const currentScene = window.currentAdvScene || 'main_map';
+
+            // 显示提示
+            showAdvDialog("👛 囊中羞涩... 身无分文的你打算怎么办？", "System");
+
+            // 清空场景按钮，准备显示5个选项
+            const container = document.getElementById('adv-scene-container');
+            container.innerHTML = ''; 
+
+            const createOptBtn = (text, promptSuffix, topPercent) => {
+                const btn = document.createElement('div');
+                btn.className = 'adv-btn';
+                btn.innerText = text;
+                btn.style.cssText = `
+                    position: absolute; left: 50%; transform: translateX(-50%);
+                    top: ${topPercent}; z-index: 100; min-width: 180px; text-align: center;
+                `;
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+
+                    // 1. 无论选什么，先恢复原来的场景界面 (把这5个按钮清掉)
+                    renderAdvScene(currentScene);
+
+                    if (!promptSuffix) {
+                        // === 情况 A: 自己赚钱 (取消) ===
+                        showAdvDialog("你决定靠自己的双手去挣钱！(请点击场景中的副业按钮)", "System");
+                    } else {
+                        // === 情况 B: 触发弹窗 (其余四个) ===
+                        // 1. 填入预设文本到那个黑色的输入框里
+                        const inputEl = document.getElementById('adv-random-input');
+                        inputEl.value = `(特殊事件：金钱归零) 我身无分文，看着Ta，决定【${text}】...`;
+                        
+                        // 2. 显式打开那个“随机事件输入框”，让你能修改
+                        document.getElementById('adv-random-modal').style.display = 'flex';
+                    }
+                };
+                container.appendChild(btn);
+            };
+
+            // 渲染选项
+            createOptBtn('🤲 向Ta要钱', 'beg', '20%');
+            createOptBtn('💳 有借有还', 'borrow', '35%');
+            createOptBtn('🏃 借了不还', 'scam', '50%');
+            createOptBtn('🔪 抢钱', 'rob', '65%');
+            createOptBtn('💪 自己赚钱 (取消)', null, '80%'); // 取消键
+            
+            return; // 阻止原逻辑
+        }
+
+        // 钱够或者是去赚钱，放行
+        _previousLogic(logicKey);
+    };
+
+    console.log("💰 贫穷模拟器补丁 (弹窗版) 已加载。");
+})();
+</script>
 
 </html> 
