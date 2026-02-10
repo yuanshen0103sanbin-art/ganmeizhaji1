@@ -3799,6 +3799,48 @@ canvas {
     border-bottom: 1px dashed #fff;
     cursor: pointer;
 }
+/* ================= 🎨 立绘位置修正补丁 ================= */
+
+/* 1. 调整立绘容器的位置 */
+#adv-tachie-layer {
+    /* 强制定位到对话框上方 */
+    bottom: 175px !important; /* 对话框高度约150px + 间距 */
+    top: auto !important;     /* 取消顶部定位 */
+    height: 55% !important;   /* 限制高度，防止遮挡顶部的"功能"按钮 */
+    
+    /* 确保布局正确 */
+    display: flex !important;
+    align-items: flex-end !important; /* 让图片底部对齐 */
+    justify-content: space-between !important;
+    padding: 0 20px !important;
+    pointer-events: none !important; /* 关键：让点击穿透立绘，不然点不到后面的按钮 */
+}
+
+/* 2. 调整图片本身的样式 */
+.adv-tachie-img {
+    height: 100% !important;  /* 占满容器高度 */
+    width: auto !important;
+    max-width: 80% !important;
+    object-fit: contain !important;
+    object-position: bottom !important; /* 确保图片底部对齐 */
+    
+    /* 稍微给点阴影让它更有立体感 */
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
+}
+
+/* 3. 微调左右位置，避免太靠边 */
+.tachie-left {
+    transform-origin: bottom left;
+    margin-left: -10px; 
+}
+.tachie-right {
+    transform-origin: bottom right;
+    margin-right: -10px;
+    /* 确保右侧立绘绝对靠右 */
+    position: absolute !important;
+    right: 5% !important;
+    bottom: 0 !important;
+}
     </style>
 </head>
 <body>
@@ -23048,9 +23090,8 @@ function advAddItem(name, count=1, itemType='item') {
     else data.inventory.push({ name: name, count: count, type: itemType });
     saveAdvData(data);
 }
-
-// 4. 对话框与立绘显示逻辑 (核心修复)
-function showAdvDialog(text, talkerType) {
+// ==================== 🛠️ 名字显示修复补丁 ====================
+window.showAdvDialog = function(text, talkerType) {
     const box = document.getElementById('adv-dialog-box');
     box.style.display = 'flex';
     
@@ -23061,46 +23102,58 @@ function showAdvDialog(text, talkerType) {
     // 获取立绘元素
     const userTachie = document.getElementById('adv-tachie-user');
     const charTachie = document.getElementById('adv-tachie-char');
-    const data = getAdvData(); // 获取换衣间上传的图
+    
+    // 🔥 核心修改：获取实时存档数据
+    const data = getAdvData(); 
+    // 优先读取更衣室设置的名字，如果没有则用默认的 "Ta"
+    const savedCharName = data.charName || "Ta";
+    const savedUserName = data.name || "玩家";
 
     if (talkerType === "System") {
         // === 玩家行为/系统提示 ===
-        nameEl.innerText = "你";
+        nameEl.innerText = savedUserName; // 使用存档的玩家名
+        nameEl.style.color = "#ffffff";   // 玩家名字颜色
         
         // 左边小头像：Line 用户头像
-        if (ADV_CACHE.lineUserAvatar) iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
-        else iconDiv.style.backgroundColor = '#ccc';
+        if (typeof ADV_CACHE !== 'undefined' && ADV_CACHE.lineUserAvatar) {
+            iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+        } else {
+            iconDiv.style.backgroundColor = '#ccc';
+        }
         
         // 显示左侧立绘 (用户上传的)，隐藏右侧
-        if (data.avatars.user) {
+        if (data.avatars && data.avatars.user) {
             userTachie.src = data.avatars.user;
             userTachie.style.display = 'block';
         } else {
             userTachie.style.display = 'none';
         }
-        charTachie.style.display = 'none';
+        if(charTachie) charTachie.style.display = 'none';
 
     } else {
-        // === 角色说话 ===
-        nameEl.innerText = ADV_CACHE.lineCharName; // Line 备注
+        // === 角色说话 (Character) ===
+        nameEl.innerText = savedCharName; // 🔥 这里改成了读取更衣室名字
+        nameEl.style.color = "#f1c40f";   // 角色名字高亮色
         
         // 左边小头像：Line 角色头像
-        if (ADV_CACHE.lineCharAvatar) iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineCharAvatar})`;
-        else iconDiv.style.backgroundColor = '#a29bfe';
+        if (typeof ADV_CACHE !== 'undefined' && ADV_CACHE.lineCharAvatar) {
+            iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineCharAvatar})`;
+        } else {
+            iconDiv.style.backgroundColor = '#a29bfe';
+        }
         
         // 显示右侧立绘 (角色上传的)，隐藏左侧
-        if (data.avatars.char) {
+        if (data.avatars && data.avatars.char) {
             charTachie.src = data.avatars.char;
             charTachie.style.display = 'block';
         } else {
-            charTachie.style.display = 'none';
+            if(charTachie) charTachie.style.display = 'none';
         }
-        userTachie.style.display = 'none';
+        if(userTachie) userTachie.style.display = 'none';
     }
     
     textEl.innerText = text;
-}
-
+};
 // 5. 逻辑判断
 function executeAdvLogic(logicKey) {
     const data = getAdvData();
