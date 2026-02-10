@@ -22927,16 +22927,63 @@ const ADV_SCENES = {
     'mall_sweet': { bg:'https://i.postimg.cc/zBh3gCSw/IMG_1995.png', buttons:[{text:'买高级甜品(8金)', pos:'pos-center', action:'logic:buy_sweet'}, {text:'一起做甜品', pos:'pos-center', style:'top:65%', action:'logic:make_sweet_together'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
     'mall_walk': { bg:'https://i.postimg.cc/bJndtxHJ/IMG_1997.png', buttons:[{text:'一起逛街', pos:'pos-center', action:'logic:walk_together'}, {text:'自己逛街', pos:'pos-center', style:'top:65%', action:'logic:walk_alone'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
     'mall_food': { bg:'https://i.postimg.cc/8khjkbzn/IMG_1990.png', buttons:[{text:'吃点小吃', pos:'pos-center', action:'logic:eat_snack'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
-    'travel_main': {
+      'travel_main': {
         bg: 'https://i.postimg.cc/wjxtGsg6/IMG_2015.png',
         buttons: [
-            {text:'🏯 故宫(1金)', pos:'pos-list-left', action:'logic:travel'},
-            {text:'🌊 海边(1金)', pos:'pos-list-left', style:'top:22%', action:'logic:travel'},
-            {text:'🗼 东京(1金)', pos:'pos-list-left', style:'top:34%', action:'logic:travel'},
-            {text:'🏰 法国(1金)', pos:'pos-list-left', style:'top:46%', action:'logic:travel'},
-            {text:'🇬🇧 英国(1金)', pos:'pos-list-left', style:'top:58%', action:'logic:travel'},
-            {text:'🇺🇸 美国(1金)', pos:'pos-list-left', style:'top:70%', action:'logic:travel'},
+            // 修改点：action 从 logic:travel 改为 goto:具体场景名
+            {text:'🏯 故宫', pos:'pos-list-left', action:'goto:travel_gugong'},
+            {text:'🌊 海边', pos:'pos-list-left', style:'top:22%', action:'goto:travel_seaside'},
+            {text:'🗼 东京', pos:'pos-list-left', style:'top:34%', action:'goto:travel_tokyo'},
+            {text:'🏰 法国', pos:'pos-list-left', style:'top:46%', action:'goto:travel_france'},
+            {text:'🇬🇧 英国', pos:'pos-list-left', style:'top:58%', action:'goto:travel_uk'},
+            {text:'🇺🇸 美国', pos:'pos-list-left', style:'top:70%', action:'goto:travel_usa'},
             {text:'⬅️ 离开', pos:'pos-btm-mid', action:'goto:main_map'}
+        ]
+    },
+    
+    // --- 下面是新增的 6 个地点场景 ---
+    // 技巧：中间的按钮绑定 'logic:travel'，这样既能扣钱，也能自动触发你代码里已有的 15% 随机事件逻辑
+    
+    'travel_gugong': {
+        bg: 'https://i.postimg.cc/VksSVbmk/IMG_2013.png',
+        buttons: [
+            { text: '📸 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
+        ]
+    },
+    'travel_seaside': {
+        bg: 'https://i.postimg.cc/3xrycDYJ/IMG_2014.png',
+        buttons: [
+            { text: '🏖️ 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
+        ]
+    },
+    'travel_tokyo': {
+        bg: 'https://i.postimg.cc/XY2ZS7Yy/IMG_2012.png',
+        buttons: [
+            { text: '🗼 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
+        ]
+    },
+    'travel_france': {
+        bg: 'https://i.postimg.cc/7ZBC8YZf/IMG_2011.png',
+        buttons: [
+            { text: '🏰 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
+        ]
+    },
+    'travel_uk': {
+        bg: 'https://i.postimg.cc/rwhdXFwW/IMG_2010.png',
+        buttons: [
+            { text: '🇬🇧 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
+        ]
+    },
+    'travel_usa': {
+        bg: 'https://i.postimg.cc/SxZXFNxc/IMG_2009.png',
+        buttons: [
+            { text: '🗽 游玩打卡 (1金)', pos: 'pos-center', action: 'logic:travel' },
+            { text: '🔙 回到旅行社', pos: 'pos-btm-mid', action: 'goto:travel_main' }
         ]
     },
     'park': {
@@ -23605,16 +23652,18 @@ window.renderAdvScene = function(sceneId) {
 }
 
 // 6. 约会系统
-
 function openDatingMenu() {
     const modal = document.getElementById('adv-date-modal');
     const select = document.getElementById('date-location-select');
     select.innerHTML = '';
     
-    // 🔥【修改补丁】场景 ID 与中文名称的完整映射表 (27+个场景)
-    // 键(Key)是代码逻辑用的 ID，值(Value)是显示的中文
+    // 🔥【修改补丁】纯文游场景映射表 (剔除了RPG场景)
     const sceneMap = {
-        // 学校区域
+        // === 🏠 家中 ===
+        'home_room': '🏠 我的房间',
+        'home_bath': '🛁 浴室',
+
+        // === 🏫 学校区域 ===
         'school_main': '🏫 学校正门',
         'school_corridor': '🏫 教学楼走廊',
         'class_room': '📚 教室',
@@ -23625,7 +23674,7 @@ function openDatingMenu() {
         'school_gym': '🏸 体育馆',
         'school_ground': '🏃 学校操场',
         
-        // 商场区域
+        // === 🏬 商场区域 ===
         'mall_main': '🏬 商场中心',
         'mall_gift': '🎁 礼物店',
         'mall_clothes': '👗 服装店',
@@ -23633,38 +23682,28 @@ function openDatingMenu() {
         'mall_walk': '🛍️ 步行街',
         'mall_food': '🍢 小吃街',
         
-        // 旅行与户外
-        'travel_main': '✈️ 旅行社',
+        // === 🌳 户外与旅行 ===
         'park': '🌳 公园',
-        'outside': '🏖️ 沙滩/户外',
-        'seaside': '🌊 海边',
-        'seaside_hut': '🛖 海边小屋',
-        'sakura': '🌸 樱花公园',
-        'new_year': '🧧 新年广场',
-        'church': '⛪ 教堂',
-        
-        // 设施与家中
-        'store': '🏪 便利店',
-        'hospital': '🏥 医院',
-        'hospital_room': '💉 VIP病房',
-        'cafe': '☕ 咖啡厅',
-        'home_room': '🏠 我的房间',
-        'home_bath': '🛁 浴室'
+        'travel_main': '✈️ 旅行社大厅',
+        'travel_gugong': '🏯 故宫 (旅行)',
+        'travel_seaside': '🌊 海边度假区 (旅行)',
+        'travel_tokyo': '🗼 东京铁塔 (旅行)',
+        'travel_france': '🏰 法国城堡 (旅行)',
+        'travel_uk': '🇬🇧 英国街头 (旅行)',
+        'travel_usa': '🗽 自由女神像 (旅行)'
     };
 
-    // 遍历映射表生成选项
+    // 遍历生成选项
     for (let id in sceneMap) {
-        // 如果需要排除某些不适合约会的地方(比如主地图)，可以在这里加判断
-        if (id === 'main_map') continue; 
-
         const opt = document.createElement('option');
-        opt.value = id;          // 关键：传给逻辑的是英文 ID
-        opt.innerText = sceneMap[id]; // 关键：显示给用户的是中文
+        opt.value = id;
+        opt.innerText = sceneMap[id];
         select.appendChild(opt);
     }
     
     modal.style.display = 'flex';
 }
+
 function startDatingEvent() {
     const loc = document.getElementById('date-location-select').value;
     const act = document.getElementById('date-activity').value;
