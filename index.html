@@ -4617,7 +4617,7 @@ const LENORMAND_NAMES = {
         }
         setInterval(updateTime, 1000); updateTime();
 const DB_NAME = "RetroOS_System_V7789";  
-const DB_VERSION = 10; 
+const DB_VERSION = 20; 
 const idb = {
     db: null,
     init: function() {
@@ -16786,14 +16786,6 @@ window.addEventListener('load', function() {
         if(typeof loadGameWidgetTheme === 'function') loadGameWidgetTheme();
         try { await idb.get('settings_heavy', 'myAvatar'); } catch(e){}
         
-        // 🔴🔴🔴 删除或注释掉下面这几行 🔴🔴🔴
-        /*
-        if(typeof initPetSystem === 'function') {
-            initPetSystem(); 
-        }
-        */
-        // 🔴🔴🔴 删除结束 🔴🔴🔴
-        
         console.log("✅ 无限容量系统已就绪！");
     });
 });
@@ -22581,6 +22573,7 @@ window.generateGalgameEndingAPI = async function() {
         <button class="m-btn primary" onclick="generateEnding()" style="background:#fff; color:#000; font-weight:bold; width:100%;">确认生成结局</button>
         <button class="m-btn secondary" onclick="document.getElementById('adv-ending-modal').style.display='none'" style="background:transparent; color:#aaa; margin-top:15px; border:1px solid #555;">我还要继续探索</button>
     </div>
+</div>
 </div>
 <!-- 2. 功能脚本 -->
 <script>
@@ -30137,7 +30130,23 @@ setTimeout(async () => {
     min-height: 100% !important;
     padding-bottom: 100px !important;
 }
+// === 🧼 清洁度归零强制洗澡补丁 ===
+const _checkCleanLogic = window.executeAdvLogic; // 获取当前逻辑
+window.executeAdvLogic = function(logicKey) {
+    // 1. 获取数据
+    const data = getAdvData();
+    
+    // 2. 检查：如果清洁度<=0 且 动作不是洗澡
+    if (data.cleanliness <= 0 && logicKey !== 'bath_normal') {
+        // 3. 拦截并提示
+        return showAdvDialog("身上太脏了，甚至被苍蝇包围了...\n(请去【浴室】泡澡恢复，否则无法行动)", "System");
+    }
+    
+    // 4. 通过检查，执行原逻辑
+    _checkCleanLogic(logicKey);
+};
 </style>
 <!-- ================= 🚑 文游紧急修复补丁 END ================= -->
+
 
 </html> 
