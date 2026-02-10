@@ -21108,7 +21108,7 @@ window.finishGalgameDraw = async function() {
                 A: document.getElementById('gal-opt-a').value,
                 B: document.getElementById('gal-opt-b').value,
                 C: document.getElementById('gal-opt-c').value,
-                fav_change: parseInt(document.getElementById('gal-fav-input').value) || 0
+                fav_change: parseFloat(document.getElementById('gal-fav-input').value) || 0
             };
 
             prompt = `
@@ -22169,7 +22169,7 @@ window.generateGalgameEndingAPI = async function() {
                     
                     <div class="input-group" style="margin-top:15px;">
                         <label style="color:#d63031;">❤️ 你的好感度变动 (角色可见)</label>
-                        <input type="number" id="gal-fav-input" placeholder="例如: 5 (加分) 或 -5 (扣分)" style="text-align:center; font-weight:bold;">
+                      <input type="number" id="gal-fav-input" step="0.1" placeholder="例如: 5 (加分) 或 -5 (扣分)" style="text-align:center; font-weight:bold;">
                     </div>
 
                     <button class="m-btn primary" onclick="startGalgameDraw('next')" style="width:100%; margin-top:15px; background:#d63031;">🎲 确认并抽牌 (决定Ta的反应)</button>
