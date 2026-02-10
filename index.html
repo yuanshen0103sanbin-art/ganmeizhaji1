@@ -18013,8 +18013,16 @@ window.deleteStudyPlan = function() {
     </div>
 </div>
 <div id="dream-app-modal" class="modal-overlay" style="background:#f3e5f5;">
-    <div class="modal-header" style="background:#fff; color:#6a1b9a;">
-        <span style="font-family: 'Ma Shan Zheng', cursive; font-size: 1.2rem;">梦境解析</span>
+       <div class="modal-header" style="background:#fff; color:#6a1b9a; border-bottom: 1px solid rgba(0,0,0,0.1);">
+        <select id="dream-mode-select" onchange="updateDreamUI()" style="border:none; font-family: 'Ma Shan Zheng', cursive; font-size: 1.1rem; color:#6a1b9a; background:transparent; outline:none; font-weight:bold; width: 220px;">
+            <option value="partner">🦄 梦男/梦女解析</option>
+            <option value="become">🎭 他变成你的一天</option>
+            <option value="cosplay">👘 他作为你的Coser</option>
+            <option value="char_beauty">💋 必吃榜：Ta的排名</option>
+            <option value="user_beauty">😋 必吃榜：你的排名</option>
+            <option value="char_sleep">🌙 夜袭：Ta对你...</option>
+            <option value="user_sleep">💤 夜袭：你对Ta...</option>
+        </select>
         <div style="display:flex; gap:10px;">
             <button class="m-btn small" onclick="toggleDreamHistory()" style="background:transparent; color:#6a1b9a;">📜 历史</button>
             <button class="close-btn" onclick="closeDreamApp()" style="color:#6a1b9a;">×</button>
@@ -27155,6 +27163,115 @@ window.deleteRpgHistory = function(index) {
     renderRpgHistory();
 };
 </script>
+  <script>
+// ============================================================
+// 🦄 梦App 抽牌桌层级修复补丁
+// 解决点击“开始抽牌”后牌桌不显示（被遮挡）的问题
+// ============================================================
+
+window.startDreamDrawing = function() {
+    const modal = document.getElementById('dream-card-table-modal');
+    const area = document.getElementById('dream-card-area');
+    
+    // 🔥 核心修复：强制将牌桌层级设为最高 (30000)，确保浮在所有窗口之上
+    modal.style.zIndex = "30000"; 
+    
+    // --- 以下是标准的初始化逻辑 ---
+    area.innerHTML = ''; 
+    dreamActiveDeck = [];
+    dreamFlippedCards = []; // 确保使用正确的全局变量
+    
+    if(document.getElementById('dream-flipped-count')) {
+        document.getElementById('dream-flipped-count').innerText = '0';
+    }
+
+    // 生成完整牌库 (78张塔罗 + 36张雷诺曼)
+    for(let i=0; i<=77; i++) dreamActiveDeck.push({ type: 'tarot', id: i, isReversed: Math.random() < 0.3 }); 
+    for(let i=1; i<=36; i++) dreamActiveDeck.push({ type: 'lenormand', id: i, isReversed: false }); 
+    
+    // 洗牌
+    dreamActiveDeck.sort(() => Math.random() - 0.5);
+    
+    // 计算布局
+    const deskW = window.innerWidth;
+    const cardWidth = 60, cardHeight = 90, gapX = 10, gapY = 15;       
+    let columns = Math.floor((deskW - 20) / (cardWidth + gapX));
+    if (columns < 4) columns = 4;
+    
+    const startX = Math.max(0, (deskW - (columns * cardWidth + (columns - 1) * gapX)) / 2);
+    const startY = 60;
+
+    // 渲染卡牌
+    dreamActiveDeck.forEach((card, index) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card'; 
+        
+        const colIndex = index % columns;
+        const rowIndex = Math.floor(index / columns);
+        
+        el.style.left = (startX + colIndex * (cardWidth + gapX)) + 'px';
+        el.style.top = (startY + rowIndex * (cardHeight + gapY)) + 'px';
+        el.style.transform = `rotate(${Math.random() * 6 - 3}deg)`; 
+        
+        // 绑定点击事件 (确保调用全局的 flipDreamCard)
+        el.onclick = () => flipDreamCard(el, card);
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        area.appendChild(el);
+    });
+    
+    // 设置区域高度，防止底部切断
+    const totalRows = Math.ceil(dreamActiveDeck.length / columns);
+    area.style.height = (startY + totalRows * (cardHeight + gapY) + 120) + 'px';
+
+    // 显示弹窗
+    modal.style.display = 'flex';
+};
+
+// 确保翻牌函数存在且变量正确
+window.flipDreamCard = async function(el, cardData) {
+    if(el.classList.contains('flipped')) {
+        el.classList.remove('flipped');
+        dreamFlippedCards = dreamFlippedCards.filter(c => !(c.type === cardData.type && c.id === cardData.id));
+        setTimeout(() => {
+            const frontEl = el.querySelector('.playing-card-front');
+            if(frontEl) { frontEl.style.backgroundImage = ''; frontEl.innerText = ''; frontEl.style.transform = ''; }
+        }, 300);
+    } else {
+        el.classList.add('flipped');
+        dreamFlippedCards.push(cardData);
+        
+        const dbName = cardData.type === 'tarot' ? 'tarot_deck' : 'lenormand_deck';
+        try {
+            if (typeof idb !== 'undefined') {
+                const item = await idb.get(dbName, cardData.id);
+                const frontEl = el.querySelector('.playing-card-front');
+                if (item && item.data) {
+                    frontEl.style.backgroundImage = `url(${item.data})`;
+                    frontEl.innerText = '';
+                } else {
+                    frontEl.style.backgroundColor = '#ddd';
+                    frontEl.innerText = cardData.id;
+                }
+                
+                // 处理逆位
+                if(cardData.type === 'tarot' && cardData.isReversed) {
+                    frontEl.style.transform = "rotateY(180deg) rotate(180deg)"; 
+                } else {
+                    frontEl.style.transform = "rotateY(180deg)";
+                }
+            }
+        } catch(e) {}
+    }
+    if(document.getElementById('dream-flipped-count')) {
+        document.getElementById('dream-flipped-count').innerText = dreamFlippedCards.length;
+    }
+};
+console.log("✅ 梦APP 抽牌桌层级修复已加载");
+</script>
 </body>
 <style>
 @viewport { fit: cover; }
@@ -30538,6 +30655,309 @@ window.executeAdvLogic = function(logicKey) {
 
     console.log("💰 贫穷模拟器补丁 (弹窗版) 已加载。");
 })();
+// ==================== 🦄 梦App 7模式终极修正版 (牌意优先) ====================
+
+// 1. UI 更新函数 (适配所有7种模式的文案)
+window.updateDreamUI = function() {
+    const mode = document.getElementById('dream-mode-select').value;
+    const descTitle = document.querySelector('#dream-app-modal h2');
+    const descP = document.querySelector('#dream-app-modal p');
+    const btn = document.querySelector('#dream-app-modal .m-btn.primary');
+    const cardUiText = document.querySelector('#dream-card-table-modal .card-table-ui div');
+
+    // 默认文案
+    let title = "想知道ta做你的梦男/梦女时<br>会发生什么吗？";
+    let sub = "请在心中默念这个问题，然后点击下方按钮抽牌。";
+    let btnText = "🎴 开始抽牌解析";
+    let hint = "默念“如果他是我的梦角...”并抽牌";
+
+    if (mode === 'become') {
+        title = "如果 Ta 变成了你...<br>代替你生活一天会怎样？";
+        sub = "抽取命运牌，看看他如何笨拙或完美地扮演你。";
+        btnText = "🎭 抽取互换剧本";
+        hint = "默念“他变成了我...”并抽牌";
+    } else if (mode === 'cosplay') {
+        title = "如果 Ta 去漫展出了你的Cos...<br>还原度几分？";
+        sub = "抽取命运牌，看看漫展上的他是社死还是封神。";
+        btnText = "👘 抽取漫展返图";
+        hint = "默念“他Cos了我...”并抽牌";
+    } else if (mode === 'char_beauty') {
+        title = "在那个世界的美人必吃榜...<br>Ta 排第几名？";
+        sub = "看看大家都想怎么“吃”掉他。（外貌/身材/气质评测）";
+        btnText = "💋 抽取榜单评价";
+        hint = "默念“他的美味程度...”并抽牌";
+    } else if (mode === 'user_beauty') {
+        title = "在那个世界的美人必吃榜...<br>你 排第几名？";
+        sub = "看看大众（和他）觉得你哪里最“秀色可餐”。";
+        btnText = "😋 抽取你的排名";
+        hint = "默念“我在大众眼里的美味程度...”并抽牌";
+    } else if (mode === 'char_sleep') {
+        title = "深夜，当你熟睡时...<br>Ta 悄悄靠近了。";
+        sub = "水煎包模式：他在你不知情的情况下做了什么？";
+        btnText = "🌙 揭秘昨晚的事";
+        hint = "默念“昨晚发生了什么...”并抽牌";
+    } else if (mode === 'user_sleep') {
+        title = "深夜，当Ta熟睡时...<br>你 悄悄靠近了。";
+        sub = "水煎包模式：你对他下手了，他的反应是？";
+        btnText = "💤 开始夜间行动";
+        hint = "默念“我对熟睡的他...”并抽牌";
+    }
+
+    descTitle.innerHTML = title;
+    descP.innerText = sub;
+    btn.innerText = btnText;
+    if(cardUiText) cardUiText.innerText = hint;
+}
+
+// 2. 核心生成逻辑 (严格执行 Prompt)
+window.finishDreamDrawing = async function() {
+    if(dreamFlippedCards.length === 0) return alert("请至少翻开一张牌！");
+    
+    closeDreamCardTable(); 
+    
+    const resultArea = document.getElementById('dream-result-area');
+    resultArea.style.display = 'block';
+    
+    const mode = document.getElementById('dream-mode-select').value;
+    
+    let loadingText = "正在连接梦境潜意识...";
+    if (mode.includes('beauty')) loadingText = "正在收集大众点评数据...";
+    if (mode.includes('sleep')) loadingText = "正在回溯昨夜的私密记忆...";
+    
+    document.getElementById('dream-analysis-content').innerHTML = `<div class="skeleton-text">${loadingText}</div>`;
+
+    // 准备数据
+    let cardsDesc = dreamFlippedCards.map(c => {
+        let name = (c.type === 'tarot') ? TAROT_NAMES[c.id] : LENORMAND_NAMES[c.id];
+        let status = (c.type === 'tarot' && c.isReversed) ? "(逆位)" : "";
+        return `${name}${status}`;
+    }).join(", ");
+
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalContext = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const dreamContext = (wb['10.假如你是ta的梦角'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+    let apiKey = document.getElementById('api-key').value; 
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    if(!apiKey) {
+        try { const saved = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey = saved.key; apiUrl = saved.url; model = saved.model; } catch(e){}
+    }
+    if(!apiKey) return alert("请先配置 API Key！");
+
+    // === 🌟 Prompt 构建区域 ===
+    let prompt = "";
+    
+    // 基础指令：强调牌意优先
+    const baseInstruction = `
+    你是一个深度角色分析师和创意编剧。
+    【世界书/角色设定】：${globalContext}
+    【抽到的命运牌】：${cardsDesc}
+    
+    ⚡️ **最高优先级指令：生成内容必须以【牌意（牌面的能量流动）】为主，世界书人设为辅。**
+    请根据牌面呈现的状态（如：权杖的热情、圣杯的感性、宝剑的理智/冷漠、钱币的现实/肉欲）来决定生成内容的走向和评价。
+    
+    请严格生成一个 HTML 表格代码（<table class="dream-table">...</table>），不要Markdown，不要前言后语。
+    `;
+
+    // --- 1. 原版梦男/梦女 (原封不动) ---
+    if (mode === 'partner') {
+        prompt = `
+你是一个深度角色分析师。
+请根据以下信息，分析如果【角色】成为用户的【梦男/梦女】（Dream Character/Partner）会发生什么。
+
+【世界书/角色设定】：
+${globalContext}
+
+【"假如你是Ta的梦角"设定】：
+${dreamContext}
+
+【抽到的牌（命运指引）】：
+${cardsDesc}
+(请结合牌意来推导分析结果，例如：权杖牌可能代表热情买谷，星币牌代表愿意花钱，宝剑牌代表理智或纠结)
+
+【任务要求】：
+请严格生成一个 HTML 表格代码（<table>...</table>），不要Markdown标记。
+表格必须包含以下行（Row），左边是项目，右边是分析内容：
+
+1. **角色定位**：是梦男还是梦女？(根据角色性别判断)
+2. **买谷数量**：会买多少周边？(数量级)
+3. **喜欢的谷**：最喜欢买什么样的周边？最喜欢什么样的柄图？(吧唧/立牌/棉花娃娃等)（用户单人/用户的印象服/用户的象征物等）
+4. **版权意识**：会不会考虑买版权/买断？
+5. **同担态度**：对其他同价/同担分别的态度？(嫉妒/友善/无视)
+6. **月消费**：每个月会花多少钱在梦向事件上？
+7. **约稿偏好**：会约什么样的稿件？(插图/文/条漫)
+8. **最开心的事**：做梦男/梦女最开心的事情？
+9. **最痛苦的事**：做梦男/梦女最痛苦的事情？
+10. **初始心情**：一开始做梦男/梦女的心情？
+
+分析内容要符合角色性格，并融合牌意，并谨记角色做梦男/梦女是和现实一样做梦女/梦男的情况，角色不清楚用户怎么看待他/她也不知道用户是否真实存在，是否和他/她谈恋爱。
+`;
+    } 
+    // --- 2. 互换身体 (原封不动) ---
+    else if (mode === 'become') {
+        prompt = `
+你是一个创意编剧。现在发生了一个奇幻事件：【角色】突然灵魂互换，变成了【用户(我)】的身体，并代替用户生活了一天。
+【世界书/角色】：${globalContext}
+【命运牌 (决定他扮演得是否顺利)】：${cardsDesc}
+
+【任务要求】：
+请严格生成一个 HTML 表格代码（<table>...</table>），不要Markdown。
+表格必须包含以下行（Row），左边是项目，右侧是详细且有趣的描述：
+
+1. **性格扮演**：他如何模仿用户的性格？(是拙劣还是完美？)
+2. **学习习惯**：他被迫学习了用户的哪些习惯？(比如熬夜、吃零食、口头禅)
+3. **社交应对**：他是怎么和用户的朋友交流的？(有没有露馅？)
+4. **代班工作/上学**：他替用户去上学或工作时发生了什么趣事？
+5. **家庭周旋**：怎么和用户的家里人打交道？
+6. **留信内容**：互换结束前，他给用户留下的一封信的内容概要。
+7. **异样察觉**：周围人最后有没有发现不对劲？
+8. **自我打分**：角色给自己今天的扮演打几分 (0-100)？
+
+请结合牌意：如果牌面积极，说明他扮演得很成功；如果牌面混乱，说明他手忙脚乱。
+`;
+    } 
+    // --- 3. Cosplay (原封不动) ---
+    else if (mode === 'cosplay') {
+        prompt = `
+你是一个漫展观察员。假设【角色】去参加漫展，并且出 Cosplay，出的角色竟然是【用户(我)】。
+【世界书/角色】：${globalContext}
+【命运牌 (决定漫展的运势)】：${cardsDesc}
+
+【任务要求】：
+请严格生成一个 HTML 表格代码（<table>...</table>），不要Markdown。
+表格必须包含以下行（Row），左侧是项目，右侧是详细描述：
+
+1. **还原度自评**：角色觉得自己Cos得像吗？
+2. **路人评价**：路人/摄影师对这个Cos的评价 (以为是原设还是二设？)。
+3. **同行评价**：他对漫展上其他出【用户】的Coser的看法。
+4. **战利品**：收到了多少投喂零食和无料？
+5. **场照轰动**：在漫展或朋友圈是否引起了轰动？
+6. **Cos感受**：扮演成用户去漫展，他的内心真实感受。
+7. **一日总结**：Cosplay一天的整体情况总结。
+
+请结合牌意进行推演。
+`;
+    }
+    // --- 4. 角色必吃榜 (新) ---
+    else if (mode === 'char_beauty') {
+        prompt = `${baseInstruction}
+        【情境】：在角色的世界里，有一个“美人必吃榜”。分析【角色本人】的上榜情况。
+        表格内容：
+        1. **自我排名**：他认为在他的世界美人必吃榜是第几名？
+        2. **大家认为他最秀色可餐的点**：大众对他最想“吃”的地方。
+        3. **他自认为最吸引人的点**：他觉得自己哪里最迷人。
+        4. **大家对他的手的评价**：大众对他手的评价。
+        5. **大家对他的脸的评价**：大众对他脸的评价。
+        6. **大家对他的气质的评价**：大众对他气质的评价。
+        7. **大家对他的腰/腹肌的评价**：大众对他腰身的评价。
+        8. **大家对他的体型的评价**：大众对他体型的评价。
+        9. **大家对他的腿/脚的评价**：大众对他腿脚的评价。
+        10. **大家对他的性器（幻想）的评价**：大众的私密幻想评价(请隐晦而诱惑地描述)。
+        11. **他实际在世界美人必吃榜的前几以及必吃的原因**：客观排名和原因。
+        `;
+    }
+    // --- 5. 用户必吃榜 (新 - 修正版) ---
+    else if (mode === 'user_beauty') {
+        prompt = `${baseInstruction}
+        【情境】：在角色的世界里，【用户(我)】也是榜上有名。分析【用户】的上榜情况。
+        **注意**：除了第1项和第3项是角色的观点，其他项全是【大众/大家】的观点。
+        
+        表格内容：
+        1. **角色认为用户在必吃榜前几名**：角色心中的排名。
+        2. **大家认为用户最秀色可餐的点**：大众觉得用户哪里最诱人？
+        3. **角色认为用户最吸引人的点**：角色眼中用户最迷人的地方。
+        4. **大家对用户的手的评价**：大众评价。
+        5. **大家对用户的脸的评价**：大众评价。
+        6. **大家对用户的气质的评价**：大众评价。
+        7. **大家对用户的腰/腹肌的评价**：大众评价。
+        8. **大家对用户的体型的评价**：大众评价。
+        9. **大家对用户的腿/脚的评价**：大众评价。
+        10. **大家对用户的性器（幻想）的评价**：大众的私密幻想评价(请隐晦而诱惑地描述)。
+        11. **用户实际在世界美人必吃榜的前几以及必吃的原因**：客观排名和原因。
+        `;
+    }
+    // --- 6. 角色水煎包 (新) ---
+    else if (mode === 'char_sleep') {
+        prompt = `${baseInstruction}
+        【情境】：角色对用户进行了“水煎包”（睡奸）。
+        请严格根据牌意决定行为的粗暴/温柔程度。
+        表格内容：
+        1. **什么时间进行的**：具体时间。
+        2. **为什么忽然想这么做**：动机。
+        3. **还没开始时他看用户的状态**：凝视与想法。
+        4. **前戏时他注意到的用户的反应和他的行为**：细节描写。
+        5. **正在进行时他观察的用户的反应和他的行为**：过程细节。
+        6. **正在进行时他在想什么**：心理活动。
+        7. **马上要结束了他观察的用户的反应和他的行为**：高潮/结束细节。
+        8. **用户是否被吵醒/什么阶段被吵醒**：苏醒情况。
+        9. **事后清理/休息**：收尾工作。
+        10. **他对此次事件的评价**：满足感或反思。
+        `;
+    }
+    // --- 7. 用户水煎包 (新) ---
+    else if (mode === 'user_sleep') {
+        prompt = `${baseInstruction}
+        【情境】：用户对角色进行了“水煎包”（睡奸）。
+        表格内容：
+        1. **还没开始时角色的反应**：睡姿/呼吸/防备心。
+        2. **前夕时角色的状态/反应**：生理或潜意识反应。
+        3. **正在进行时角色的状态/反应**：身体反应/梦呓。
+        4. **马上结束了角色的状态/反应**：高潮/结束反应。
+        5. **角色的感受**：身体和心理的真实感受（必须基于牌意）。
+        6. **角色是否被吵醒/全程的意识状态**：清醒程度。
+        7. **角色对此事的感受**：醒来后或潜意识里的看法。
+        8. **角色想说的话**：心里话。
+        `;
+    }
+
+    try {
+        const res = await fetch(`${apiUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model || "gpt-3.5-turbo",
+                messages: [{ role: "system", content: "You are a creative writer. Output HTML Table only." }, { role: "user", content: prompt }],
+                temperature: 0.85
+            })
+        });
+
+        const json = await res.json();
+        let content = json.choices[0].message.content;
+        
+        content = content.replace(/```html/g, "").replace(/```/g, "").trim();
+        // 强制加上样式类
+        if(!content.includes('class="dream-table"')) {
+            content = content.replace('<table>', '<table class="dream-table">');
+        }
+
+        document.getElementById('dream-analysis-content').innerHTML = content;
+        
+        // 保存逻辑 (加上模式标记 emoji)
+        const emojiMap = {
+            'partner': '🦄', 'become': '🎭', 'cosplay': '👘',
+            'char_beauty': '💋', 'user_beauty': '😋',
+            'char_sleep': '🌙', 'user_sleep': '💤'
+        };
+        
+        currentDreamResult = {
+            date: Date.now(),
+            cards: `${emojiMap[mode] || '❓'} ${cardsDesc}`, 
+            htmlContent: content
+        }; 
+        
+        NotificationManager.send({
+            title: `${emojiMap[mode]} 解析完成`,
+            body: "点击查看详细报告",
+            onClick: () => openDreamApp()
+        });
+
+    } catch(e) {
+        console.error(e);
+        document.getElementById('dream-analysis-content').innerText = "生成失败: " + e.message;
+    }
+}
 </script>
 
 
