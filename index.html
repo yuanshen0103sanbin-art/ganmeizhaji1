@@ -3442,6 +3442,357 @@ canvas {
 .real-bottle-item.active .b-name-text {
     color: #2c3e50; font-weight: 600;
 }
+/* === 文游 (Text Adventure) 专用样式 === */
+#adv-modal {
+    background: #000;
+    z-index: 9999;
+    display: none; /* 默认隐藏 */
+    flex-direction: column;
+    font-family: "Noto Serif SC", serif;
+}
+
+/* 顶部栏 */
+.adv-top-bar {
+    height: 80px;
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 2px solid #000;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    padding-top: env(safe-area-inset-top);
+    justify-content: space-between;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+
+.adv-user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.adv-avatar {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-color: #ddd;
+}
+
+.adv-stats {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    color: #333;
+    font-weight: bold;
+}
+
+.adv-exit-btn {
+    padding: 8px 20px;
+    background: #000;
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: serif;
+}
+
+/* 场景容器 */
+#adv-scene-container {
+    flex: 1;
+    position: relative;
+    background-color: #333;
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+/* 统一按钮样式：白底黑字黑框 */
+.adv-btn {
+    position: absolute;
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    padding: 10px 20px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+    cursor: pointer;
+    transition: transform 0.1s;
+    text-align: center;
+    min-width: 100px;
+}
+
+.adv-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+}
+
+/* 按钮位置类 */
+.pos-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.pos-top-mid { top: 15%; left: 50%; transform: translateX(-50%); }
+.pos-top-left { top: 15%; left: 10%; }
+.pos-top-right { top: 15%; right: 10%; }
+.pos-btm-mid { bottom: 15%; left: 50%; transform: translateX(-50%); }
+.pos-btm-left { bottom: 15%; left: 10%; }
+.pos-btm-right { bottom: 15%; right: 10%; }
+/* 列表式按钮容器 (用于商场左侧列表等) */
+.pos-list-left {
+    top: 10%; left: 5%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.pos-list-left .adv-btn { position: static; transform: none; text-align: left;}
+
+/* 底部对话框 */
+#adv-dialog-box {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    min-height: 150px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid #fff;
+    color: #fff;
+    padding: 20px;
+    display: none; /* 默认隐藏 */
+    z-index: 200;
+    display: flex;
+    gap: 15px;
+}
+
+.adv-dialog-avatar {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #fff;
+    background-color: #555;
+    background-size: cover;
+    flex-shrink: 0;
+}
+
+.adv-dialog-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.adv-dialog-name {
+    color: #f1c40f;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.adv-dialog-text {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+/* --- 文游新增样式 (Phase 2) --- */
+.closet-container {
+    width: 100%; height: 100%;
+    background: rgba(255,255,255,0.9);
+    padding: 20px; display: flex; flex-direction: column;
+    overflow-y: auto;
+}
+.closet-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px;
+}
+.closet-avatars {
+    display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;
+}
+.closet-avatar-box {
+    width: 100px; height: 150px; background: #ddd; border: 2px solid #555;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative; cursor: pointer;
+}
+.closet-avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+.attr-table {
+    width: 100%; border-collapse: collapse; margin-bottom: 20px;
+    font-size: 0.9rem; color: #333;
+}
+.attr-table td { border: 1px solid #ccc; padding: 8px; }
+.attr-table td:first-child { background: #f0f0f0; font-weight: bold; width: 40%; }
+.inv-list { display: flex; flex-direction: column; gap: 8px; }
+.inv-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fff; padding: 10px; border: 1px solid #eee; border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.inv-btn-group { display: flex; gap: 5px; }
+.inv-btn {
+    padding: 4px 8px; font-size: 0.75rem; border: none; border-radius: 4px; cursor: pointer;
+}
+.btn-use { background: #81ecec; color: #006266; }
+.btn-sell { background: #fab1a0; color: #d63031; }
+/* --- 文游立绘修复 (Phase 2.2) --- */
+#adv-tachie-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15; /* 背景(0) < 按钮(1) < 立绘(15) < 对话框(20) */
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between; /* 左右分布 */
+    align-items: flex-end; /* 底部对齐 */
+    padding: 0 5%; /* 左右留一点边距 */
+}
+
+.adv-tachie-img {
+    height: 85%; /* 立绘高度 */
+    max-width: 45%; /* 防止太宽 */
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+    transition: opacity 0.2s, transform 0.2s;
+    display: none; /* 默认隐藏 */
+}
+
+.tachie-left {
+    transform-origin: bottom left;
+    /* 用户立绘在左边 */
+}
+
+.tachie-right {
+    transform-origin: bottom right;
+    /* 角色立绘在右边 */
+}
+
+/* 确保对话框在立绘上面 */
+#adv-dialog-box {
+    z-index: 20 !important;
+}
+/* === 文游 UI 修复补丁 === */
+
+/* 1. 确保对话框是固定高度，且点击任何地方都能翻页 */
+#adv-dialog-box {
+    height: 150px !important; /* 固定高度 */
+    min-height: 150px !important;
+    cursor: pointer; /* 手型鼠标 */
+    z-index: 100 !important; /* 确保在立绘上面 */
+    user-select: none; /* 防止双击选中文本 */
+}
+
+/* 2. 立绘位置修正：用户在左，角色在右 */
+#adv-tachie-layer {
+    z-index: 50 !important; /* 在背景之上，对话框之下 */
+    pointer-events: none; /* 穿透点击 */
+}
+.tachie-left {
+    left: -10%; /* 用户立绘稍微偏左 */
+    transform: scale(0.9); /* 用户稍微小一点显远 */
+}
+.tachie-right {
+    right: -10%; /* 角色立绘在右 */
+    transform: scale(1.0); /* 角色稍微大一点显近 */
+}
+
+/* 3. 历史记录展开样式 */
+.adv-history-item {
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #aaa;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.adv-history-item.expanded {
+    border-left-color: #0984e3;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.adv-history-summary {
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #2d3436;
+}
+.adv-history-detail {
+    display: none; /* 默认隐藏 */
+    margin-top: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #636e72;
+    white-space: pre-wrap;
+    border-top: 1px dashed #eee;
+    padding-top: 10px;
+}
+.adv-history-item.expanded .adv-history-detail {
+    display: block; /* 展开时显示 */
+}
+
+/* 4. 名字可点击样式 */
+#adv-user-name {
+    border-bottom: 1px dashed #fff;
+    cursor: pointer;
+}
+/* === 文游 UI 修复补丁 === */
+
+/* 1. 确保对话框是固定高度，且点击任何地方都能翻页 */
+#adv-dialog-box {
+    height: 150px !important; /* 固定高度 */
+    min-height: 150px !important;
+    cursor: pointer; /* 手型鼠标 */
+    z-index: 100 !important; /* 确保在立绘上面 */
+    user-select: none; /* 防止双击选中文本 */
+}
+
+/* 2. 立绘位置修正：用户在左，角色在右 */
+#adv-tachie-layer {
+    z-index: 50 !important; /* 在背景之上，对话框之下 */
+    pointer-events: none; /* 穿透点击 */
+}
+.tachie-left {
+    left: -10%; /* 用户立绘稍微偏左 */
+    transform: scale(0.9); /* 用户稍微小一点显远 */
+}
+.tachie-right {
+    right: -10%; /* 角色立绘在右 */
+    transform: scale(1.0); /* 角色稍微大一点显近 */
+}
+
+/* 3. 历史记录展开样式 */
+.adv-history-item {
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #aaa;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.adv-history-item.expanded {
+    border-left-color: #0984e3;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.adv-history-summary {
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #2d3436;
+}
+.adv-history-detail {
+    display: none; /* 默认隐藏 */
+    margin-top: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #636e72;
+    white-space: pre-wrap;
+    border-top: 1px dashed #eee;
+    padding-top: 10px;
+}
+.adv-history-item.expanded .adv-history-detail {
+    display: block; /* 展开时显示 */
+}
+
+/* 4. 名字可点击样式 */
+#adv-user-name {
+    border-bottom: 1px dashed #fff;
+    cursor: pointer;
+}
     </style>
 </head>
 <body>
@@ -3486,14 +3837,15 @@ canvas {
                 </div>
                 <div class="tv-container">
            <div id="tv-shell-case" class="tv-case">
-                        <div class="add-btn-trigger" onclick="document.getElementById('tv-file-input').click()"></div>
+                    <!-- 修改：点击电视主体进入文游 -->
+<div class="add-btn-trigger" onclick="openTextAdventure()"></div>
                         <div class="tv-bezel-wrapper">
                             <div class="tv-screen-frame">
-                                <div class="tv-screen">
-                                    <div class="crt-scanlines"></div>
-                                    <span class="tv-placeholder">无信号<br>点击换图</span>
-                                    <img id="tv-content" class="tv-content" src="" style="display:none;">
-                                </div>
+                             <div class="tv-screen" onclick="openTextAdventure()" style="cursor: pointer;">
+    <div class="crt-scanlines"></div>
+    <span class="tv-placeholder">📺 CLICK START</span>
+    <img id="tv-content" class="tv-content" src="" style="display:none;">
+</div>
                             </div>
                         </div>
                         <div class="tv-control-panel">
@@ -4416,31 +4768,19 @@ function playAudioMsg(btn, src) {
         icon.innerText = originalIcon;
     };
 }
-
-        function loadTVContent() {
-            idb.get('tv', 'currentImage').then(res => {
-                if (res && res.blob) {
-                    const url = (typeof res.blob === 'string') ? res.blob : URL.createObjectURL(res.blob);
-                    document.getElementById('tv-content').src = url;
-                    document.getElementById('tv-content').style.display = 'block';
-                    document.querySelector('.tv-placeholder').style.display = 'none';
-                }
-            });
+async function loadTVContent() {
+    try {
+        // 改为从 settings_heavy (美化存储) 读取
+        const res = await idb.get('settings_heavy', 'tv_screen_content');
+        if (res && res.data) {
+            document.getElementById('tv-content').src = res.data;
+            document.getElementById('tv-content').style.display = 'block';
+            const ph = document.querySelector('.tv-container .tv-placeholder');
+            if(ph) ph.style.display = 'none';
         }
-        document.getElementById('tv-file-input').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const base64 = evt.target.result;
-                    document.getElementById('tv-content').src = base64;
-                    document.getElementById('tv-content').style.display = 'block';
-                    document.querySelector('.tv-placeholder').style.display = 'none';
-                    idb.put('tv', { id: "currentImage", blob: base64 });
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+    } catch(e) {}
+}
+        
         let typeWriterTimeout = null; 
         function openFan() {
             const modal = document.getElementById('fan-modal');
@@ -10799,6 +11139,7 @@ async function applyAllThemeSettings() {
 
         // 2. 读取图片资源
         const imgKeys = [
+  'tv_screen_content',
             'main_bg', 'fridge_cover', 'news_cover', 'memo_cover', 
             'tarot_back', 'tarot_table', 'letter_paper', 
             'game_bg', 'game_char_half', 'game_user_half',
@@ -10820,6 +11161,16 @@ async function applyAllThemeSettings() {
         }
 
         // 3. 应用外壳与封面
+// 📺 电视屏幕内容 (新增)
+if(images.tv_screen_content) {
+    const tvScreen = document.getElementById('tv-content');
+    if(tvScreen) {
+        tvScreen.src = images.tv_screen_content;
+        tvScreen.style.display = 'block';
+        const ph = document.querySelector('.tv-container .tv-placeholder');
+        if(ph) ph.style.display = 'none';
+    }
+}
         
         // ❄️ 冰箱封面
         if(images.fridge_cover) {
@@ -11275,7 +11626,7 @@ ${msgCtx}
 
 【当前状态】：
 - 心情值：${gameState.mood}/100
-- 好感度：${gameState.love}/100
+- 用户对角色的好感度：${gameState.love}/100
 - 刚刚抽到的命运牌：${cardsDesc}
 
 【对话历史】：
@@ -17590,6 +17941,10 @@ window.deleteStudyPlan = function() {
     <input type="file" onchange="uploadThemeImage('shell_tv', this)">
 </div>
 <div class="input-group">
+    <label style="color:#d35400; font-weight:bold;">📺 电视机屏幕内容 (TV Screen)</label>
+    <input type="file" onchange="uploadThemeImage('tv_screen_content', this)">
+</div>
+<div class="input-group">
     <label>第2页：游戏机外壳 (Game P2)</label>
     <input type="file" onchange="uploadThemeImage('shell_console_p2', this)">
 </div>
@@ -22051,6 +22406,134 @@ window.generateGalgameEndingAPI = async function() {
         </div>
     </div>
 </div>
+<!-- === 文游 (Text Adventure) 主界面 === -->
+<div id="adv-modal" class="modal-overlay">
+    <!-- 顶部状态栏 -->
+    <div class="adv-top-bar">
+        <div class="adv-user-info">
+            <div id="adv-user-avatar" class="adv-avatar"></div>
+            <div class="adv-stats">
+                <span id="adv-user-name" onclick="editAdvName()">玩家</span>
+                <span style="font-weight:normal; font-size:0.7rem; margin-top:2px;">
+                    清洁: <span id="adv-stat-clean">100</span>% | 金钱: <span id="adv-stat-money">0</span>
+                </span>
+            </div>
+        </div>
+        <button class="adv-exit-btn" onclick="closeTextAdventure()">退出游戏</button>
+    </div>
+
+    <!-- 场景背景容器 -->
+    <!-- 修改：增加点击背景隐藏对话框的逻辑 -->
+<div id="adv-scene-container" onclick="if(event.target === this) document.getElementById('adv-dialog-box').style.display='none'">
+        <!-- 按钮将由 JS 动态生成在这里 -->
+    </div>
+<!-- 底部对话框 (修改版：点击翻页) -->
+<div id="adv-dialog-box" style="display:none;" onclick="nextAdvDialogueChunk()">
+    <div id="adv-dialog-img" class="adv-dialog-avatar"></div>
+    <div class="adv-dialog-content">
+        <div id="adv-dialog-name" class="adv-dialog-name">System</div>
+        <div id="adv-dialog-text" class="adv-dialog-text">...</div>
+        <!-- 下一页提示图标 -->
+        <div style="text-align:right; font-size:0.8rem; color:yellow; margin-top:5px;">▼ 点击继续</div>
+    </div>
+</div>
+<!-- ================= 【第三阶段】新增组件 ================= -->
+
+<!-- 1. 🔮 梦占模式专用牌桌 (完全复刻游戏机牌桌，独立ID) -->
+<div id="dream-divination-modal" class="modal-overlay" style="background: rgba(10, 10, 20, 0.98); z-index:20000; display:none;">
+    <div id="dream-divination-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #2d3436 0%, #000 100%);">
+        <div id="dream-divination-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;">
+            <!-- 卡牌由 JS 生成 -->
+        </div>
+        
+        <div class="card-table-ui">
+            <div style="color:#a29bfe; text-shadow:0 1px 5px #000; font-size:1.1rem; font-weight:bold;">
+                🔮 梦占模式：请抽取命运指引... (<span id="dream-div-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="finishDreamDivination()" style="background:#6c5ce7; border:1px solid #fff; color:white;">
+                ✨ 确认牌意并继续
+            </button>
+            <!-- 注意：梦占模式强制开启时不可取消，除非关闭模式 -->
+            <button class="m-btn secondary" onclick="cancelDreamDivination()" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消 (不生成)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. 📅 约会计划表 -->
+<div id="adv-date-modal" class="modal-overlay" style="background:#fff; z-index:15000; display:none;">
+    <div class="modal-header" style="background:#ff7675; color:white;">
+        <span>📅 约会计划</span>
+        <button class="close-btn" onclick="document.getElementById('adv-date-modal').style.display='none'">×</button>
+    </div>
+    <div class="modal-body">
+        <div class="morandi-card" style="padding:20px;">
+            <h3 style="color:#d63031;">去哪里约会？</h3>
+            
+            <div class="input-group">
+                <label>📍 地点 (Location)</label>
+                <select id="date-location-select" style="padding:10px; background:#fff;">
+                    <!-- JS 自动填充 -->
+                </select>
+            </div>
+            <div class="input-group">
+                <label>🎡 约会项目 (Activity)</label>
+                <input type="text" id="date-activity" placeholder="例如：看电影、野餐、看星星...">
+            </div>
+            <div class="input-group">
+                <label>⏰ 时间 (Time)</label>
+                <input type="text" id="date-time" placeholder="例如：周末晚上、黄昏...">
+            </div>
+            <div class="input-group">
+                <label>📝 想做的事 (Detail)</label>
+                <textarea id="date-detail" class="editor-textarea" style="height:80px;" placeholder="例如：想牵手、想送礼物..."></textarea>
+            </div>
+
+            <button class="m-btn primary" onclick="startDatingEvent()" style="width:100%; margin-top:15px; background:#ff7675; font-size:1.1rem;">
+                💖 出发！
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 📜 文游历史记录 -->
+<div id="adv-history-modal" class="modal-overlay" style="background:#f5f5f5; z-index:15000; display:none;">
+    <div class="modal-header" style="background:#fff; color:#333;">
+        <span>📖 冒险回忆录</span>
+        <button class="close-btn" onclick="document.getElementById('adv-history-modal').style.display='none'">×</button>
+    </div>
+    <div class="modal-body" style="padding:15px;">
+        <div id="adv-history-list" style="display:flex; flex-direction:column; gap:15px;"></div>
+    </div>
+</div>
+
+<!-- 4. 🎲 随机事件输入框 -->
+<div id="adv-random-modal" class="modal-overlay" style="background:rgba(0,0,0,0.8); z-index:16000; align-items:center; justify-content:center; display:none;">
+    <div class="morandi-card" style="width:85%; max-width:400px;">
+        <h3 style="color:#0984e3;">✨ 触发了特殊剧情！</h3>
+        <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">你可以修改下方的描述，让AI生成更精彩的故事：</p>
+        <textarea id="adv-random-input" class="editor-textarea" style="height:100px;"></textarea>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="m-btn secondary" onclick="document.getElementById('adv-random-modal').style.display='none'">忽略</button>
+            <button class="m-btn primary" onclick="confirmRandomEvent()" style="background:#0984e3;">🎬 生成剧情</button>
+        </div>
+    </div>
+</div>
+
+<!-- 5. 🔚 结局生成确认 -->
+<div id="adv-ending-modal" class="modal-overlay" style="background:#000; color:#fff; z-index:17000; display:none;">
+    <div style="padding:30px; text-align:center; max-width:500px;">
+        <div style="font-size:3rem; margin-bottom:20px;">🎬</div>
+        <h2>结束这个世界？</h2>
+        <p style="color:#aaa; line-height:1.6; margin-bottom:30px;">
+            这将汇总你所有的属性、好感度以及【重要回忆】，生成最终结局。<br>
+            <span style="color:#ff7675;">生成后，所有数据将被重置，新的轮回将开始。</span>
+        </p>
+        <button class="m-btn primary" onclick="generateEnding()" style="background:#fff; color:#000; font-weight:bold; width:100%;">确认生成结局</button>
+        <button class="m-btn secondary" onclick="document.getElementById('adv-ending-modal').style.display='none'" style="background:transparent; color:#aaa; margin-top:15px; border:1px solid #555;">我还要继续探索</button>
+    </div>
+</div>
 <!-- 2. 功能脚本 -->
 <script>
 (function() {
@@ -22266,6 +22749,1488 @@ window.generateGalgameEndingAPI = async function() {
     }, 1000);
 
 })();
+/* ==================== 文游 (Text Adventure) 系统 (Phase 2.2 Final) ==================== */
+
+// 1. 数据结构初始化
+if (!window.BIG_MEMORY.adv_data) {
+    window.BIG_MEMORY.adv_data = {
+        name: "玩家",
+        cleanliness: 100,
+        money: 100,
+        affection: 0,
+        attributes: { learning: 0, art: 0, talent: 0, fitness: 0 },
+        inventory: [],
+        avatars: { user: "", char: "" } // 换衣间上传的立绘
+    };
+}
+
+// 缓存 Line 的头像和昵称
+let ADV_CACHE = {
+    lineUserAvatar: null,
+    lineCharAvatar: null,
+    lineCharName: "Ta"
+};
+
+function getAdvData() { return window.BIG_MEMORY.adv_data; }
+function saveAdvData(data) {
+    window.BIG_MEMORY.adv_data = data;
+    if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'adv_data', data: data });
+    updateAdvUI();
+}
+
+// 2. 场景配置 (含股票功能)
+const ADV_SCENES = {
+    'main_map': {
+        bg: 'https://i.postimg.cc/g0nxYFxL/IMG_2008.png',
+        buttons: [
+            { text: '🏫 学校', pos: 'pos-center', action: 'goto:school_main' },
+            { text: '🌳 公园', pos: 'pos-top-left', style:'left:10%; top:40%;', action: 'goto:park' },
+            { text: '✈️ 旅行社', pos: 'pos-btm-left', action: 'goto:travel_main' },
+            { text: '🏠 回家', pos: 'pos-top-right', action: 'goto:home_room' },
+            { text: '🛍️ 商场', pos: 'pos-btm-right', action: 'goto:mall_main' }
+        ]
+    },
+    'school_main': {
+        bg: 'https://i.postimg.cc/NG15Gx0f/IMG_1989.png',
+        buttons: [
+            { text: '教学楼', pos: 'pos-top-mid', action: 'goto:school_corridor' },
+            { text: '操场', pos: 'pos-top-left', action: 'goto:school_ground' },
+            { text: '体育馆', pos: 'pos-top-right', style:'right:20%; top:40%;', action: 'goto:school_gym' },
+            { text: '大礼堂', pos: 'pos-center', style:'left:20%;', action: 'goto:school_hall' },
+            { text: '⬅️ 离开', pos: 'pos-btm-mid', action: 'goto:main_map' }
+        ]
+    },
+    'school_corridor': {
+        bg: 'https://i.postimg.cc/7Lf5x85V/IMG_2004.png',
+        buttons: [
+            { text: '班级', pos: 'pos-top-left', action: 'goto:class_room' },
+            { text: '厨房课', pos: 'pos-top-right', action: 'goto:class_kitchen' },
+            { text: '钢琴课', pos: 'pos-btm-left', action: 'goto:class_piano' },
+            { text: '画室', pos: 'pos-btm-right', action: 'goto:class_art' },
+            { text: '🔙 返回', pos: 'pos-btm-mid', action: 'goto:school_main' }
+        ]
+    },
+    'class_room': {
+        bg: 'https://i.postimg.cc/bvWsrCbj/IMG_1999.png',
+        buttons: [
+            { text: '📚 学习', pos: 'pos-center', style:'top:30%', action: 'logic:study' },
+            { text: '😶 发呆', pos: 'pos-center', style:'top:50%', action: 'logic:daydream' },
+            { text: '📄 传纸条', pos: 'pos-center', style:'top:70%', action: 'logic:pass_note' },
+            { text: '🔙 离开', pos: 'pos-btm-mid', action: 'goto:school_corridor' }
+        ]
+    },
+    'class_kitchen': {
+        bg: 'https://i.postimg.cc/nLgCrRmS/IMG_2002.png',
+        buttons: [
+            { text: '🍳 做料理', pos: 'pos-center', style:'top:40%', action: 'logic:cook_food' },
+            { text: '🍰 做甜品', pos: 'pos-center', style:'top:60%', action: 'logic:cook_sweet' },
+            { text: '🔙 离开', pos: 'pos-btm-mid', action: 'goto:school_corridor' }
+        ]
+    },
+    'class_piano': {
+        bg: 'https://i.postimg.cc/25MVycWs/IMG_2001.png',
+        buttons: [
+            { text: '🎹 练琴', pos: 'pos-center', style:'top:40%', action: 'logic:learn_music' },
+            { text: '🎼 合奏', pos: 'pos-center', style:'top:60%', action: 'logic:play_piano_together' },
+            { text: '🔙 离开', pos: 'pos-btm-mid', action: 'goto:school_corridor' }
+        ]
+    },
+    'class_art': {
+        bg: 'https://i.postimg.cc/vmc4QF1w/IMG_2003.png',
+        buttons: [
+            { text: '🎨 练画', pos: 'pos-center', style:'top:40%', action: 'logic:practice_draw' },
+            { text: '✏️ 素描', pos: 'pos-center', style:'top:60%', action: 'logic:sketch' },
+            { text: '🔙 离开', pos: 'pos-btm-mid', action: 'goto:school_corridor' }
+        ]
+    },
+    'school_hall': { bg: 'https://i.postimg.cc/XvprVSrK/IMG_2005.png', buttons: [{text:'🔙 返回', pos:'pos-btm-mid', action:'goto:school_main'}] },
+    'school_gym': { 
+        bg: 'https://i.postimg.cc/R0NWM5Wc/IMG_2006.png', 
+        buttons: [
+            {text:'羽毛球', pos:'pos-list-left', action:'logic:sport'},
+            {text:'网球', pos:'pos-list-left', style:'top:25%', action:'logic:sport'},
+            {text:'游泳', pos:'pos-list-left', style:'top:40%', action:'logic:sport'},
+            {text:'弓道', pos:'pos-list-left', style:'top:55%', action:'logic:sport'},
+            {text:'🔙 离开', pos:'pos-btm-mid', action:'goto:school_main'}
+        ] 
+    },
+    'school_ground': { 
+        bg: 'https://i.postimg.cc/43mYJkYp/IMG_2007.png', 
+        buttons: [
+            {text:'🏃 跑步', pos:'pos-center', style:'top:40%', action:'logic:sport'},
+            {text:'🏀 篮球', pos:'pos-center', style:'top:60%', action:'logic:sport'},
+            {text:'🏐 排球', pos:'pos-center', style:'top:20%', action:'logic:sport'},
+            {text:'🔙 离开', pos:'pos-btm-mid', action:'goto:school_main'}
+        ] 
+    },
+    'mall_main': {
+        bg: 'https://i.postimg.cc/TYfhKWyT/IMG_1988.png',
+        buttons: [
+            {text:'🎁 礼物店', pos:'pos-list-left', action:'goto:mall_gift'},
+            {text:'👗 服装店', pos:'pos-list-left', style:'top:25%', action:'goto:mall_clothes'},
+            {text:'🍰 甜品店', pos:'pos-list-left', style:'top:40%', action:'goto:mall_sweet'},
+            {text:'🛍️ 逛街', pos:'pos-list-left', style:'top:55%', action:'goto:mall_walk'},
+            {text:'🍢 小吃街', pos:'pos-list-left', style:'top:70%', action:'goto:mall_food'},
+            {text:'⬅️ 离开', pos:'pos-btm-mid', action:'goto:main_map'}
+        ]
+    },
+    'mall_gift': { bg:'https://i.postimg.cc/26W3ZQFv/IMG_1996.png', buttons:[{text:'买礼物(5金)', pos:'pos-center', action:'logic:buy_gift'}, {text:'打工', pos:'pos-center', style:'top:65%', action:'logic:work_gift'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'mall_clothes': { bg:'https://i.postimg.cc/7hyhM5mn/IMG_1994.png', buttons:[{text:'买衣服(随机)', pos:'pos-center', action:'logic:buy_clothes'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'mall_sweet': { bg:'https://i.postimg.cc/zBh3gCSw/IMG_1995.png', buttons:[{text:'买高级甜品(8金)', pos:'pos-center', action:'logic:buy_sweet'}, {text:'一起做甜品', pos:'pos-center', style:'top:65%', action:'logic:make_sweet_together'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'mall_walk': { bg:'https://i.postimg.cc/bJndtxHJ/IMG_1997.png', buttons:[{text:'一起逛街', pos:'pos-center', action:'logic:walk_together'}, {text:'自己逛街', pos:'pos-center', style:'top:65%', action:'logic:walk_alone'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'mall_food': { bg:'https://i.postimg.cc/8khjkbzn/IMG_1990.png', buttons:[{text:'吃点小吃', pos:'pos-center', action:'logic:eat_snack'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'travel_main': {
+        bg: 'https://i.postimg.cc/wjxtGsg6/IMG_2015.png',
+        buttons: [
+            {text:'🏯 故宫(1金)', pos:'pos-list-left', action:'logic:travel'},
+            {text:'🌊 海边(1金)', pos:'pos-list-left', style:'top:22%', action:'logic:travel'},
+            {text:'🗼 东京(1金)', pos:'pos-list-left', style:'top:34%', action:'logic:travel'},
+            {text:'🏰 法国(1金)', pos:'pos-list-left', style:'top:46%', action:'logic:travel'},
+            {text:'🇬🇧 英国(1金)', pos:'pos-list-left', style:'top:58%', action:'logic:travel'},
+            {text:'🇺🇸 美国(1金)', pos:'pos-list-left', style:'top:70%', action:'logic:travel'},
+            {text:'⬅️ 离开', pos:'pos-btm-mid', action:'goto:main_map'}
+        ]
+    },
+    'park': {
+        bg: 'https://i.postimg.cc/P5fLR8Tq/IMG_2016.png',
+        buttons: [
+            {text:'🚶 散步', pos:'pos-center', action:'logic:park_walk'},
+            {text:'⬅️ 离开', pos:'pos-btm-mid', action:'goto:main_map'}
+        ]
+    },
+    'home_room': {
+        bg: 'https://i.postimg.cc/6qL3HBPK/IMG_1992.png',
+        buttons: [
+            {text:'🚿 去浴室', pos:'pos-list-left', action:'goto:home_bath'},
+            {text:'👗 换衣间', pos:'pos-list-left', style:'top:25%', action:'goto:home_closet'},
+            {text:'📈 股票', pos:'pos-list-left', style:'top:40%', action:'logic:stock_market'},
+            {text:'💰 副业', pos:'pos-list-left', style:'top:55%', action:'logic:side_job'},
+            {text:'⬅️ 离开', pos:'pos-btm-mid', action:'goto:main_map'}
+        ]
+    },
+    'home_bath': { 
+        bg:'https://i.postimg.cc/J0W0csPd/IMG_1993.png', 
+        buttons:[
+            {text:'🛁 泡澡(+10清洁)', pos:'pos-center', action:'logic:bath_normal'}, 
+            {text:'🔙 回房间', pos:'pos-btm-mid', action:'goto:home_room'}
+        ]
+    }
+};
+
+// 3. 核心逻辑函数
+async function openTextAdventure() {
+    document.getElementById('adv-modal').style.display = 'flex';
+    
+    // 读取 Line 设置
+    const settings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    ADV_CACHE.lineCharName = settings.title || "Ta";
+    
+    // 预加载头像
+    try {
+        const myRes = await idb.get('settings_heavy', 'myAvatar');
+        const charRes = await idb.get('settings_heavy', 'botAvatar');
+        if (myRes) ADV_CACHE.lineUserAvatar = myRes.data;
+        if (charRes) ADV_CACHE.lineCharAvatar = charRes.data;
+    } catch(e) {}
+
+    // 重新注入立绘层 (确保结构正确)
+    // 移除旧容器防止重复
+    const oldTachie = document.getElementById('adv-tachie-layer');
+    if(oldTachie) oldTachie.remove();
+
+    // 创建新容器：包含左立绘和右立绘
+    const layer = document.createElement('div');
+    layer.id = 'adv-tachie-layer';
+    layer.innerHTML = `
+        <img id="adv-tachie-user" class="adv-tachie-img tachie-left" src="">
+        <img id="adv-tachie-char" class="adv-tachie-img tachie-right" src="">
+    `;
+    document.getElementById('adv-modal').appendChild(layer);
+
+    updateAdvUI();
+    renderAdvScene('main_map');
+}
+
+function closeTextAdventure() {
+    document.getElementById('adv-modal').style.display = 'none';
+}
+
+// 🔥 关键函数：隐藏对话框时，同时隐藏立绘
+function hideAdvDialog() {
+    document.getElementById('adv-dialog-box').style.display = 'none';
+    document.getElementById('adv-tachie-user').style.display = 'none';
+    document.getElementById('adv-tachie-char').style.display = 'none';
+}
+
+function updateAdvUI() {
+    const data = getAdvData();
+    // 顶部小头像：显示 Line 用户头像
+    const avatarEl = document.getElementById('adv-user-avatar');
+    if (ADV_CACHE.lineUserAvatar) avatarEl.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+    else avatarEl.style.backgroundColor = '#ccc';
+    
+    document.getElementById('adv-user-name').innerText = data.name;
+    document.getElementById('adv-stat-clean').innerText = Math.floor(data.cleanliness);
+    document.getElementById('adv-stat-money').innerText = Math.floor(data.money);
+}
+
+function renderAdvScene(sceneId) {
+    if (sceneId === 'home_closet') { renderClosetUI(); return; }
+
+    const scene = ADV_SCENES[sceneId];
+    if(!scene) return;
+
+    const container = document.getElementById('adv-scene-container');
+    container.innerHTML = ''; 
+    container.style.backgroundImage = `url(${scene.bg})`;
+    
+    // 绑定点击背景隐藏对话框事件
+    container.onclick = () => hideAdvDialog();
+
+    if(scene.buttons) {
+        scene.buttons.forEach(btnConfig => {
+            const btn = document.createElement('div');
+            btn.className = `adv-btn ${btnConfig.pos || ''}`;
+            btn.innerText = btnConfig.text;
+            if(btnConfig.style) btn.style.cssText += btnConfig.style;
+            btn.onclick = (e) => { 
+                e.stopPropagation(); // 阻止冒泡到背景
+                handleAdvAction(btnConfig.action); 
+            };
+            container.appendChild(btn);
+        });
+    }
+    
+    hideAdvDialog(); // 切换场景时隐藏
+}
+
+function handleAdvAction(actionString) {
+    const [type, val] = actionString.split(':');
+    if (type === 'goto') renderAdvScene(val);
+    else if (type === 'logic') executeAdvLogic(val);
+}
+
+function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function modAdv(updates, costClean = true) {
+    const data = getAdvData();
+    if (costClean) data.cleanliness = Math.max(0, data.cleanliness - 3);
+    for (let key in updates) {
+        if (typeof updates[key] === 'object') {
+            for (let subKey in updates[key]) data[key][subKey] = (data[key][subKey] || 0) + updates[key][subKey];
+        } else {
+            data[key] = (data[key] || 0) + updates[key];
+        }
+    }
+    data.cleanliness = Math.min(100, data.cleanliness);
+    saveAdvData(data);
+}
+
+function advAddItem(name, count=1, itemType='item') {
+    const data = getAdvData();
+    if (!data.inventory) data.inventory = [];
+    let existing = data.inventory.find(i => i.name === name);
+    if (existing) existing.count += count;
+    else data.inventory.push({ name: name, count: count, type: itemType });
+    saveAdvData(data);
+}
+
+// 4. 对话框与立绘显示逻辑 (核心修复)
+function showAdvDialog(text, talkerType) {
+    const box = document.getElementById('adv-dialog-box');
+    box.style.display = 'flex';
+    
+    const nameEl = document.getElementById('adv-dialog-name');
+    const textEl = document.getElementById('adv-dialog-text');
+    const iconDiv = document.getElementById('adv-dialog-img');
+    
+    // 获取立绘元素
+    const userTachie = document.getElementById('adv-tachie-user');
+    const charTachie = document.getElementById('adv-tachie-char');
+    const data = getAdvData(); // 获取换衣间上传的图
+
+    if (talkerType === "System") {
+        // === 玩家行为/系统提示 ===
+        nameEl.innerText = "你";
+        
+        // 左边小头像：Line 用户头像
+        if (ADV_CACHE.lineUserAvatar) iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+        else iconDiv.style.backgroundColor = '#ccc';
+        
+        // 显示左侧立绘 (用户上传的)，隐藏右侧
+        if (data.avatars.user) {
+            userTachie.src = data.avatars.user;
+            userTachie.style.display = 'block';
+        } else {
+            userTachie.style.display = 'none';
+        }
+        charTachie.style.display = 'none';
+
+    } else {
+        // === 角色说话 ===
+        nameEl.innerText = ADV_CACHE.lineCharName; // Line 备注
+        
+        // 左边小头像：Line 角色头像
+        if (ADV_CACHE.lineCharAvatar) iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineCharAvatar})`;
+        else iconDiv.style.backgroundColor = '#a29bfe';
+        
+        // 显示右侧立绘 (角色上传的)，隐藏左侧
+        if (data.avatars.char) {
+            charTachie.src = data.avatars.char;
+            charTachie.style.display = 'block';
+        } else {
+            charTachie.style.display = 'none';
+        }
+        userTachie.style.display = 'none';
+    }
+    
+    textEl.innerText = text;
+}
+
+// 5. 逻辑判断
+function executeAdvLogic(logicKey) {
+    const data = getAdvData();
+    let msg = "";
+    let talker = "System"; // 默认玩家行为
+
+    if (data.cleanliness <= 0 && !['bath_normal', 'home_room'].includes(logicKey)) {
+        return showAdvDialog("你太累了，先去洗个澡吧！", "System");
+    }
+
+    switch(logicKey) {
+        // 股票
+        case 'stock_market':
+            const isUp = Math.random() > 0.5;
+            const percent = 0.10;
+            const change = Math.floor(data.money * percent);
+            if (isUp) { modAdv({ money: change }, false); msg = `📈 股市大涨！资产增加 ${change} 金钱。`; } 
+            else { modAdv({ money: -change }, false); msg = `📉 股市暴跌... 亏损了 ${change} 金钱。`; }
+            break;
+
+        case 'study': modAdv({ attributes: { learning: rnd(1,3) } }); msg = `认真学习，学习属性上升。`; break;
+        case 'daydream': msg = ["你浪费了一节课。", "发呆看窗外的小鸟。", "被老师叫起来罚站。"][rnd(0,2)]; break;
+        case 'pass_note':
+            const aff = rnd(1, 7); modAdv({ affection: aff });
+            const notes = ["你们俩被老师罚站了。", "爱你。", "下课一起去吃饭吗？"];
+            msg = notes[rnd(0,2)] + ` (好感+${aff})`;
+            if(msg.includes("角色")) talker = "Character";
+            break;
+        case 'learn_music': modAdv({ attributes: { talent: rnd(1,3) } }); msg = "学习音乐，才艺提升。"; break;
+        case 'play_piano_together': modAdv({ attributes: { talent: 1 }, affection: 2 }); msg = "你们一起弹奏了一曲。"; talker = "Character"; break;
+        case 'cook_food': 
+            const f = rnd(0,3); modAdv({}); if(f>0) advAddItem("料理",f,"food"); 
+            msg = `做了 ${f} 份料理。`; break;
+        case 'cook_sweet': 
+            const s = rnd(0,3); modAdv({}); if(s>0) advAddItem("甜品",s,"sweet"); 
+            msg = `做了 ${s} 份甜品。`; break;
+        case 'practice_draw': modAdv({ attributes: { art: rnd(1,3) } }); msg = "练习素描，画技提升。"; break;
+        case 'sketch': 
+            modAdv({});
+            if(Math.random()<0.3) msg = "老师让你重画。";
+            else { modAdv({money:5}, false); msg = "帮同学画作业，赚了5金。"; }
+            break;
+        case 'sport': modAdv({ attributes: { fitness: rnd(1,3) } }); msg = "挥洒汗水，体能提升。"; break;
+        
+        case 'buy_gift':
+            if(data.money>=5){ modAdv({money:-5}); advAddItem("礼物",1,"gift"); msg = "买到了礼物。"; } 
+            else msg = "钱不够。"; break;
+        case 'work_gift': 
+            const w = rnd(1,10); modAdv({money:w}); msg = `打工赚了 ${w} 金。`; break;
+        
+        case 'buy_clothes':
+            const c = rnd(1,6);
+            if(data.money>=c){ modAdv({money:-c}); advAddItem("衣服",1,"clothes"); msg = `买衣服花了 ${c} 金。`; }
+            else msg = "钱不够买衣服。"; break;
+        
+        case 'buy_sweet':
+            if(data.money>=8){ modAdv({money:-8}); advAddItem("高级甜品",1,"high_sweet"); msg = "买了高级甜品。"; }
+            else msg = "钱不够。"; break;
+        case 'make_sweet_together':
+            const ms = rnd(0,2); modAdv({}); if(ms>0) advAddItem("高级甜品",ms,"high_sweet");
+            msg = `一起做甜品，成品 ${ms} 个。`; talker = "Character"; break;
+        
+        case 'walk_together':
+            modAdv({affection:3}); msg = "一起逛街很开心。(好感+3)"; talker = "Character"; break;
+        case 'walk_alone':
+            modAdv({money: rnd(1,3)}); msg = "自己逛街捡到了钱。"; break;
+        case 'eat_snack':
+            advAddItem("料理",1,"food"); modAdv({}); msg = "吃了小吃，打包了一份料理。"; break;
+        case 'travel':
+            if(data.money>=1){ modAdv({money:-1, affection:5}); msg = "旅途愉快。(好感+5)"; talker = "Character"; }
+            else msg = "没钱旅游。"; break;
+        case 'park_walk':
+            modAdv({affection:2}); msg = "公园散步。(好感+2)"; talker = "Character"; break;
+        case 'bath_normal':
+            data.cleanliness = 100; saveAdvData(data); msg = "洗澡结束，精神焕发。"; break;
+        case 'side_job':
+            const max = Math.max(data.attributes.learning, data.attributes.art, data.attributes.talent, data.attributes.fitness);
+            const sal = max > 100 ? 15 : (max > 50 ? 9 : (max > 25 ? 6 : 3));
+            modAdv({money:sal}); msg = `做副业赚了 ${sal} 金。`; break;
+    }
+    
+    if(msg) showAdvDialog(msg, talker);
+}
+
+// 换衣间渲染 (含修正的文案)
+function renderClosetUI() {
+    const data = getAdvData();
+    const container = document.getElementById('adv-scene-container');
+    container.innerHTML = ''; container.style.backgroundImage = 'none'; container.style.backgroundColor = '#fdfbf7';
+    
+    const charName = ADV_CACHE.lineCharName || "Ta";
+
+    const html = `
+    <div class="closet-container">
+        <div class="closet-header">
+            <h3>👗 换衣间</h3>
+            <button class="m-btn small" onclick="renderAdvScene('home_room')">🔙 离开</button>
+        </div>
+        <div class="closet-avatars">
+            <div class="closet-avatar-box" onclick="document.getElementById('upload-user-adv').click()">
+                ${data.avatars.user ? `<img src="${data.avatars.user}">` : '<span>点击上传<br>用户立绘(左)</span>'}
+            </div>
+            <div class="closet-avatar-box" onclick="document.getElementById('upload-char-adv').click()">
+                ${data.avatars.char ? `<img src="${data.avatars.char}">` : '<span>点击上传<br>角色立绘(右)</span>'}
+            </div>
+        </div>
+        <input type="file" id="upload-user-adv" style="display:none" onchange="uploadAdvImg('user', this)">
+        <input type="file" id="upload-char-adv" style="display:none" onchange="uploadAdvImg('char', this)">
+
+        <table class="attr-table">
+            <tr><td>📚 学习</td><td>${data.attributes.learning}</td></tr>
+            <tr><td>🎨 画画</td><td>${data.attributes.art}</td></tr>
+            <tr><td>🎻 才艺</td><td>${data.attributes.talent}</td></tr>
+            <tr><td>🏃 体能</td><td>${data.attributes.fitness}</td></tr>
+            <tr><td>❤️ 你对 ${charName} 的好感度</td><td>${data.affection}</td></tr>
+            <tr><td>✨ 清洁度</td><td>${Math.floor(data.cleanliness)}%</td></tr>
+            <tr><td>💰 金钱</td><td>${Math.floor(data.money)}</td></tr>
+        </table>
+
+        <div style="font-weight:bold; margin-bottom:10px;">👜 我的背包</div>
+        <div class="inv-list" id="adv-inv-list"></div>
+    </div>`;
+    
+    container.innerHTML = html;
+    renderInventoryItems();
+    
+    // 进入换衣间时也隐藏立绘
+    hideAdvDialog();
+}
+
+function uploadAdvImg(role, input) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = getAdvData();
+        data.avatars[role] = e.target.result;
+        saveAdvData(data);
+        renderClosetUI();
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderInventoryItems() {
+    const data = getAdvData();
+    const listEl = document.getElementById('adv-inv-list');
+    if(!listEl) return;
+    listEl.innerHTML = '';
+    if (!data.inventory || data.inventory.length === 0) { listEl.innerHTML = '<div style="color:#999;text-align:center;">空空如也...</div>'; return; }
+    
+    data.inventory.forEach((item, index) => {
+        if(item.count <= 0) return;
+        const div = document.createElement('div');
+        div.className = 'inv-item';
+        div.innerHTML = `<span>${item.name} x${item.count}</span>
+            <div class="inv-btn-group">
+                <button class="inv-btn btn-use" onclick="handleItemAction('use', ${index})">使用</button>
+                <button class="inv-btn btn-sell" onclick="handleItemAction('sell', ${index})">卖出</button>
+            </div>`;
+        listEl.appendChild(div);
+    });
+}
+
+function handleItemAction(action, index) {
+    const data = getAdvData();
+    const item = data.inventory[index];
+    if (action === 'use') {
+        let msg = "";
+        if (['food','sweet'].includes(item.type)) { data.affection += 2; msg = "好感度 +2"; }
+        else if (item.type === 'high_sweet') { data.affection += 5; msg = "好感度 +5"; }
+        else if (item.type === 'gift') { data.affection += 4; msg = "好感度 +4"; }
+        else if (item.type === 'clothes') { data.affection += 3; msg = "好感度 +3"; }
+        else msg = "无特殊效果";
+        
+        item.count--; if(item.count <= 0) data.inventory.splice(index, 1);
+        saveAdvData(data); renderClosetUI(); alert(`使用了 [${item.name}]！${msg}`);
+    } else if (action === 'sell') {
+        let price = 1;
+        if (item.type === 'high_sweet') price = 5;
+        else if (item.type === 'gift') price = 3;
+        else if (item.type === 'clothes') price = 2;
+        data.money += price;
+        item.count--; if(item.count <= 0) data.inventory.splice(index, 1);
+        saveAdvData(data); renderClosetUI(); alert(`卖出了 [${item.name}]，获得 ${price} 金钱。`);
+    }
+}
+// ============================================================
+// 🚀 【第三阶段】文游系统升级补丁 (Phase 3 Final)
+// ============================================================
+
+// 1. 数据结构升级 (自动合并)
+if (!window.BIG_MEMORY.adv_data) window.BIG_MEMORY.adv_data = {};
+// 确保新字段存在
+Object.assign(window.BIG_MEMORY.adv_data, {
+    history: [],       // 历史记录
+    dream_mode: false, // 梦占模式开关
+    important_memories: [] // 标记为重要的回忆
+});
+
+// 2. 全局 API 调用封装 (修正好感度定义)
+async function callGlobalLLM(userPrompt, type = "normal", extraContext = "") {
+    const data = getAdvData();
+    const wb = getWBData();
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const gameCtx = (wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta";
+
+    // 🔥 核心修正：Prompt 中明确好感度的方向
+    const systemPrompt = `
+你是一个高自由度文字冒险游戏(MUD)的GM。
+【世界观】：${globalCtx}
+【游戏设定】：${gameCtx}
+【玩家信息】：
+- 昵称：${data.name}
+- 状态：金钱${data.money} / 清洁度${data.cleanliness}
+- **玩家对${charName}的喜爱度**：${data.affection} (数值越高，代表玩家越主动、越深情)
+
+【当前位置】：${window.currentAdvScene || "未知场景"}
+${extraContext}
+
+【任务】：
+生成一段 100-200 字的剧情互动。
+1. 请根据“玩家对角色的喜爱度”来描写玩家的心理活动或细微动作（如果数值高，玩家应该表现得更在意角色）。（角色会一直爱玩家）
+2. 描写角色（${charName}）对玩家行为的反应。
+3. 使用第二人称“你”指代玩家。
+`;
+
+    // API 调用部分保持不变
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    if(!apiKey) {
+        try { const s = JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){}
+    }
+    if(!apiKey) return alert("请先配置 API Key");
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:systemPrompt}, {role:"user", content:userPrompt}],
+                temperature: 0.8
+            })
+        });
+        const json = await res.json();
+        const content = json.choices[0].message.content;
+        
+        showAdvDialog(content, "System"); // 默认用系统/玩家立绘
+        saveAdvHistory(userPrompt, content, window.currentAdvScene);
+        
+    } catch(e) {
+        alert("API Error: " + e.message);
+    }
+}
+
+// 3. 梦占模式逻辑 (拦截器)
+let pendingDreamCallback = null;
+let dreamDeck = [], dreamFlipped = [];
+
+function checkDreamMode(callback) {
+    const data = getAdvData();
+    if (data.dream_mode) {
+        pendingDreamCallback = callback;
+        openDreamDivinationTable();
+    } else {
+        callback(""); // 如果没开，直接回调空字符串
+    }
+}
+
+function openDreamDivinationTable() {
+    const modal = document.getElementById('dream-divination-modal');
+    const area = document.getElementById('dream-divination-area');
+    
+    // 初始化牌桌 (复用塔罗桌布)
+    idb.get('settings_heavy', 'tarot_table').then(res => {
+        if(res && res.data) document.getElementById('dream-divination-desk').style.backgroundImage = `url(${res.data})`;
+    });
+
+    area.innerHTML = '';
+    dreamDeck = []; dreamFlipped = [];
+    document.getElementById('dream-div-count').innerText = '0';
+
+    // 生成114张牌
+    for(let i=0; i<=77; i++) dreamDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) dreamDeck.push({ type:'lenormand', id:i, isReversed:false });
+    dreamDeck.sort(()=>Math.random()-0.5);
+
+    // 布局
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    dreamDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*6-3}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped');
+                dreamFlipped = dreamFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+            } else {
+                el.classList.add('flipped');
+                dreamFlipped.push(card);
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ 
+                    if(res && res.data) front.style.backgroundImage=`url(${res.data})`;
+                    else { front.style.background="#fff"; front.innerText=card.id; }
+                });
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('dream-div-count').innerText = dreamFlipped.length;
+        };
+        area.appendChild(el);
+    });
+
+    modal.style.display = 'flex';
+}
+
+function finishDreamDivination() {
+    if(dreamFlipped.length === 0) return alert("请至少抽一张牌！");
+    const cardsDesc = dreamFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    
+    document.getElementById('dream-divination-modal').style.display = 'none';
+    
+    if (pendingDreamCallback) {
+        pendingDreamCallback(`【塔罗梦占指引】：${cardsDesc} (请根据此牌意引导剧情走向)`);
+        pendingDreamCallback = null;
+    }
+}
+
+function cancelDreamDivination() {
+    document.getElementById('dream-divination-modal').style.display = 'none';
+    if (pendingDreamCallback) {
+        pendingDreamCallback(""); // 回调空
+        pendingDreamCallback = null;
+    }
+}
+
+// 4. 劫持文游逻辑 (实现 15% 随机剧情)
+const _originalExecuteAdvLogic = window.executeAdvLogic;
+window.executeAdvLogic = function(logicKey) {
+    // 15% 概率触发随机剧情
+    if (Math.random() < 0.15) {
+        // 获取原本应该发生的描述作为默认值
+        let defaultText = `你正准备${logicKey.replace(/_/g, ' ')}...`;
+        
+        document.getElementById('adv-random-input').value = defaultText;
+        document.getElementById('adv-random-modal').style.display = 'flex';
+        return;
+    }
+    
+    // 否则执行原逻辑
+    _originalExecuteAdvLogic(logicKey);
+}
+
+function confirmRandomEvent() {
+    const text = document.getElementById('adv-random-input').value;
+    document.getElementById('adv-random-modal').style.display = 'none';
+    
+    // 触发梦占检查 -> 然后调用 API
+    checkDreamMode((dreamContext) => {
+        callGlobalLLM(text, "random", dreamContext);
+    });
+}
+
+// 5. 扩展功能菜单 (注入到顶部状态栏)
+function injectAdvMenu() {
+    const bar = document.querySelector('.adv-top-bar');
+    if (!document.getElementById('btn-adv-menu')) {
+        const menuBtn = document.createElement('button');
+        menuBtn.id = 'btn-adv-menu';
+        menuBtn.innerText = "功能 🔽";
+        menuBtn.className = "adv-exit-btn"; // 复用样式
+        menuBtn.style.marginRight = "10px";
+        menuBtn.style.background = "#fff";
+        menuBtn.style.color = "#333";
+        
+        menuBtn.onclick = () => {
+            const data = getAdvData();
+            // 简单的 Prompt 菜单
+            const choice = prompt(
+                `===== 文游功能菜单 =====\n` +
+                `1. ${data.dream_mode ? '✅' : '⬜'} 梦占模式 (开关)\n` +
+                `2. 📅 约会系统\n` +
+                `3. 📖 历史回顾\n` +
+                `4. 🔚 结束这个世界\n` +
+                `请输入数字选择：`
+            );
+            
+            if (choice === '1') {
+                data.dream_mode = !data.dream_mode;
+                saveAdvData(data);
+                alert(`梦占模式已${data.dream_mode ? '开启' : '关闭'}！\n(开启后，每次生成剧情前都会先抽牌)`);
+            } else if (choice === '2') {
+                openDatingMenu();
+            } else if (choice === '3') {
+                openAdvHistory();
+            } else if (choice === '4') {
+                document.getElementById('adv-ending-modal').style.display = 'flex';
+            }
+        };
+        
+        bar.insertBefore(menuBtn, bar.lastElementChild); // 插在退出按钮前面
+    }
+    
+    // 注入大礼堂汇演按钮 (如果在大礼堂)
+    const container = document.getElementById('adv-scene-container');
+    if (window.currentAdvScene === 'school_hall' && !document.getElementById('btn-hall-show')) {
+        if (Math.random() < 0.2) { // 20% 概率出现
+            const btn = document.createElement('div');
+            btn.id = 'btn-hall-show';
+            btn.className = 'adv-btn pos-center';
+            btn.innerText = '🎭 学校文艺汇演';
+            btn.style.top = '40%';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const act = prompt("你要表演什么节目？");
+                if(act) {
+                    checkDreamMode((ctx) => callGlobalLLM(`我在学校大礼堂参加汇演，表演了${act}`, "event", ctx));
+                }
+            };
+            container.appendChild(btn);
+        }
+    }
+}
+
+// 劫持 renderAdvScene 来注入菜单
+const _originalRenderAdvScene = window.renderAdvScene;
+window.renderAdvScene = function(sceneId) {
+    window.currentAdvScene = sceneId; // 记录当前场景
+    _originalRenderAdvScene(sceneId);
+    setTimeout(injectAdvMenu, 50); // 延迟注入，防止被覆盖
+}
+
+// 6. 约会系统
+function openDatingMenu() {
+    const modal = document.getElementById('adv-date-modal');
+    const select = document.getElementById('date-location-select');
+    select.innerHTML = '';
+    
+    // 遍历所有场景作为选项
+    for (let key in ADV_SCENES) {
+        if (key.includes('room') || key.includes('map')) continue; // 排除房间和地图
+        const opt = document.createElement('option');
+        opt.value = key;
+        // 简单的名称映射
+        const mapName = {
+            'school_ground': '学校操场', 'park': '公园', 'mall_sweet': '甜品店', 
+            'travel_main': '旅行社', 'seaside': '海边', 'cinema': '电影院'
+        };
+        opt.innerText = mapName[key] || key;
+        select.appendChild(opt);
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function startDatingEvent() {
+    const loc = document.getElementById('date-location-select').value;
+    const act = document.getElementById('date-activity').value;
+    const time = document.getElementById('date-time').value;
+    const detail = document.getElementById('date-detail').value;
+    
+    if(!act) return alert("请填写约会项目！");
+    
+    document.getElementById('adv-date-modal').style.display = 'none';
+    
+        // 跳转场景
+    renderAdvScene(loc);
+    // 隐藏场景内的默认按钮，只留背景
+    const container = document.getElementById('adv-scene-container');
+    Array.from(container.children).forEach(c => c.style.display = 'none');
+
+    // 👇 新增：添加一个返回按钮 👇
+    const backBtn = document.createElement('div');
+    backBtn.className = 'adv-btn pos-btm-mid'; // 使用底部中间样式
+    backBtn.innerText = '🏠 结束约会返回';
+    backBtn.style.zIndex = '100'; // 确保在最上层
+    backBtn.onclick = () => {
+        renderAdvScene('main_map'); // 点击后强制回大地图
+    };
+    container.appendChild(backBtn);
+    
+    // 触发生成
+    checkDreamMode((dreamCtx) => {
+        const prompt = `我们正在约会！\n地点：${loc}\n时间：${time}\n项目：${act}\n详情：${detail}`;
+        callGlobalLLM(prompt, "date", dreamCtx);
+    });
+}
+
+// 7. 历史记录系统
+function saveAdvHistory(action, result, scene) {
+    const data = getAdvData();
+    if(!data.history) data.history = [];
+    
+    data.history.unshift({
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        scene: scene,
+        action: action,
+        result: result,
+        isImportant: false
+    });
+    
+    saveAdvData(data);
+}
+
+function openAdvHistory() {
+    const modal = document.getElementById('adv-history-modal');
+    const list = document.getElementById('adv-history-list');
+    const data = getAdvData();
+    
+    list.innerHTML = '';
+    (data.history || []).forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.padding = '10px';
+        div.innerHTML = `
+            <div style="font-size:0.8rem; color:#888; display:flex; justify-content:space-between;">
+                <span>${item.date} @ ${item.scene}</span>
+                <span onclick="deleteAdvHistory(${index})" style="color:red; cursor:pointer;">×</span>
+            </div>
+            <div style="font-weight:bold; margin:5px 0;">${item.action}</div>
+            <div style="font-size:0.9rem; color:#555; max-height:60px; overflow:hidden;">${item.result}</div>
+            <div style="text-align:right; margin-top:5px;">
+                <label><input type="checkbox" ${item.isImportant?'checked':''} onchange="toggleImportant(${index})"> ⭐ 设为重要回忆</label>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+    
+    modal.style.display = 'flex';
+}
+
+function toggleImportant(index) {
+    const data = getAdvData();
+    data.history[index].isImportant = !data.history[index].isImportant;
+    saveAdvData(data);
+}
+
+function deleteAdvHistory(index) {
+    const data = getAdvData();
+    data.history.splice(index, 1);
+    saveAdvData(data);
+    openAdvHistory(); // 刷新
+}
+// 8. 结局系统 (修复版：黑底白字 + 好感度定义修正)
+async function generateEnding() {
+    const data = getAdvData();
+    // 筛选重要回忆
+    const memories = (data.history || []).filter(h => h.isImportant).map(h => h.result).join("\n---\n");
+    
+    const btn = document.querySelector('#adv-ending-modal .m-btn.primary');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ 正在编写最终章..."; 
+    btn.disabled = true;
+
+    // 🔥 核心修正：明确告诉 AI 好感度是谁对谁的
+    const prompt = `
+这是这局游戏的最终结局。
+【玩家属性】：${JSON.stringify(data.attributes)}
+【玩家对角色的喜爱度/好感度】：${data.affection} (注意：数值越高代表玩家越喜欢角色，角色是被爱的一方)
+【重要回忆】：
+${memories || "（无重要回忆，平淡的一生）"}
+
+【任务】：
+请根据以上数据，生成一篇 600 字左右的结局故事。
+1. **情感判定**：
+   - 如果玩家好感度高：代表玩家深爱着角色。请描写角色面对这份深情的回应（是感动接受、还是傲娇、还是遗憾错过？）。
+   - 如果玩家好感度低：代表玩家对角色无感。请描写两人的渐行渐远。
+2. **结合属性**：根据玩家的属性（学习/才艺等）决定玩家的未来职业和人生走向。
+3. **风格**：深刻、唯美、具有电影结束的画面感。
+
+请直接输出结局正文。
+`;
+
+    // API 调用准备
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+
+    if(!apiKey) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            apiKey = s.key; apiUrl = s.url; model = s.model; 
+        } catch(e){}
+    }
+    
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
+    
+    if(!apiKey) {
+        btn.innerText = oldText; btn.disabled = false;
+        return alert("API Key Missing");
+    }
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Creative writer."}, {role:"user", content:prompt}],
+                temperature: 0.9
+            })
+        });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+        
+        const endingText = json.choices[0].message.content;
+        
+        // --- 🔴 修复点：创建全新的黑色全屏层，覆盖一切 ---
+        // 1. 关闭确认弹窗
+        document.getElementById('adv-ending-modal').style.display = 'none'; 
+        
+        // 2. 创建/获取结局层
+        let endLayer = document.getElementById('final-ending-overlay');
+        if (!endLayer) {
+            endLayer = document.createElement('div');
+            endLayer.id = 'final-ending-overlay';
+            endLayer.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: #000; color: #fff; z-index: 99999;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                padding: 40px; box-sizing: border-box; text-align: center;
+                animation: fadeIn 2s ease-in;
+            `;
+            document.body.appendChild(endLayer);
+        }
+        
+        // 3. 填充内容
+        endLayer.innerHTML = `
+            <div style="font-family: 'Old English Text MT', serif; font-size: 3rem; margin-bottom: 30px; letter-spacing: 5px;">THE END</div>
+            <div style="font-family: 'Songti SC', serif; font-size: 1.1rem; line-height: 2; max-width: 600px; max-height: 60vh; overflow-y: auto; text-align: justify;">
+                ${endingText.replace(/\n/g, '<br>')}
+            </div>
+            <button onclick="resetWorldAndClose()" style="margin-top: 40px; padding: 10px 30px; background: transparent; border: 1px solid #fff; color: #fff; cursor: pointer; border-radius: 20px;">
+                ↺ 开启新的轮回 (重置)
+            </button>
+        `;
+        endLayer.style.display = 'flex';
+
+        // 4. 定义重置函数 (挂载到 window 以便按钮调用)
+        window.resetWorldAndClose = function() {
+            // 重置数据
+            window.BIG_MEMORY.adv_data = {
+                name: "玩家", cleanliness: 100, money: 100, affection: 0,
+                attributes: { learning: 0, art: 0, talent: 0, fitness: 0 },
+                inventory: [], avatars: { user: "", char: "" },
+                history: [], dream_mode: false
+            };
+            saveAdvData(window.BIG_MEMORY.adv_data);
+            
+            // 关闭所有层
+            document.getElementById('final-ending-overlay').remove();
+            document.getElementById('adv-modal').style.display = 'none'; // 关闭游戏界面
+            
+            alert("✨ 世界线已重置，你回到了原点。");
+        };
+
+    } catch(e) {
+        alert("结局生成出错: " + e.message);
+        btn.innerText = oldText; 
+        btn.disabled = false;
+    }
+}
+// ============================================================
+// 🚀 【文游系统 Phase 3.5】交互体验优化补丁
+// ============================================================
+
+// --- 1. 全局变量：用于存储剧情队列 ---
+let advStoryQueue = []; // 存放切分后的剧情片段
+let advCurrentChunkIndex = 0; // 当前播放到第几段
+
+// --- 2. 玩家改名功能 (自动保存) ---
+window.editAdvName = function() {
+    const data = getAdvData();
+    const newName = prompt("请输入您的新昵称:", data.name);
+    
+    if (newName && newName.trim() !== "") {
+        data.name = newName.trim();
+        saveAdvData(data); // 保存到无限存储
+        updateAdvUI();     // 刷新界面
+        alert(`昵称已修改为：${newName}`);
+    }
+};
+
+// --- 3. 剧情切分与立绘判断核心逻辑 ---
+window.startAdvStory = function(fullText) {
+    const box = document.getElementById('adv-dialog-box');
+    box.style.display = 'flex'; // 显示对话框
+    
+    // 1. 按 20 字切分文本 (保留标点符号的完整性建议用正则，这里用简单切片)
+    const chunkSize = 20;
+    advStoryQueue = [];
+    
+    for (let i = 0; i < fullText.length; i += chunkSize) {
+        advStoryQueue.push(fullText.substring(i, i + chunkSize));
+    }
+    
+    advCurrentChunkIndex = 0;
+    renderCurrentChunk(); // 立即显示第一段
+};
+
+window.nextAdvDialogueChunk = function() {
+    advCurrentChunkIndex++;
+    if (advCurrentChunkIndex >= advStoryQueue.length) {
+        // 播放完毕，关闭对话框
+        document.getElementById('adv-dialog-box').style.display = 'none';
+        // 同时也隐藏立绘
+        updateTachieDisplay("hide_all");
+    } else {
+        renderCurrentChunk();
+    }
+};
+
+function renderCurrentChunk() {
+    const text = advStoryQueue[advCurrentChunkIndex];
+    const data = getAdvData();
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta"; // 获取角色名字
+    
+    // 更新文本
+    document.getElementById('adv-dialog-text').innerText = text;
+    
+    // --- 智能立绘判断逻辑 ---
+    // 优先级：角色名 > "你/我" > 旁白
+    
+    if (text.includes(charName) || text.includes("Ta") || text.includes("角色")) {
+        // ==> 角色说话/动作
+        document.getElementById('adv-dialog-name').innerText = charName;
+        updateTachieDisplay("char");
+        // 更新小头像
+        updateSmallAvatar("char");
+    } 
+    else if (text.includes("你") || text.includes(data.name) || text.includes("我")) {
+        // ==> 用户说话/动作
+        document.getElementById('adv-dialog-name').innerText = data.name;
+        updateTachieDisplay("user");
+        updateSmallAvatar("user");
+    } 
+    else {
+        // ==> 旁白/环境描写
+        document.getElementById('adv-dialog-name').innerText = ""; // 旁白不显示名字
+        updateTachieDisplay("hide_all"); // 也不显示立绘
+        document.getElementById('adv-dialog-img').style.backgroundImage = 'none'; // 隐藏小头像
+        document.getElementById('adv-dialog-img').style.backgroundColor = 'transparent';
+    }
+}
+
+// 辅助：控制立绘显示/隐藏
+function updateTachieDisplay(mode) {
+    const userImg = document.getElementById('adv-tachie-user');
+    const charImg = document.getElementById('adv-tachie-char');
+    const data = getAdvData(); // 获取上传的立绘数据
+
+    // 只有当用户上传了立绘才显示，否则保持隐藏
+    const hasUserArt = !!data.avatars.user;
+    const hasCharArt = !!data.avatars.char;
+
+    if (mode === "user" && hasUserArt) {
+        userImg.src = data.avatars.user;
+        userImg.style.display = 'block';
+        charImg.style.display = 'none';
+    } else if (mode === "char" && hasCharArt) {
+        charImg.src = data.avatars.char;
+        charImg.style.display = 'block';
+        userImg.style.display = 'none';
+    } else {
+        userImg.style.display = 'none';
+        charImg.style.display = 'none';
+    }
+}
+
+// 辅助：更新对话框左侧的小头像
+function updateSmallAvatar(who) {
+    const iconDiv = document.getElementById('adv-dialog-img');
+    iconDiv.style.backgroundColor = '#ccc'; // 默认底色
+    
+    if (who === "user" && ADV_CACHE.lineUserAvatar) {
+        iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+    } else if (who === "char" && ADV_CACHE.lineCharAvatar) {
+        iconDiv.style.backgroundImage = `url(${ADV_CACHE.lineCharAvatar})`;
+    }
+}
+
+// --- 4. 覆盖原有的 API 调用函数 (对接新显示逻辑) ---
+window.callGlobalLLM = async function(userPrompt, type = "normal", extraContext = "") {
+    const data = getAdvData();
+    const wb = getWBData();
+    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta"; 
+
+    // 构建提示词
+    const systemPrompt = `
+你是一个高自由度文字冒险游戏(MUD)的GM。
+【世界观】：${globalCtx}
+【玩家信息】：昵称"${data.name}"。
+【角色名字】："${charName}"。
+【当前位置】：${window.currentAdvScene || "未知场景"}
+${extraContext}
+
+【任务】：
+生成一段 100-200 字的剧情互动。
+**规则**：
+1. 必须包含"${charName}"的反应和动作。
+2. 使用第二人称"你"指代玩家。
+3. 请将角色的名字"${charName}"明确写在剧情中，以便系统识别显示立绘。
+4. 如果是"传纸条"，内容必须是角色写在纸条上的话。
+`;
+
+    // 模拟等待
+    showAdvDialog("正在生成剧情...", "System");
+
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) {
+        try { const s = JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){}
+    }
+    if(!apiKey) return alert("请先配置 API Key");
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:systemPrompt}, {role:"user", content:userPrompt}],
+                temperature: 0.8
+            })
+        });
+        const json = await res.json();
+        const content = json.choices[0].message.content;
+        
+        // 🔥 核心改变：使用新的打字机系统启动剧情
+        startAdvStory(content);
+        
+        // 保存历史
+        saveAdvHistory(userPrompt, content, window.currentAdvScene);
+        
+    } catch(e) {
+        alert("API Error: " + e.message);
+        document.getElementById('adv-dialog-box').style.display = 'none';
+    }
+};
+
+// --- 5. 传纸条逻辑修正 (确保触发角色立绘) ---
+const _origExecuteAdvLogic = window.executeAdvLogic;
+window.executeAdvLogic = function(logicKey) {
+    if (logicKey === 'pass_note') {
+        const input = prompt("在纸条上写什么？");
+        if (input) {
+            // 这里我们特别标注 "传纸条"，让 AI 知道是角色互动
+            callGlobalLLM(`我传了一张纸条给角色，上面写着："${input}"`, "interact", "【特殊指令】请描写角色收到纸条后的反应，并写出ta的回信内容。");
+        }
+    } else {
+        // 其他逻辑走原函数 (如果原函数里有硬编码的 msg，我们需要拦截它改用 startAdvStory)
+        // 为了简单，我们重写 switch 部分，把 showAdvDialog 替换为 startAdvStory
+        
+        const data = getAdvData();
+        let msg = "";
+        
+        // 复用之前的逻辑，但改成生成字符串
+        switch(logicKey) {
+            case 'study': modAdv({ attributes: { learning: rnd(1,3) } }); msg = `你翻开书本认真学习... (学习+${rnd(1,3)})`; break;
+            case 'daydream': msg = "你望着窗外发了一会儿呆，云朵像棉花糖一样..."; break;
+            // ... 其他不需要 AI 生成的简单逻辑 ...
+            // 剩下的保留原样，如果是购买物品等，直接弹窗即可
+            default: _origExecuteAdvLogic(logicKey); return; 
+        }
+        
+        if (msg) startAdvStory(msg);
+    }
+};
+
+// --- 6. 历史记录展开修复 ---
+window.openAdvHistory = function() {
+    const modal = document.getElementById('adv-history-modal');
+    const list = document.getElementById('adv-history-list');
+    const data = getAdvData();
+    
+    list.innerHTML = '';
+    
+    if(!data.history || data.history.length === 0) {
+        list.innerHTML = "<div style='text-align:center;color:#999;'>暂无回忆</div>";
+    }
+
+    (data.history || []).forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'adv-history-item'; // 使用新的 CSS 类
+        div.onclick = function() { this.classList.toggle('expanded'); }; // 点击展开/收起
+        
+        div.innerHTML = `
+            <div class="adv-history-summary">
+                <span>${item.date} @ ${item.scene}</span>
+                <span>${item.action.substring(0, 10)}...</span>
+            </div>
+            <div class="adv-history-detail">
+                <strong>你的行动：</strong>${item.action}<br><br>
+                <strong>剧情发生：</strong><br>${item.result}
+            </div>
+            <div style="text-align:right; margin-top:5px; font-size:0.8rem;">
+                <label onclick="event.stopPropagation()"><input type="checkbox" ${item.isImportant?'checked':''} onchange="toggleImportant(${index})"> ⭐ 设为重要回忆</label>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+    
+    modal.style.display = 'flex';
+};
+
+console.log("✅ 文游体验补丁已加载 (点击翻页 / 立绘判定 / 名字修改 / 历史展开)");
+// ============================================================
+// 🛠️ 文游修复补丁 V2：名字自定义 & 传纸条定向优化
+// ============================================================
+
+// 1. 【重写】换衣间渲染：增加名字设置输入框
+window.renderClosetUI = function() {
+    // 确保数据结构存在
+    if (!window.BIG_MEMORY.adv_data) window.BIG_MEMORY.adv_data = {};
+    const data = window.BIG_MEMORY.adv_data;
+    
+    // 初始化名字字段 (如果不存在)
+    if (!data.name) data.name = "玩家";
+    if (!data.charName) data.charName = "Ta"; // 默认为 Ta
+
+    const container = document.getElementById('adv-scene-container');
+    container.innerHTML = ''; 
+    container.style.backgroundImage = 'none'; 
+    container.style.backgroundColor = '#fdfbf7';
+    
+    // 允许点击名字直接修改
+    const html = `
+    <div class="closet-container">
+        <div class="closet-header">
+            <h3>👗 换衣间 & 设定</h3>
+            <button class="m-btn small" onclick="renderAdvScene('home_room')">🔙 完成并离开</button>
+        </div>
+
+        <!-- 🔴 新增：名字设定区域 -->
+        <div class="morandi-card" style="padding:15px; margin-bottom:15px; background:#fff;">
+            <h4 style="margin:0 0 10px 0; color:#5d4037;">📝 称呼设定 (决定立绘显示)</h4>
+            <div class="input-group">
+                <label>你的名字 (左侧立绘)</label>
+                <input type="text" id="set-adv-user" value="${data.name}" onblur="saveAdvNames()" style="border:1px solid #8d6e63; color:#5d4037;">
+            </div>
+            <div class="input-group" style="margin-top:10px;">
+                <label>角色名字 (右侧立绘)</label>
+                <input type="text" id="set-adv-char" value="${data.charName}" onblur="saveAdvNames()" style="border:1px solid #8d6e63; color:#5d4037;">
+            </div>
+            <div style="font-size:0.7rem; color:#aaa; margin-top:5px;">* 修改后，剧情中出现该名字时会自动显示对应立绘。</div>
+        </div>
+
+        <div class="closet-avatars">
+            <div class="closet-avatar-box" onclick="document.getElementById('upload-user-adv').click()">
+                ${data.avatars.user ? `<img src="${data.avatars.user}">` : '<span>点击上传<br>你的立绘</span>'}
+            </div>
+            <div class="closet-avatar-box" onclick="document.getElementById('upload-char-adv').click()">
+                ${data.avatars.char ? `<img src="${data.avatars.char}">` : '<span>点击上传<br>角色立绘</span>'}
+            </div>
+        </div>
+        <input type="file" id="upload-user-adv" style="display:none" onchange="uploadAdvImg('user', this)">
+        <input type="file" id="upload-char-adv" style="display:none" onchange="uploadAdvImg('char', this)">
+
+        <table class="attr-table">
+            <tr><td>📚 学习</td><td>${data.attributes.learning}</td></tr>
+            <tr><td>🎨 画画</td><td>${data.attributes.art}</td></tr>
+            <tr><td>🎻 才艺</td><td>${data.attributes.talent}</td></tr>
+            <tr><td>🏃 体能</td><td>${data.attributes.fitness}</td></tr>
+            <tr><td>❤️ 对${data.charName}的好感</td><td>${data.affection}</td></tr>
+            <tr><td>✨ 清洁度</td><td>${Math.floor(data.cleanliness)}%</td></tr>
+            <tr><td>💰 金钱</td><td>${Math.floor(data.money)}</td></tr>
+        </table>
+
+        <div style="font-weight:bold; margin-bottom:10px;">👜 我的背包</div>
+        <div class="inv-list" id="adv-inv-list"></div>
+    </div>`;
+    
+    container.innerHTML = html;
+    renderInventoryItems();
+    hideAdvDialog();
+};
+
+// 新增：保存名字逻辑
+window.saveAdvNames = function() {
+    const data = getAdvData();
+    const uName = document.getElementById('set-adv-user').value.trim();
+    const cName = document.getElementById('set-adv-char').value.trim();
+    
+    if(uName) data.name = uName;
+    if(cName) data.charName = cName;
+    
+    saveAdvData(data); // 保存到无限存储
+    // 更新顶部UI
+    document.getElementById('adv-user-name').innerText = data.name;
+};
+
+// 2. 【重写】立绘显示逻辑：严格匹配自定义名字
+window.renderCurrentChunk = function() {
+    const text = advStoryQueue[advCurrentChunkIndex];
+    const data = getAdvData();
+    
+    // 获取当前设定的名字
+    const userName = data.name || "玩家";
+    const charName = data.charName || "Ta";
+    
+    // 更新文本
+    document.getElementById('adv-dialog-text').innerText = text;
+    
+    // --- 智能立绘判断 (优先级：角色 > 用户) ---
+    
+    // 1. 检查是否包含【角色名字】
+    if (text.includes(charName) || text.includes("角色")) {
+        document.getElementById('adv-dialog-name').innerText = charName;
+        updateTachieDisplay("char"); // 显示右边
+        updateSmallAvatar("char");
+    } 
+    // 2. 检查是否包含【用户名字】或 "你"/"我"
+    else if (text.includes(userName) || text.includes("你") || text.includes("我")) {
+        document.getElementById('adv-dialog-name').innerText = userName;
+        updateTachieDisplay("user"); // 显示左边
+        updateSmallAvatar("user");
+    } 
+    // 3. 旁白
+    else {
+        document.getElementById('adv-dialog-name').innerText = ""; 
+        updateTachieDisplay("hide_all"); 
+        document.getElementById('adv-dialog-img').style.backgroundImage = 'none';
+        document.getElementById('adv-dialog-img').style.backgroundColor = 'transparent';
+    }
+};
+
+// 3. 【重写】传纸条逻辑：强制角色回复
+// 覆盖原有的 executeAdvLogic 中的 switch 部分
+const _origLogicV2 = window.executeAdvLogic;
+window.executeAdvLogic = function(logicKey) {
+    if (logicKey === 'pass_note') {
+        const input = prompt("在纸条上写什么？");
+        if (input) {
+            const data = getAdvData();
+            const charName = data.charName || "Ta";
+            
+            // 🔥 核心修改：在 Prompt 中强制要求 AI 以 "[角色名]: 内容" 的格式回复
+            // 这样上面的 renderCurrentChunk 就能检测到角色名，从而显示右侧立绘
+            const notePrompt = `
+我传了一张纸条给${charName}，上面写着："${input}"。
+【指令】：请生成${charName}看到纸条后的反应动作，以及${charName}在纸条上回复的内容。
+必须在回复内容中包含"${charName}"这个名字。
+`;
+            callGlobalLLM(notePrompt, "interact");
+        }
+    } else {
+        // 其他逻辑保持不变，但为了确保立绘判定，稍微修改普通逻辑的输出
+        const data = getAdvData();
+        let msg = "";
+        
+        switch(logicKey) {
+            case 'study': 
+                modAdv({ attributes: { learning: rnd(1,3) } }); 
+                // 加上"你"，触发左侧立绘
+                msg = `你翻开书本认真学习... (学习属性上升)`; 
+                break;
+            case 'daydream': 
+                msg = "你望着窗外发了一会儿呆，云朵像棉花糖一样..."; 
+                break;
+            case 'cook_food':
+                const f = rnd(0,3); modAdv({}); if(f>0) advAddItem("料理",f,"food"); 
+                msg = `你在厨房忙碌了一阵，做了 ${f} 份料理。`; 
+                break;
+            case 'park_walk':
+                modAdv({affection:2}); 
+                // 加上角色名，触发右侧立绘
+                msg = `${data.charName || "Ta"}陪你在公园散步，心情看起来不错。(好感+2)`; 
+                break;
+            default: 
+                // 调用原始逻辑处理购买等
+                _origLogicV2(logicKey); 
+                return; 
+        }
+        
+        if (msg) startAdvStory(msg);
+    }
+};
+
+console.log("✅ 文游补丁 V2 加载完毕：名字自定义 + 传纸条立绘修正");
+// ============================================================
+// 🎨 立绘逻辑修正：旁白默认显示玩家
+// ============================================================
+
+window.renderCurrentChunk = function() {
+    const text = advStoryQueue[advCurrentChunkIndex];
+    const data = getAdvData();
+    
+    // 获取当前设定的名字
+    const userName = data.name || "玩家";
+    const charName = data.charName || "Ta";
+    
+    // 更新文本内容
+    document.getElementById('adv-dialog-text').innerText = text;
+    
+    // --- 智能立绘判断 (优先级：角色 > 默认玩家) ---
+    
+    // 1. 如果文本包含【角色名字】或 "角色" -> 切换到右侧立绘
+    if (text.includes(charName) || text.includes("角色")) {
+        document.getElementById('adv-dialog-name').innerText = charName;
+        updateTachieDisplay("char"); // 显示右边
+        updateSmallAvatar("char");   // 切换小头像
+    } 
+    // 2. 其他情况 (包含 "你"/"我" 或者 纯旁白) -> 全部默认显示玩家立绘
+    else {
+        // 如果文本里明确有玩家名字，名字栏显示名字；如果是旁白，名字栏留空
+        if (text.includes(userName) || text.includes("你") || text.includes("我")) {
+            document.getElementById('adv-dialog-name').innerText = userName;
+        } else {
+            // 旁白模式：名字栏为空，但立绘依旧显示玩家
+            document.getElementById('adv-dialog-name').innerText = ""; 
+        }
+        
+        // 关键修改：无论是否旁白，都强制显示用户立绘
+        updateTachieDisplay("user"); // 显示左边
+        updateSmallAvatar("user");   // 切换小头像
+    }
+};
+
+console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
 </script>
 <!-- ================= 🔴 学习总结 APP 修复补丁 END 🔴 ================= -->
 <div id="lofter-modal" class="modal-overlay" style="background:#fff;">
@@ -26212,7 +28177,7 @@ const REQUIRED_KEYS = [
     'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
     'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
     'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
-    'puzzle_data', 'work_data', 'witch_data','gacha_data', 'tacit_data' // ✅ 已添加 tacit_data
+    'puzzle_data', 'work_data', 'witch_data','gacha_data', 'tacit_data' ,'adv_data' 
 ];
 
 // 2. 通用保存函数 (写入 IndexedDB 无限存储)
