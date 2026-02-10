@@ -29760,5 +29760,231 @@ setTimeout(async () => {
     }
 }, 3000);
 </script>
+<!-- ================= 🚑 文游紧急修复补丁 START ================= -->
+<script>
+(function() {
+    console.log("正在执行文游数据修复与界面调整...");
 
+    // 1. 强制数据修复函数
+    // 解决 NaN 问题，防止因数据为空导致的白屏
+    function repairAdvData() {
+        if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+        
+        // 如果数据完全不存在，初始化为空对象
+        let data = window.BIG_MEMORY.adv_data || {};
+
+        // 补全基础属性
+        if (typeof data.money !== 'number') data.money = 100;
+        if (typeof data.cleanliness !== 'number') data.cleanliness = 100;
+        if (typeof data.affection !== 'number') data.affection = 0;
+        if (!data.name) data.name = "玩家";
+        if (!data.charName) data.charName = "Ta";
+
+        // 补全属性对象 (这是导致白屏的关键)
+        if (!data.attributes) {
+            data.attributes = { learning: 0, art: 0, talent: 0, fitness: 0 };
+        }
+        
+        // 补全背包和立绘
+        if (!Array.isArray(data.inventory)) data.inventory = [];
+        if (!data.avatars) data.avatars = { user: "", char: "" };
+
+        // 写回内存和数据库
+        window.BIG_MEMORY.adv_data = data;
+        if (typeof idb !== 'undefined' && idb.put) {
+            idb.put('universal_store', { id: 'adv_data', data: data });
+        }
+        
+        console.log("✅ 文游数据已修复");
+        return data;
+    }
+
+    // 2. 重写更衣室渲染函数 (增加防崩溃保护)
+    window.renderClosetUI = function() {
+        // 先修复数据，确保不报错
+        const data = repairAdvData();
+        
+        const container = document.getElementById('adv-scene-container');
+        if(!container) return;
+
+        container.innerHTML = ''; 
+        container.style.backgroundImage = 'none'; 
+        container.style.backgroundColor = '#fdfbf7';
+        
+        // 安全获取属性，防止 undefined
+        const attr = data.attributes || { learning: 0, art: 0, talent: 0, fitness: 0 };
+
+        const html = `
+        <div class="closet-container">
+            <div class="closet-header">
+                <h3>👗 换衣间 & 设定</h3>
+                <button class="m-btn small" onclick="renderAdvScene('home_room')">🔙 完成并离开</button>
+            </div>
+
+            <!-- 名字设定 -->
+            <div class="morandi-card" style="padding:15px; margin-bottom:15px; background:#fff;">
+                <h4 style="margin:0 0 10px 0; color:#5d4037;">📝 档案卡</h4>
+                <div class="input-group">
+                    <label>你的名字</label>
+                    <input type="text" id="set-adv-user" value="${data.name}" onblur="saveAdvNames()" style="border:1px solid #8d6e63; color:#5d4037;">
+                </div>
+                <div class="input-group" style="margin-top:10px;">
+                    <label>角色名字</label>
+                    <input type="text" id="set-adv-char" value="${data.charName||'Ta'}" onblur="saveAdvNames()" style="border:1px solid #8d6e63; color:#5d4037;">
+                </div>
+            </div>
+
+            <!-- 立绘上传 -->
+            <div class="closet-avatars">
+                <div class="closet-avatar-box" onclick="document.getElementById('upload-user-adv').click()">
+                    ${data.avatars.user ? `<img src="${data.avatars.user}">` : '<span style="font-size:0.8rem; color:#999;">点击上传<br>你的立绘</span>'}
+                </div>
+                <div class="closet-avatar-box" onclick="document.getElementById('upload-char-adv').click()">
+                    ${data.avatars.char ? `<img src="${data.avatars.char}">` : '<span style="font-size:0.8rem; color:#999;">点击上传<br>角色立绘</span>'}
+                </div>
+            </div>
+            <input type="file" id="upload-user-adv" style="display:none" onchange="uploadAdvImg('user', this)">
+            <input type="file" id="upload-char-adv" style="display:none" onchange="uploadAdvImg('char', this)">
+
+            <!-- 属性表格 -->
+            <table class="attr-table">
+                <tr><td>📚 学习</td><td>${attr.learning}</td></tr>
+                <tr><td>🎨 画画</td><td>${attr.art}</td></tr>
+                <tr><td>🎻 才艺</td><td>${attr.talent}</td></tr>
+                <tr><td>🏃 体能</td><td>${attr.fitness}</td></tr>
+                <tr><td>❤️ 好感度</td><td>${data.affection}</td></tr>
+                <tr><td>✨ 清洁度</td><td>${Math.floor(data.cleanliness || 0)}%</td></tr>
+                <tr><td>💰 金钱</td><td>${Math.floor(data.money || 0)}</td></tr>
+            </table>
+
+            <div style="font-weight:bold; margin-bottom:10px;">👜 我的背包</div>
+            <div class="inv-list" id="adv-inv-list"></div>
+        </div>`;
+        
+        container.innerHTML = html;
+        if(typeof renderInventoryItems === 'function') renderInventoryItems();
+        
+        // 隐藏不需要的对话框
+        if(typeof hideAdvDialog === 'function') hideAdvDialog();
+    };
+
+    // 3. 增强版界面刷新 (解决 NaN 显示)
+    const _origUpdateUI = window.updateAdvUI;
+    window.updateAdvUI = function() {
+        const data = repairAdvData(); // 获取修复后的数据
+        
+        // 顶部小头像
+        const avatarEl = document.getElementById('adv-user-avatar');
+        if(avatarEl) {
+            if (typeof ADV_CACHE !== 'undefined' && ADV_CACHE.lineUserAvatar) {
+                avatarEl.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+            } else {
+                avatarEl.style.backgroundColor = '#ccc';
+            }
+        }
+        
+        // 更新文字，确保不是 NaN
+        const nameEl = document.getElementById('adv-user-name');
+        const cleanEl = document.getElementById('adv-stat-clean');
+        const moneyEl = document.getElementById('adv-stat-money');
+
+        if(nameEl) nameEl.innerText = data.name;
+        if(cleanEl) cleanEl.innerText = Math.floor(data.cleanliness || 0);
+        if(moneyEl) moneyEl.innerText = Math.floor(data.money || 0);
+    };
+
+    // 4. 立即执行一次修复
+    setTimeout(() => {
+        repairAdvData();
+        if(document.getElementById('adv-modal').style.display === 'flex') {
+            updateAdvUI();
+        }
+    }, 1000);
+
+})();
+</script>
+
+<style>
+/* ================= 🎨 界面优化样式 ================= */
+
+/* 1. 修复主界面栏长度 (让它更高、更宽、布局更合理) */
+.adv-top-bar {
+    height: auto !important;       /* 允许高度自适应 */
+    min-height: 100px !important;  /* 增加最小高度 */
+    padding: 15px 20px !important; /* 增加内边距 */
+    padding-top: max(15px, env(safe-area-inset-top)) !important; /* 适配刘海屏 */
+    
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+    
+    display: flex !important;
+    align-items: flex-start !important; /* 顶部对齐 */
+    justify-content: space-between !important;
+    z-index: 200 !important;
+}
+
+/* 用户信息区域加宽 */
+.adv-user-info {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
+}
+
+/* 头像稍大一点 */
+.adv-avatar {
+    width: 55px !important;
+    height: 55px !important;
+    border: 2px solid #2c3e50 !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+}
+
+/* 属性文字区域优化 */
+.adv-stats {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
+#adv-user-name {
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    color: #2c3e50 !important;
+    margin-bottom: 4px !important;
+}
+
+.adv-stats span:last-child {
+    font-size: 0.85rem !important;
+    color: #555 !important;
+    background: #f0f0f0 !important;
+    padding: 2px 8px !important;
+    border-radius: 10px !important;
+}
+
+/* 退出按钮样式优化 */
+.adv-exit-btn {
+    padding: 8px 15px !important;
+    height: 40px !important;
+    align-self: center !important; /* 垂直居中 */
+    background: #2c3e50 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 0 #1a252f !important; /* 立体感 */
+    border: none !important;
+    font-size: 0.9rem !important;
+}
+.adv-exit-btn:active {
+    transform: translateY(2px) !important;
+    box-shadow: 0 2px 0 #1a252f !important;
+}
+
+/* 修复更衣室不显示的问题 (确保容器有高度和背景) */
+.closet-container {
+    background: #fff !important;
+    min-height: 100% !important;
+    padding-bottom: 100px !important;
+}
+</style>
+<!-- ================= 🚑 文游紧急修复补丁 END ================= -->
 </html> 
