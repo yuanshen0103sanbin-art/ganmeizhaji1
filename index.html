@@ -3748,9 +3748,15 @@ canvas {
     left: -10%; /* 用户立绘稍微偏左 */
     transform: scale(0.9); /* 用户稍微小一点显远 */
 }
+
 .tachie-right {
-    right: -10%; /* 角色立绘在右 */
-    transform: scale(1.0); /* 角色稍微大一点显近 */
+    transform-origin: bottom right;
+    /* 👇 新增/修改以下这几行 👇 */
+    position: absolute !important;  /* 强制绝对定位 */
+    right: -10% !important;         /* 强制靠右 (负数是为了稍微露出一半，可改为 0) */
+    bottom: 0 !important;           /* 强制沉底 */
+    left: auto !important;          /* 确保左边不生效 */
+    display: none;                  /* 默认隐藏，由 JS 控制显示 */
 }
 
 /* 3. 历史记录展开样式 */
@@ -23014,7 +23020,11 @@ function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + mi
 
 function modAdv(updates, costClean = true) {
     const data = getAdvData();
+    
+    // 1. 行动消耗清洁度
     if (costClean) data.cleanliness = Math.max(0, data.cleanliness - 3);
+    
+    // 2. 更新属性
     for (let key in updates) {
         if (typeof updates[key] === 'object') {
             for (let subKey in updates[key]) data[key][subKey] = (data[key][subKey] || 0) + updates[key][subKey];
@@ -23022,7 +23032,11 @@ function modAdv(updates, costClean = true) {
             data[key] = (data[key] || 0) + updates[key];
         }
     }
-    data.cleanliness = Math.min(100, data.cleanliness);
+    
+    // 🔥【修复补丁】强制将清洁度限制在 0 到 100 之间
+    if (data.cleanliness < 0) data.cleanliness = 0;
+    if (data.cleanliness > 100) data.cleanliness = 100;
+    
     saveAdvData(data);
 }
 
@@ -23538,28 +23552,66 @@ window.renderAdvScene = function(sceneId) {
 }
 
 // 6. 约会系统
+
 function openDatingMenu() {
     const modal = document.getElementById('adv-date-modal');
     const select = document.getElementById('date-location-select');
     select.innerHTML = '';
     
-    // 遍历所有场景作为选项
-    for (let key in ADV_SCENES) {
-        if (key.includes('room') || key.includes('map')) continue; // 排除房间和地图
+    // 🔥【修改补丁】场景 ID 与中文名称的完整映射表 (27+个场景)
+    // 键(Key)是代码逻辑用的 ID，值(Value)是显示的中文
+    const sceneMap = {
+        // 学校区域
+        'school_main': '🏫 学校正门',
+        'school_corridor': '🏫 教学楼走廊',
+        'class_room': '📚 教室',
+        'class_kitchen': '🍳 料理教室',
+        'class_piano': '🎹 钢琴房',
+        'class_art': '🎨 画室',
+        'school_hall': '🎭 大礼堂',
+        'school_gym': '🏸 体育馆',
+        'school_ground': '🏃 学校操场',
+        
+        // 商场区域
+        'mall_main': '🏬 商场中心',
+        'mall_gift': '🎁 礼物店',
+        'mall_clothes': '👗 服装店',
+        'mall_sweet': '🍰 甜品店',
+        'mall_walk': '🛍️ 步行街',
+        'mall_food': '🍢 小吃街',
+        
+        // 旅行与户外
+        'travel_main': '✈️ 旅行社',
+        'park': '🌳 公园',
+        'outside': '🏖️ 沙滩/户外',
+        'seaside': '🌊 海边',
+        'seaside_hut': '🛖 海边小屋',
+        'sakura': '🌸 樱花公园',
+        'new_year': '🧧 新年广场',
+        'church': '⛪ 教堂',
+        
+        // 设施与家中
+        'store': '🏪 便利店',
+        'hospital': '🏥 医院',
+        'hospital_room': '💉 VIP病房',
+        'cafe': '☕ 咖啡厅',
+        'home_room': '🏠 我的房间',
+        'home_bath': '🛁 浴室'
+    };
+
+    // 遍历映射表生成选项
+    for (let id in sceneMap) {
+        // 如果需要排除某些不适合约会的地方(比如主地图)，可以在这里加判断
+        if (id === 'main_map') continue; 
+
         const opt = document.createElement('option');
-        opt.value = key;
-        // 简单的名称映射
-        const mapName = {
-            'school_ground': '学校操场', 'park': '公园', 'mall_sweet': '甜品店', 
-            'travel_main': '旅行社', 'seaside': '海边', 'cinema': '电影院'
-        };
-        opt.innerText = mapName[key] || key;
+        opt.value = id;          // 关键：传给逻辑的是英文 ID
+        opt.innerText = sceneMap[id]; // 关键：显示给用户的是中文
         select.appendChild(opt);
     }
     
     modal.style.display = 'flex';
 }
-
 function startDatingEvent() {
     const loc = document.getElementById('date-location-select').value;
     const act = document.getElementById('date-activity').value;
@@ -23955,6 +24007,7 @@ ${extraContext}
 // --- 5. 传纸条逻辑修正 (确保触发角色立绘) ---
 const _origExecuteAdvLogic = window.executeAdvLogic;
 window.executeAdvLogic = function(logicKey) {
+
     if (logicKey === 'pass_note') {
         const input = prompt("在纸条上写什么？");
         if (input) {
@@ -24142,22 +24195,29 @@ window.renderCurrentChunk = function() {
 // 覆盖原有的 executeAdvLogic 中的 switch 部分
 const _origLogicV2 = window.executeAdvLogic;
 window.executeAdvLogic = function(logicKey) {
-    if (logicKey === 'pass_note') {
-        const input = prompt("在纸条上写什么？");
-        if (input) {
-            const data = getAdvData();
-            const charName = data.charName || "Ta";
-            
-            // 🔥 核心修改：在 Prompt 中强制要求 AI 以 "[角色名]: 内容" 的格式回复
-            // 这样上面的 renderCurrentChunk 就能检测到角色名，从而显示右侧立绘
-            const notePrompt = `
-我传了一张纸条给${charName}，上面写着："${input}"。
-【指令】：请生成${charName}看到纸条后的反应动作，以及${charName}在纸条上回复的内容。
-必须在回复内容中包含"${charName}"这个名字。
-`;
-            callGlobalLLM(notePrompt, "interact");
-        }
-    } else {
+  // --- 找到 window.executeAdvLogic 函数内部 ---
+
+if (logicKey === 'pass_note') {
+    // 1. 定义随机内容池
+    const notes = [
+        "你们俩被老师叫起来罚站了。",
+        "他给你传了张纸条，你打开后发现是：爱你。",
+        "他给你传了纸条：要不要下课后一起去吃饭？"
+    ];
+    // 2. 随机抽取一句
+    const randomNote = notes[Math.floor(Math.random() * notes.length)];
+    
+    // 3. 增加好感度 (可选)
+    modAdv({ affection: 2 });
+
+    // 4. 直接显示对话 (第二个参数 "Character" 会强制触发右侧立绘)
+    // 注意：这里我们直接调用 showAdvDialog 即可，不用走 AI 生成了
+    showAdvDialog(randomNote, "Character");
+    
+    // 5. 存入历史记录
+    saveAdvHistory("传纸条", randomNote, window.currentAdvScene);
+} 
+else {
         // 其他逻辑保持不变，但为了确保立绘判定，稍微修改普通逻辑的输出
         const data = getAdvData();
         let msg = "";
@@ -29987,4 +30047,5 @@ setTimeout(async () => {
 }
 </style>
 <!-- ================= 🚑 文游紧急修复补丁 END ================= -->
+
 </html> 
