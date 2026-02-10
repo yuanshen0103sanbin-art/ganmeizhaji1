@@ -23342,7 +23342,11 @@ function renderInventoryItems() {
     const listEl = document.getElementById('adv-inv-list');
     if(!listEl) return;
     listEl.innerHTML = '';
-    if (!data.inventory || data.inventory.length === 0) { listEl.innerHTML = '<div style="color:#999;text-align:center;">空空如也...</div>'; return; }
+    
+    if (!data.inventory || data.inventory.length === 0) { 
+        listEl.innerHTML = '<div style="color:#999;text-align:center;">空空如也...</div>'; 
+        return; 
+    }
     
     data.inventory.forEach((item, index) => {
         if(item.count <= 0) return;
@@ -23355,6 +23359,12 @@ function renderInventoryItems() {
             </div>`;
         listEl.appendChild(div);
     });
+
+    // 👇👇👇 新增：添加底部占位，防止被遮挡 👇👇👇
+    const spacer = document.createElement('div');
+    spacer.style.height = "150px"; // 足够的高度
+    spacer.style.flexShrink = "0"; // 防止被压缩
+    listEl.appendChild(spacer);
 }
 
 function handleItemAction(action, index) {
@@ -24136,10 +24146,15 @@ window.openAdvHistory = function() {
         div.className = 'adv-history-item'; // 使用新的 CSS 类
         div.onclick = function() { this.classList.toggle('expanded'); }; // 点击展开/收起
         
+                // ... 在 forEach 循环内部 ...
         div.innerHTML = `
             <div class="adv-history-summary">
-                <span>${item.date} @ ${item.scene}</span>
-                <span>${item.action.substring(0, 10)}...</span>
+                <div style="display:flex; flex-direction:column;">
+                    <span>${item.date} @ ${item.scene}</span>
+                    <span style="font-size:0.8rem; opacity:0.7;">${item.action.substring(0, 10)}...</span>
+                </div>
+                <!-- 👇 新增删除按钮 👇 -->
+                <div onclick="event.stopPropagation(); deleteAdvHistory(${index})" style="color:#ff6b6b; font-weight:bold; padding:5px 10px;">×</div>
             </div>
             <div class="adv-history-detail">
                 <strong>你的行动：</strong>${item.action}<br><br>
@@ -24299,9 +24314,7 @@ if (logicKey === 'pass_note') {
     // 注意：这里我们直接调用 showAdvDialog 即可，不用走 AI 生成了
     showAdvDialog(randomNote, "Character");
     
-    // 5. 存入历史记录
-    saveAdvHistory("传纸条", randomNote, window.currentAdvScene);
-} 
+    } 
 else {
         // 其他逻辑保持不变，但为了确保立绘判定，稍微修改普通逻辑的输出
         const data = getAdvData();
