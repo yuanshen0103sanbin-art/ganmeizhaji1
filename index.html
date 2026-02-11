@@ -22872,11 +22872,12 @@ window.generateGalgameEndingAPI = async function() {
 </div>
 <!-- 💍 结婚证书签字弹窗 -->
 <div id="marriage-cert-modal" class="modal-overlay" style="background:rgba(0,0,0,0.8); z-index:20000; display:none; align-items:center; justify-content:center;">
-    <div style="position:relative; width:90%; max-width:600px;">
-        <img src="https://i.postimg.cc/Nf9QVP0M/IMG_2144.jpg" style="width:100%; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2);">
-        <!-- 签名画布区域 -->
-        <canvas id="cert-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair; touch-action:none;"></canvas>
-        
+  <div style="position:relative; width:90%; max-width:600px;">
+    <!-- 修改点：添加 opacity: 0; 让它隐身，只起撑开布局的作用 -->
+    <img src="https://i.postimg.cc/Nf9QVP0M/IMG_2144.jpg" style="width:100%; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); opacity: 0;">
+    
+    <!-- 签名画布区域 (JS会在这里画出背景图和签名，所以只显示这层就够了) -->
+    <canvas id="cert-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair; touch-action:none;"></canvas>
         <div style="position:absolute; bottom:-60px; left:0; width:100%; display:flex; justify-content:center; gap:20px;">
             <button class="m-btn small" onclick="clearCertCanvas()" style="background:#fff; color:#333;">重签</button>
             <button class="m-btn primary" onclick="finishMarriage()" style="background:#d63031; border:1px solid #fff;">完成并宣誓</button>
