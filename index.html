@@ -28592,6 +28592,60 @@ html.night-mode {
     background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.2) 3px);
     opacity: 0.5;
 }
+
+
+
+/* --- 2. 修复第三页 RPG：底部回答被遮挡的问题 --- */
+
+/* 定位到 RPG 对话界面的底部区域 (输入框/回复框的容器) */
+#rpg-chat-modal > div:nth-child(4) {
+    /* 取消固定高度，改为自适应 */
+    height: auto !important;
+    min-height: 200px !important;
+    
+    /* 🔥 核心修复：增加底部内边距，适配手机底部黑条 (Safe Area) */
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    
+    /* 确保背景不透明，防止看不清字 */
+    background: rgba(0, 0, 0, 0.9) !important;
+    border-top: 1px solid #444 !important;
+}
+
+/* 修复文字显示区域 */
+#rpg-display-mode {
+    /* 确保容器占满 */
+    height: 100% !important;
+    min-height: 120px !important;
+    
+    /* 允许垂直滚动 */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    
+    /* 增加底部留白，这样滑到底部时文字不会贴边 */
+    padding-bottom: 50px !important;
+}
+
+/* 优化打字机文字样式 */
+#rpg-typewriter-text {
+    font-size: 1.1rem !important;
+    line-height: 1.8 !important;
+    color: #fff !important;
+    white-space: pre-wrap !important;
+}
+<style>
+/* === 🎮 修复游戏机文本不显示 Bug === */
+#game-modal .rpg-text {
+    color: #ffffff !important;       /* 强制文字白色，防止变黑看不见 */
+    min-height: 50px !important;     /* 核心修复：强制给正文留出最小高度，防止被挤没了 */
+    flex: 1 1 auto !important;       /* 确保它能自动撑开 */
+}
+
+#game-modal .card-meaning-display {
+    max-height: 40px !important;     /* 限制底部牌意区域的最大高度 */
+    overflow-y: auto !important;     /* 如果牌意太长，让它内部滚动，不要去挤压正文 */
+    flex-shrink: 0 !important;       /* 禁止底部区域被压缩 */
+    margin-top: auto !important;     /* 确保沉底 */
+}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -31316,5 +31370,44 @@ else if (mode === 'meeting') {
 }
 </script>
 
+<script>
+// === 🎮 修复游戏机数值不保存问题 ===
+// 覆盖原有的打开函数，强制从无限存储(BIG_MEMORY)读取数据
+window.openGameApp = async function() {
+    document.getElementById('game-modal').style.display = 'flex';
+    
+    // 1. 优先从无限存储获取
+    if (window.BIG_MEMORY && window.BIG_MEMORY.game_stats) {
+        // 确保数据不是 NaN 或 undefined
+        const s = window.BIG_MEMORY.game_stats;
+        gameState.mood = (typeof s.mood === 'number') ? s.mood : 50;
+        gameState.love = (typeof s.love === 'number') ? s.love : 50;
+    } 
+    // 2. 兜底：如果还没加载完，尝试读旧缓存
+    else {
+        try {
+            const savedStats = JSON.parse(localStorage.getItem('game_stats') || '{"mood":50, "love":50}');
+            gameState.mood = savedStats.mood;
+            gameState.love = savedStats.love;
+        } catch(e) {
+            gameState.mood = 50;
+            gameState.love = 50;
+        }
+    }
 
+    // 3. 刷新界面显示
+    updateGameStatsUI();
+    
+    // 4. 加载图片等其他资源
+    await loadGameAssets();
+    
+    // 5. 如果文本框是空的，显示引导语
+    const contentEl = document.getElementById('rpg-content');
+    if (!contentEl.innerText || contentEl.innerText === "...") {
+        rpgTypeWriter("您", "点击下方文本框输入内容，抽取命运牌决定剧情走向...", "");
+    }
+    
+    toggleHalfBodies('both'); 
+};
+</script>
 </html> 
