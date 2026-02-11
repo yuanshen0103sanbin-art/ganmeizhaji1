@@ -18017,6 +18017,7 @@ window.deleteStudyPlan = function() {
             <option value="partner">🦄 梦男/梦女解析</option>
             <option value="become">🎭 他变成你的一天</option>
             <option value="cosplay">👘 他作为你的Coser</option>
+<option value="meeting">💘 关于相遇 (初见印象)</option>
             <option value="char_beauty">💋 必吃榜：Ta的排名</option>
             <option value="user_beauty">😋 必吃榜：你的排名</option>
             <option value="char_sleep">🌙 夜袭：Ta对你...</option>
@@ -22869,6 +22870,20 @@ window.generateGalgameEndingAPI = async function() {
     </div>
 </div>
 </div>
+<!-- 💍 结婚证书签字弹窗 -->
+<div id="marriage-cert-modal" class="modal-overlay" style="background:rgba(0,0,0,0.8); z-index:20000; display:none; align-items:center; justify-content:center;">
+    <div style="position:relative; width:90%; max-width:600px;">
+        <img src="https://i.postimg.cc/Nf9QVP0M/IMG_2144.jpg" style="width:100%; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2);">
+        <!-- 签名画布区域 -->
+        <canvas id="cert-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair; touch-action:none;"></canvas>
+        
+        <div style="position:absolute; bottom:-60px; left:0; width:100%; display:flex; justify-content:center; gap:20px;">
+            <button class="m-btn small" onclick="clearCertCanvas()" style="background:#fff; color:#333;">重签</button>
+            <button class="m-btn primary" onclick="finishMarriage()" style="background:#d63031; border:1px solid #fff;">完成并宣誓</button>
+            <button class="m-btn secondary" onclick="document.getElementById('marriage-cert-modal').style.display='none'">取消</button>
+        </div>
+    </div>
+</div>
 <!-- 2. 功能脚本 -->
 <script>
 (function() {
@@ -23118,6 +23133,8 @@ const ADV_SCENES = {
     'main_map': {
         bg: 'https://i.postimg.cc/g0nxYFxL/IMG_2008.png',
         buttons: [
+ { text: '🏰 山庄别墅', pos: 'pos-top-left', action: 'logic:enter_villa_check' }, // 新增
+            { text: '💍 民政局', pos: 'pos-top-right', style:'top:30%; right:10%;', action: 'goto:civil_bureau' }, 
             { text: '🏫 学校', pos: 'pos-center', action: 'goto:school_main' },
             { text: '🌳 公园', pos: 'pos-top-left', style:'left:10%; top:40%;', action: 'goto:park' },
             { text: '✈️ 旅行社', pos: 'pos-btm-left', action: 'goto:travel_main' },
@@ -23201,6 +23218,8 @@ const ADV_SCENES = {
     'mall_main': {
         bg: 'https://i.postimg.cc/TYfhKWyT/IMG_1988.png',
         buttons: [
+{text:'💅 美甲店', pos:'pos-center', style:'top:30%', action:'goto:mall_nail'}, // 新增入口
+          
             {text:'🎁 礼物店', pos:'pos-list-left', action:'goto:mall_gift'},
             {text:'👗 服装店', pos:'pos-list-left', style:'top:25%', action:'goto:mall_clothes'},
             {text:'🍰 甜品店', pos:'pos-list-left', style:'top:40%', action:'goto:mall_sweet'},
@@ -23295,6 +23314,55 @@ const ADV_SCENES = {
         buttons:[
             {text:'🛁 泡澡(+10清洁)', pos:'pos-center', action:'logic:bath_normal'}, 
             {text:'🔙 回房间', pos:'pos-btm-mid', action:'goto:home_room'}
+        ]
+    }, 
+// ... (在 home_bath 的定义之后追加) ...
+
+    // === 🏰 新场景：山庄别墅 ===
+    'villa_gate': {
+        // 这里用一张通用背景或主页背景作为过渡，实际上逻辑会拦截
+        bg: 'https://i.postimg.cc/9QyCXRZQ/IMG_2142.png', 
+        buttons: [
+            { text: '🚪 进入别墅', pos: 'pos-center', action: 'logic:enter_villa_check' },
+            { text: '🔙 返回地图', pos: 'pos-btm-mid', action: 'goto:main_map' }
+        ]
+    },
+    'villa_main': {
+        bg: 'https://i.postimg.cc/9QyCXRZQ/IMG_2142.png',
+        buttons: [
+            { text: '🛌 主卧', pos: 'pos-list-left', action: 'goto:villa_bedroom' },
+            { text: '🏊 私人泳池', pos: 'pos-list-left', style:'top:25%', action: 'goto:villa_pool' },
+            { text: '🦌 草坪', pos: 'pos-list-left', style:'top:40%', action: 'goto:villa_lawn' },
+            { text: '🍖 烧烤区', pos: 'pos-list-left', style:'top:55%', action: 'goto:villa_bbq' },
+            { text: '🐠 水族馆', pos: 'pos-list-left', style:'top:70%', action: 'goto:villa_aqua' },
+            { text: '🔙 离开', pos: 'pos-btm-mid', action: 'goto:main_map' }
+        ]
+    },
+    'villa_bedroom': { bg:'https://i.postimg.cc/yNBBD1y0/IMG_2140.png', buttons:[{text:'交物业费(-270)', pos:'pos-center', action:'logic:villa_fee'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:villa_main'}]},
+    'villa_pool': { bg:'https://i.postimg.cc/htVc4zT4/IMG_2141.png', buttons:[{text:'🏊 一起游泳', pos:'pos-center', action:'logic:villa_swim'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:villa_main'}]},
+    'villa_lawn': { bg:'https://i.postimg.cc/9fVVDmYY/IMG_2139.png', buttons:[{text:'🦌 和小鹿玩', pos:'pos-center', action:'logic:villa_play'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:villa_main'}]},
+    'villa_bbq': { bg:'https://i.postimg.cc/fbKsXGHQ/IMG_2138.png', buttons:[{text:'🍖 烧烤', pos:'pos-center', action:'logic:villa_eat'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:villa_main'}]},
+    'villa_aqua': { bg:'https://i.postimg.cc/C1rVrjTq/IMG_2137.png', buttons:[{text:'🐠 逛逛', pos:'pos-center', action:'logic:villa_wander'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:villa_main'}]},
+
+    // === 💍 新场景：民政局 ===
+    // 逻辑会动态判断显示已婚/未婚界面，这里定义基础
+    'civil_bureau': {
+        bg: 'https://i.postimg.cc/pXhP71dD/IMG_2143.png',
+        buttons: [
+            { text: '❤️ 办理业务', pos: 'pos-center', action: 'logic:civil_service' },
+            { text: '🔙 返回地图', pos: 'pos-btm-mid', action: 'goto:main_map' }
+        ]
+    },
+
+    // === 💅 新场景：美甲店 ===
+    'mall_nail': {
+        bg: 'https://i.postimg.cc/L5qFcn20/IMG_2136.png',
+        buttons: [
+            { text: '💅 做美甲', pos: 'pos-list-left', action: 'logic:nail_self' },
+            { text: '💖 让他帮做', pos: 'pos-list-left', style:'top:30%', action: 'logic:nail_him' },
+            { text: '🦶 让他修脚', pos: 'pos-list-left', style:'top:45%', action: 'logic:nail_feet' },
+            { text: '🎨 帮他做', pos: 'pos-list-left', style:'top:60%', action: 'logic:nail_reverse' },
+            { text: '🔙 返回', pos: 'pos-btm-mid', action: 'goto:mall_main' }
         ]
     }
 };
@@ -23567,9 +23635,199 @@ function executeAdvLogic(logicKey) {
             const max = Math.max(data.attributes.learning, data.attributes.art, data.attributes.talent, data.attributes.fitness);
             const sal = max > 100 ? 15 : (max > 50 ? 9 : (max > 25 ? 6 : 3));
             modAdv({money:sal}); msg = `做副业赚了 ${sal} 金。`; break;
+        // ======= ⬇️ 在 case 'side_job' 下面插入这些新代码 ⬇️ =======
+
+        // === 🏰 别墅逻辑 ===
+        case 'enter_villa_check':
+            // 检查是否已购买 (需要在数据中记录，如果没有记录默认为false)
+            if (data.unlocked_villa) {
+                renderAdvScene('villa_main');
+            } else {
+                if (data.money >= 700) {
+                    if(confirm("解锁山庄别墅需要 700 金钱，确定购买吗？")) {
+                        modAdv({money: -700}, false);
+                        data.unlocked_villa = true;
+                        saveAdvData(data);
+                        alert("🎉 恭喜！您已拥有私人山庄别墅！");
+                        renderAdvScene('villa_main');
+                    }
+                } else {
+                    showAdvDialog(`金钱不足！需要 700，当前只有 ${Math.floor(data.money)}。`, "System");
+                }
+            }
+            break;
+        case 'villa_fee':
+            if(data.money >= 270) {
+                modAdv({money: -270});
+                handleRandomEvent("我缴纳了别墅物业费", "支付了昂贵的物业费，心在滴血，但享受了尊贵的服务。");
+            } else msg = "没钱交物业费了...";
+            break;
+        case 'villa_swim':
+            handleRandomEvent("我们在私人泳池游泳", "你们泡了一会儿，水温刚刚好。", {affection: 20});
+            break;
+        case 'villa_play':
+            handleRandomEvent("在草坪上和小动物玩", "你们在草坪上追逐着小羊、小鹿玩的不亦乐乎。", {cleanliness: 100}); 
+            if(Math.random()>0.85) data.cleanliness = 100; 
+            break;
+        case 'villa_eat':
+            handleRandomEvent("我们在别墅区烧烤", "一起在别墅烤和吃烧烤，味道真不错。", {affection: 15});
+            break;
+        case 'villa_wander':
+            handleRandomEvent("参观私人水族馆", "你们在你们的私人水族馆玩了一会儿。", {cleanliness: -5});
+            break;
+
+        // === 💅 美甲逻辑 ===
+        case 'nail_self':
+            modAdv({cleanliness: 10}); msg = "做了个精致的美甲，心情变好了。(清洁+10)"; break;
+        case 'nail_him':
+            modAdv({affection: 5}); msg = "由他帮你做了美甲，虽然有点笨拙但很温柔。(好感+5)"; talker = "Character"; break;
+        case 'nail_feet':
+            modAdv({affection: 5}); msg = "你让他帮忙涂脚指甲油，有些害羞。(好感+5)"; talker = "Character"; break;
+        case 'nail_reverse':
+            modAdv({affection: 5}); msg = "你看着ta的手突发奇想帮他做美甲，他无奈地接受了。(好感+5)"; talker = "Character"; break;
+
+        // === 💍 民政局入口逻辑 ===
+        case 'civil_service':
+            if (data.isMarried) {
+                // 已婚 -> 离婚流程
+                if(confirm("💔 确定要办理离婚手续吗？")) {
+                    callGlobalLLM("我们去民政局办理了离婚手续，结束了这段婚姻。", "event", "【特殊指令】描写两人在民政局离婚的场景，带有遗憾或释然。");
+                    data.isMarried = false;
+                    saveAdvData(data);
+                    // 刷新一下更衣室显示状态
+                    if(document.querySelector('.closet-container')) renderClosetUI(); 
+                }
+            } else {
+                // 未婚 -> 结婚流程
+                if(confirm("💍 确定要和 Ta 登记结婚吗？")) {
+                    openMarriageCertificate(); // 打开签字版
+                }
+            }
+            break;
+            
+        // ======= ⬆️ 插入结束 ⬆️ =======
     }
     
     if(msg) showAdvDialog(msg, talker);
+}
+// 辅助：15% 概率触发 API，否则显示固定文本
+function handleRandomEvent(apiPrompt, staticText, statUpdates = {}) {
+    // 先更新属性
+    if (Object.keys(statUpdates).length > 0) modAdv(statUpdates);
+    
+    // 判定概率
+    if (Math.random() < 0.15) {
+        checkDreamMode((ctx) => callGlobalLLM(apiPrompt, "random", ctx));
+    } else {
+        showAdvDialog(staticText, "System");
+    }
+}
+
+// 结婚画布逻辑
+let certCanvas, certCtx;
+function openMarriageCertificate() {
+    const modal = document.getElementById('marriage-cert-modal');
+    modal.style.display = 'flex';
+    
+    // 初始化画布
+    certCanvas = document.getElementById('cert-canvas');
+    certCtx = certCanvas.getContext('2d');
+    
+    // 适配屏幕
+    const rect = certCanvas.getBoundingClientRect();
+    certCanvas.width = rect.width;
+    certCanvas.height = rect.height;
+    
+    certCtx.strokeStyle = "#000";
+    certCtx.lineWidth = 3;
+    certCtx.lineCap = "round";
+    // === 插入开始：绘制背景图 ===
+    const bgImg = new Image();
+    bgImg.crossOrigin = "Anonymous"; // 允许跨域，防止保存报错
+    bgImg.src = "https://i.postimg.cc/Nf9QVP0M/IMG_2144.jpg"; // 证书原图地址
+    bgImg.onload = () => {
+        // 确保图片画满整个画布
+        certCtx.drawImage(bgImg, 0, 0, certCanvas.width, certCanvas.height);
+    };
+    // === 插入结束 ===
+    
+    // 绑定触摸事件
+    let isDrawing = false;
+    
+    const start = (e) => { isDrawing = true; certCtx.beginPath(); draw(e); };
+    const end = () => { isDrawing = false; certCtx.beginPath(); };
+    const draw = (e) => {
+        if (!isDrawing) return;
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        certCtx.lineTo(x, y);
+        certCtx.stroke();
+    };
+
+    certCanvas.onmousedown = start;
+    certCanvas.onmousemove = draw;
+    certCanvas.onmouseup = end;
+    certCanvas.ontouchstart = (e) => { e.preventDefault(); start(e); };
+    certCanvas.ontouchmove = (e) => { e.preventDefault(); draw(e); };
+    certCanvas.ontouchend = end;
+}
+function clearCertCanvas() {
+    // 先清空笔迹
+    certCtx.clearRect(0, 0, certCanvas.width, certCanvas.height);
+    // 再重新画上背景图
+    const bgImg = new Image();
+    bgImg.crossOrigin = "Anonymous";
+    bgImg.src = "https://i.postimg.cc/Nf9QVP0M/IMG_2144.jpg";
+    bgImg.onload = () => {
+        certCtx.drawImage(bgImg, 0, 0, certCanvas.width, certCanvas.height);
+    };
+}
+
+
+function finishMarriage() {
+    const data = getAdvData();
+    data.isMarried = true;
+    saveAdvData(data);
+    
+    // 尝试保存图片 (简单下载)
+            // === iOS 兼容保存修复 ===
+    try {
+        // 1. 生成图片数据
+        const imgData = certCanvas.toDataURL("image/png");
+        
+        // 2. 创建一个全屏黑底弹窗
+        const overlay = document.createElement('div');
+        overlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:30000; display:flex; flex-direction:column; align-items:center; justify-content:center;";
+        
+        // 3. 显示生成的证书图片
+        const img = document.createElement('img');
+        img.src = imgData;
+        img.style.cssText = "max-width:90%; max-height:80%; border-radius:8px; box-shadow:0 0 20px white;";
+        
+        // 4. 提示文字
+        const hint = document.createElement('div');
+        hint.innerText = "👆 请长按图片 -> 存储到“照片”";
+        hint.style.cssText = "color:#ffd700; margin-top:20px; font-size:1.1rem; font-weight:bold; text-shadow:0 1px 2px black;";
+        
+        // 5. 关闭按钮
+        const closeBtn = document.createElement('button');
+        closeBtn.innerText = "关闭";
+        closeBtn.style.cssText = "margin-top:20px; padding:8px 30px; background:white; border:none; border-radius:20px; color:#333;";
+        closeBtn.onclick = () => document.body.removeChild(overlay);
+        
+        // 6. 组装并显示
+        overlay.appendChild(img);
+        overlay.appendChild(hint);
+        overlay.appendChild(closeBtn);
+        document.body.appendChild(overlay);
+
+    } catch(e) { 
+        alert("图片生成失败：" + e.message); 
+    }
+    document.getElementById('marriage-cert-modal').style.display = 'none';
+    
+    // 100% 触发 API
+    callGlobalLLM("我们刚刚签下了结婚证书，正式成为了夫妻。", "event", "【特殊指令】描写两人领证后激动、幸福的时刻，以及宣誓的场景。");
 }
 
 // 换衣间渲染 (含修正的文案)
@@ -23991,7 +24249,7 @@ function openDatingMenu() {
         'mall_clothes': '👗 服装店',
         'mall_sweet': '🍰 甜品店',
         'mall_walk': '🛍️ 步行街',
-        'mall_food': '🍢 小吃街',
+        'mall_food': '🍢 小吃街', 'mall_nail': '💅 美甲店', 
         
         // === 🌳 户外与旅行 ===
         'park': '🌳 公园',
@@ -24001,7 +24259,18 @@ function openDatingMenu() {
         'travel_tokyo': '🗼 东京铁塔 (旅行)',
         'travel_france': '🏰 法国城堡 (旅行)',
         'travel_uk': '🇬🇧 英国街头 (旅行)',
-        'travel_usa': '🗽 自由女神像 (旅行)'
+        'travel_usa': '🗽 自由女神像 (旅行)',
+
+        // === 🏰 新增：山庄别墅区域 ===
+        'villa_main': '🏰 山庄别墅大厅',
+        'villa_bedroom': '🛌 别墅主卧',
+        'villa_pool': '🏊 别墅泳池',
+        'villa_lawn': '🦌 别墅草坪',
+        'villa_bbq': '🍖 别墅烧烤区',
+        'villa_aqua': '🐠 别墅水族馆',
+
+        // === 💍 新增：特殊地点 ===
+        'civil_bureau': '💍 民政局'
     };
 
     // 遍历生成选项
@@ -24357,6 +24626,23 @@ window.callGlobalLLM = async function(userPrompt, type = "normal", extraContext 
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
     const charName = data.charName || chatSettings.title || "Ta";
     const userName = data.name || "玩家";
+    // 🔥🔥🔥【新增】婚姻状态判断逻辑 Start 🔥🔥🔥
+    let marriageContext = "";
+    if (data.isMarried) {
+        // 如果已婚，给 AI 注入夫妻设定的指令
+        marriageContext = `
+【关键关系状态】：✅ 已婚 (夫妻关系)
+请在描写互动时，体现出婚后的亲密感、默契感或生活感。
+称呼上可以更加亲昵（如老公/老婆/亲爱的，或者符合人设的昵称）。
+`;
+    } else {
+        // 如果未婚，保持原有的暧昧或追求状态
+        marriageContext = `
+【关键关系状态】：⬜ 未婚 (恋爱或追求中)
+请根据好感度数值来决定互动的距离感。
+`;
+    }
+    // 🔥🔥🔥【新增】婚姻状态判断逻辑 End 🔥🔥🔥
 
     // 【修改点2】保留原版逻辑，但在最后加入格式限制指令
     const systemPrompt = `
@@ -24367,6 +24653,7 @@ window.callGlobalLLM = async function(userPrompt, type = "normal", extraContext 
 - 昵称：${userName}
 - 状态：金钱${data.money} / 清洁度${data.cleanliness}
 - **玩家对${charName}的喜爱度**：${data.affection} (数值越高，代表玩家越主动、越深情)
+-${marriageContext} 
 
 【当前位置】：${window.currentAdvScene || "未知场景"}
 ${extraContext}
@@ -24624,6 +24911,28 @@ window.renderCurrentChunk = function() {
 const _origLogicV2 = window.executeAdvLogic;
 window.executeAdvLogic = function(logicKey) {
   // --- 找到 window.executeAdvLogic 函数内部 ---
+    // =========== 👇 粘贴这段修复代码 👇 ===========
+    
+    // 1. 补回：清洁度检查 (如果太脏且不是去洗澡，拦截操作)
+    const _checkData = getAdvData();
+    if (_checkData.cleanliness <= 0 && logicKey !== 'bath_normal') {
+        return showAdvDialog("身上太脏了，甚至被苍蝇包围了...\n(请去【浴室】泡澡恢复，否则无法行动)", "System");
+    }
+
+    // 2. 补回：15% 随机事件生成 (包括弹出输入框)
+    if (Math.random() < 0.15) {
+        // 获取原本应该发生的描述作为默认值
+        let defaultText = `(触发随机事件) 你正准备${logicKey}...`;
+        if (logicKey === 'pass_note') defaultText = "(触发随机事件) 你正准备传纸条给Ta...";
+        if (logicKey === 'cook_food') defaultText = "(触发随机事件) 你走进厨房正准备做饭...";
+        if (logicKey === 'park_walk') defaultText = "(触发随机事件) 你正准备在公园散步...";
+        
+        document.getElementById('adv-random-input').value = defaultText;
+        document.getElementById('adv-random-modal').style.display = 'flex';
+        return; // 阻止后续逻辑，直到处理完随机事件
+    }
+
+    // =========== 👆 粘贴结束 👆 ===========
 
 if (logicKey === 'pass_note') {
     // 1. 定义随机内容池
@@ -30441,13 +30750,23 @@ setTimeout(async () => {
             <input type="file" id="upload-user-adv" style="display:none" onchange="uploadAdvImg('user', this)">
             <input type="file" id="upload-char-adv" style="display:none" onchange="uploadAdvImg('char', this)">
 
-            <!-- 属性表格 -->
+                        <!-- 属性表格 -->
             <table class="attr-table">
                 <tr><td>📚 学习</td><td>${attr.learning}</td></tr>
                 <tr><td>🎨 画画</td><td>${attr.art}</td></tr>
                 <tr><td>🎻 才艺</td><td>${attr.talent}</td></tr>
                 <tr><td>🏃 体能</td><td>${attr.fitness}</td></tr>
-                <tr><td>❤️ 好感度</td><td>${data.affection}</td></tr>
+                <tr><td>❤️ 对${data.charName || 'Ta'}的好感</td><td>${data.affection}</td></tr>
+                
+                <!-- 👇👇👇 把第四步的代码加在这里 👇👇👇 -->
+                <tr>
+                    <td>💍 婚姻</td>
+                    <td style="color:${data.isMarried ? '#d63031' : '#888'}; font-weight:bold;">
+                        ${data.isMarried ? '已婚' : '未婚'}
+                    </td>
+                </tr>
+                <!-- 👆👆👆 加在 清洁度 的上面 👆👆👆 -->
+
                 <tr><td>✨ 清洁度</td><td>${Math.floor(data.cleanliness || 0)}%</td></tr>
                 <tr><td>💰 金钱</td><td>${Math.floor(data.money || 0)}</td></tr>
             </table>
@@ -30669,9 +30988,6 @@ window.executeAdvLogic = function(logicKey) {
 
     console.log("💰 贫穷模拟器补丁 (弹窗版) 已加载。");
 })();
-// ==================== 🦄 梦App 7模式终极修正版 (牌意优先) ====================
-
-// 1. UI 更新函数 (适配所有7种模式的文案)
 window.updateDreamUI = function() {
     const mode = document.getElementById('dream-mode-select').value;
     const descTitle = document.querySelector('#dream-app-modal h2');
@@ -30715,14 +31031,21 @@ window.updateDreamUI = function() {
         sub = "水煎包模式：你对他下手了，他的反应是？";
         btnText = "💤 开始夜间行动";
         hint = "默念“我对熟睡的他...”并抽牌";
+    } 
+    // 👇👇👇 这里是新增的部分 👇👇👇
+    else if (mode === 'meeting') {
+        title = "时光倒流...<br>初见那一刻，他是怎么想的？";
+        sub = "一见钟情还是日久生情？揭秘他当时的状态和内心BGM。";
+        btnText = "💘 抽取相遇回忆";
+        hint = "默念“我们相遇的那一刻...”并抽牌";
     }
+    // 👆👆👆 新增结束 👆👆👆
 
     descTitle.innerHTML = title;
     descP.innerText = sub;
     btn.innerText = btnText;
     if(cardUiText) cardUiText.innerText = hint;
 }
-
 // 2. 核心生成逻辑 (严格执行 Prompt)
 window.finishDreamDrawing = async function() {
     if(dreamFlippedCards.length === 0) return alert("请至少翻开一张牌！");
@@ -30779,7 +31102,7 @@ window.finishDreamDrawing = async function() {
     if (mode === 'partner') {
         prompt = `
 你是一个深度角色分析师。
-请根据以下信息，分析如果【角色】成为用户的【梦男/梦女】（Dream Character/Partner）会发生什么。
+请根据以下信息，和牌意（牌面的能量流动）根据牌意生成以下内容：分析如果【角色】成为用户的【梦男/梦女】（Dream Character/Partner）会发生什么。
 
 【世界书/角色设定】：
 ${globalContext}
@@ -30812,7 +31135,7 @@ ${cardsDesc}
     // --- 2. 互换身体 (原封不动) ---
     else if (mode === 'become') {
         prompt = `
-你是一个创意编剧。现在发生了一个奇幻事件：【角色】突然灵魂互换，变成了【用户(我)】的身体，并代替用户生活了一天。
+你是一个创意编剧。现在发生了一个奇幻事件：牌意（牌面的能量流动）分析【角色】突然灵魂互换，变成了【用户(我)】的身体，并代替用户生活了一天的情况。
 【世界书/角色】：${globalContext}
 【命运牌 (决定他扮演得是否顺利)】：${cardsDesc}
 
@@ -30835,7 +31158,7 @@ ${cardsDesc}
     // --- 3. Cosplay (原封不动) ---
     else if (mode === 'cosplay') {
         prompt = `
-你是一个漫展观察员。假设【角色】去参加漫展，并且出 Cosplay，出的角色竟然是【用户(我)】。
+你是一个漫展观察员。根据牌意生成（牌面的能量流动）分析假设【角色】去参加漫展，并且出 Cosplay，出的角色竟然是【用户(我)】。
 【世界书/角色】：${globalContext}
 【命运牌 (决定漫展的运势)】：${cardsDesc}
 
@@ -30857,7 +31180,7 @@ ${cardsDesc}
     // --- 4. 角色必吃榜 (新) ---
     else if (mode === 'char_beauty') {
         prompt = `${baseInstruction}
-        【情境】：在角色的世界里，有一个“美人必吃榜”。分析【角色本人】的上榜情况。
+        【情境】：在角色的世界里，有一个“美人必吃榜”。根据牌意（牌面的能量流动）分析【角色本人】的上榜情况。
         表格内容：
         1. **自我排名**：他认为在他的世界美人必吃榜是第几名？
         2. **大家认为他最秀色可餐的点**：大众对他最想“吃”的地方。
@@ -30875,7 +31198,7 @@ ${cardsDesc}
     // --- 5. 用户必吃榜 (新 - 修正版) ---
     else if (mode === 'user_beauty') {
         prompt = `${baseInstruction}
-        【情境】：在角色的世界里，【用户(我)】也是榜上有名。分析【用户】的上榜情况。
+        【情境】：在角色的世界里，【用户(我)】也是榜上有名。根据牌意（牌面的能量流动）分析【用户】的上榜情况。
         **注意**：除了第1项和第3项是角色的观点，其他项全是【大众/大家】的观点。
         
         表格内容：
@@ -30896,7 +31219,7 @@ ${cardsDesc}
     else if (mode === 'char_sleep') {
         prompt = `${baseInstruction}
         【情境】：角色对用户进行了“水煎包”（睡奸）。
-        请严格根据牌意决定行为的粗暴/温柔程度。
+        请严格根据牌意/牌面的能量流动决定行为。
         表格内容：
         1. **什么时间进行的**：具体时间。
         2. **为什么忽然想这么做**：动机。
@@ -30913,7 +31236,7 @@ ${cardsDesc}
     // --- 7. 用户水煎包 (新) ---
     else if (mode === 'user_sleep') {
         prompt = `${baseInstruction}
-        【情境】：用户对角色进行了“水煎包”（睡奸）。
+        【情境】：用户对角色进行了“水煎包”（睡奸）。牌意（牌面的能量流动）根据牌意分析生成以下内容：
         表格内容：
         1. **还没开始时角色的反应**：睡姿/呼吸/防备心。
         2. **前夕时角色的状态/反应**：生理或潜意识反应。
@@ -30925,6 +31248,24 @@ ${cardsDesc}
         8. **角色想说的话**：心里话。
         `;
     }
+// --- 8. 关于相遇 (新增) ---
+else if (mode === 'meeting') {
+    prompt = `${baseInstruction}
+    【情境】：回溯角色与用户（我）的初遇时刻。牌意（牌面的能量流动）根据牌意进行分析。
+    
+    表格内容：
+    1. **一见钟情还是日久生情**：定性分析。
+    2. **当时他的状态**：有没有被震住？是冷静观察还是心跳加速？
+    3. **他发现自己喜欢上用户后的状态**：心理活动与外在表现。
+    4. **他什么时候开始期待和用户的未来**：具体契机或瞬间。
+    5. **他会怎么描绘心中第一眼的用户**：视觉与感觉的描述。
+    6. **他对现在的用户的想法**：随着了解加深后的看法。
+    7. **他认为你第一眼和现在最大的不同是什么**：反差萌或成长。
+    8. **他第一眼看见用户想起的是哪首音乐**：(现实没有的音乐请形容旋律和歌词大意)。
+    9. **他对用户以前的动物塑**：初印象像什么动物？
+    10. **他对用户目前的动物塑**：现在觉得你像什么动物？
+    `;
+}
 
     try {
         const res = await fetch(`${apiUrl}/chat/completions`, {
@@ -30952,7 +31293,7 @@ ${cardsDesc}
         const emojiMap = {
             'partner': '🦄', 'become': '🎭', 'cosplay': '👘',
             'char_beauty': '💋', 'user_beauty': '😋',
-            'char_sleep': '🌙', 'user_sleep': '💤'
+            'char_sleep': '🌙', 'user_sleep': '💤' ,  'meeting': '💘'
         };
         
         currentDreamResult = {
