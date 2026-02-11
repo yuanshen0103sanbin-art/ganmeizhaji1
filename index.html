@@ -11,7 +11,6 @@
     <title>甘梅炸机</title>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;700&family=Long+Cang&display=swap" rel="stylesheet">
     <style>
-
 .msg-time {
     display: block;
     font-size: 0.65rem;
@@ -4661,7 +4660,7 @@ const LENORMAND_NAMES = {
         }
         setInterval(updateTime, 1000); updateTime();
 const DB_NAME = "RetroOS_System_V7789";  
-const DB_VERSION = 20; 
+const DB_VERSION = 25; 
 const idb = {
     db: null,
     init: function() {
@@ -23870,16 +23869,30 @@ window.executeAdvLogic = function(logicKey) {
     _originalExecuteAdvLogic(logicKey);
 }
 
-function confirmRandomEvent() {
+// === 🛠️ 抢钱逻辑修复补丁：生成剧情后才加钱 ===
+window.confirmRandomEvent = function() {
     const text = document.getElementById('adv-random-input').value;
     document.getElementById('adv-random-modal').style.display = 'none';
     
     // 触发梦占检查 -> 然后调用 API
-    checkDreamMode((dreamContext) => {
-        callGlobalLLM(text, "random", dreamContext);
+    checkDreamMode(async (dreamContext) => {
+        // 1. 等待 AI 生成故事完毕 (await 确保剧情先出来)
+        await callGlobalLLM(text, "random", dreamContext);
+        
+        // 2. 检测文本中是否包含“抢钱”关键词
+        // 如果包含，说明这是抢钱事件，且剧情已生成完毕，现在加钱
+        if (text.includes("【🔪 抢钱】")) {
+            const d = getAdvData();
+            d.money += 300; // 增加300金钱
+            saveAdvData(d); // 保存并刷新左上角UI
+            
+            // 延迟一点点弹出提示，体验更好
+            setTimeout(() => {
+                alert(`💰 抢劫成功！\n恶向胆边生，你获得了 300 金钱。\n(当前余额: ${d.money})`);
+            }, 500);
+        }
     });
 }
-
 // 5. 扩展功能菜单 (注入到顶部状态栏)
 function injectAdvMenu() {
     const bar = document.querySelector('.adv-top-bar');
@@ -28463,8 +28476,7 @@ window.generateRpgStory = async function(item) {
  * 🚀 RetroOS 终极系统补丁 (无限存储 + 女巫修复 + 全局兼容)
  * =================================================================
  */
-
-// 1. 强制初始化大容量内存结构 (防止报错)
+// 1. 强制初始化大容量内存结构
 window.BIG_MEMORY = window.BIG_MEMORY || {};
 const REQUIRED_KEYS = [
     'world_book', 'letters', 'finance', 'study', 'period', 'memo', 
@@ -28474,7 +28486,8 @@ const REQUIRED_KEYS = [
     'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
     'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
     'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
-    'puzzle_data', 'work_data', 'witch_data' // 🔥 重点：确保女巫数据存在
+    'puzzle_data', 'work_data', 'witch_data', 'gacha_data', 'tacit_data',
+    'adv_data' // 👈🔥 必须要有这一项，文游数据才能被导出！
 ];
 
 // 2. 通用保存函数 (写入 IndexedDB 无限存储)
@@ -28748,8 +28761,7 @@ window.addEventListener('load', function() {
  * 🚀 RetroOS 终极系统补丁 (无限存储 + 女巫修复 + 全局兼容)
  * =================================================================
  */
-
-// 1. 强制初始化大容量内存结构 (防止报错)
+// 1. 强制初始化大容量内存结构
 window.BIG_MEMORY = window.BIG_MEMORY || {};
 const REQUIRED_KEYS = [
     'world_book', 'letters', 'finance', 'study', 'period', 'memo', 
@@ -28759,7 +28771,8 @@ const REQUIRED_KEYS = [
     'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
     'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
     'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
-    'puzzle_data', 'work_data', 'witch_data','gacha_data', 'tacit_data' ,'adv_data' 
+    'puzzle_data', 'work_data', 'witch_data', 'gacha_data', 'tacit_data',
+    'adv_data' // 👈🔥 必须要有这一项，文游数据才能被导出！
 ];
 
 // 2. 通用保存函数 (写入 IndexedDB 无限存储)
@@ -30626,6 +30639,7 @@ window.executeAdvLogic = function(logicKey) {
                     if (!promptSuffix) {
                         // === 情况 A: 自己赚钱 (取消) ===
                         showAdvDialog("你决定靠自己的双手去挣钱！(请点击场景中的副业按钮)", "System");
+
                     } else {
                         // === 情况 B: 触发弹窗 (其余四个) ===
                         // 1. 填入预设文本到那个黑色的输入框里
