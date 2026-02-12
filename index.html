@@ -9760,25 +9760,34 @@ async function renderAnniversaries() {
     });
 }
 function calculateAnniversary(targetDateStr, isRepeat) {
+    // 1. 获取今日零点 (本地时间)
     const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    let target = new Date(targetDateStr);
-    target.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
+
+    // 2. 解析目标日期 (强制按本地时间解析，修复时区BUG)
+    // 解决 new Date("YYYY-MM-DD") 默认为 UTC 的问题
+    const parts = targetDateStr.split('-');
+    let target = new Date();
+    target.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    target.setHours(0, 0, 0, 0);
+
+    // 3. 处理每年重复逻辑
     if (isRepeat) {
         target.setFullYear(today.getFullYear());
+        // 如果今年的纪念日已经过了，就算明年的
         if (target < today) {
             target.setFullYear(today.getFullYear() + 1);
         }
     }
-    
+
+    // 4. 计算天数差 (向上取整防止毫秒级误差)
     const diffTime = target - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return {
-        diffDays: Math.abs(diffDays), 
-        isPast: diffDays < 0,       
-        isToday: diffDays === 0
+        diffDays: Math.abs(diffDays), // 显示用
+        isPast: diffDays < 0,         // 是否已过期(仅非重复模式有效)
+        isToday: diffDays === 0       // 是否是今天
     };
 }
 async function saveAnniversary() {
@@ -9828,15 +9837,17 @@ async function checkAnniversaries() {
         
         const calc = calculateAnniversary(item.date, item.repeat);
         const days = calc.diffDays;
-        if (item.remindType === 'same' && days === 0) {
-            alerts.push(`🎉 今天是【${item.title}】！`);
-        }
-        if (item.remindType === 'before' && days === 1) {
-            alerts.push(`⏰ 明天是【${item.title}】，记得准备哦！`);
-        }
-         if (item.remindType === 'before' && days === 0) {
-            alerts.push(`🎉 今天是【${item.title}】！`);
-        }
+        // 确保这一段逻辑是这样的 (尤其是 days === 0 的判断)
+if (item.remindType === 'same' && days === 0) {
+    alerts.push(`🎉 今天是【${item.title}】！`);
+}
+if (item.remindType === 'before' && days === 1) {
+    alerts.push(`⏰ 明天是【${item.title}】，记得准备哦！`);
+}
+// 有些人习惯把"提前提醒"在当天也提醒一次，可以保留这句：
+if (item.remindType === 'before' && days === 0) {
+    alerts.push(`🎉 今天是【${item.title}】！`);
+}
     });
 
     // 在 checkAnniversaries 函数内部...
@@ -19920,6 +19931,7 @@ const PET_CONFIG = {
     pets: [
         { id: 'cat_black', name: '黑猫', type: 'cat', img: 'https://i.postimg.cc/hjtSZ5yH/IMG_1786.png' },
         { id: 'cat_white', name: '白猫', type: 'cat', img: 'https://i.postimg.cc/Kz8ZpHqw/IMG_1789.png' },
+{ id: 'cat_calico', name: '三花', type: 'cat', img: 'https://i.postimg.cc/zvKYVcv6/wei-ming-ming-zuo-pin.png' },
         { id: 'dog', name: '狗', type: 'dog', img: 'https://i.postimg.cc/nzhHSPRy/IMG_1787.png' },
         { id: 'fish', name: '鱼', type: 'fish', img: 'https://i.postimg.cc/NGbXMhvy/IMG-1773.png' },
         { id: 'bird', name: '鸟', type: 'bird', img: 'https://i.postimg.cc/PfMWwpY1/IMG-1771.png' }
