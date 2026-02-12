@@ -3879,6 +3879,21 @@ canvas {
     flex-direction: column;
     gap: 15px;
 }
+/* === 🍫 巧克力制作小游戏样式 === */
+.choco-game-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-size: cover; background-position: center;
+    overflow: hidden;
+}
+.choco-pot {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 280px; height: auto; z-index: 5; pointer-events: none;
+}
+.choco-item {
+    position: absolute; width: 80px; z-index: 10; cursor: grab;
+    transition: transform 0.1s; touch-action: none;
+}
+.choco-item:active { cursor: grabbing; transform: scale(1.1); }
     </style>
 </head>
 <body>
@@ -13588,16 +13603,19 @@ function handleGameOver(resultType) {
     // 容错：防止 stories 为空
     const stories = witchGameState.stories || { user_lose: "暂无故事", char_lose: "暂无故事" };
 
+ // 情况1：ResultType 为 'user_win' (你赢了，代表 Ta 踩到了陷阱)
     if (resultType === 'user_win') {
-        title = "🏆 胜利！Ta 踩中了陷阱";
-        content = stories.char_lose; 
-        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.lose;
-        addWitchLog(`🎉 结局达成：角色接受惩罚`);
-    } else {
-        title = "💀 失败！你踩中了陷阱";
-        content = stories.user_lose;
-        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.win;
-        addWitchLog(`💔 结局达成：你接受惩罚`);
+        title = "🏆 胜利！Ta 踩中了陷阱"; 
+        content = stories.char_lose; // 显示 Ta 输了的故事
+        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.lose; // Ta 输了的反应
+        addWitchLog(`🎉 结局达成：你赢了，角色接受惩罚`); 
+    } 
+    // 情况2：你输了 (你踩到了陷阱)
+    else {
+        title = "💀 失败！你踩中了陷阱"; 
+        content = stories.user_lose; // 显示 你 输了的故事
+        document.getElementById('witch-reaction-text').innerText = witchGameState.reactions.win; // Ta 赢了的反应（得意）
+        addWitchLog(`💔 结局达成：你输了，请接受惩罚`); 
     }
     
     // 🔥 使用新的【女巫专用弹窗】
@@ -14308,19 +14326,52 @@ let movingFlipped = [];
 let currentMovingSession = null; // 当前正在进行的搬家会话
 let currentItemIndex = 0; // 当前查看第几个物品
 
-// 1. 数据管理
 function getMovingData() { 
+    // 1. 如果大内存里没有这个对象，初始化它
     if (!window.BIG_MEMORY.moving_data) {
         window.BIG_MEMORY.moving_data = { history: [], current_session: null };
     }
+    // 2. 如果有对象但没有 history 数组 (防止历史记录读取报错)，补上
+    if (!Array.isArray(window.BIG_MEMORY.moving_data.history)) {
+        window.BIG_MEMORY.moving_data.history = [];
+    }
     return window.BIG_MEMORY.moving_data; 
 }
-
 function saveMovingData(data) {
+    // 1. 更新内存状态
     window.BIG_MEMORY.moving_data = data;
-    if (typeof idb !== 'undefined') idb.put('universal_store', { id: 'moving_data', data: data });
+    
+    // 2. 强制写入 IndexedDB (无限存储)
+    // 优先尝试调用全局保存函数
+    if (typeof saveToBigDB === 'function') {
+        saveToBigDB('moving_data', data);
+    } 
+    // 兜底：直接调用数据库接口
+    else if (typeof idb !== 'undefined') {
+        idb.put('universal_store', { id: 'moving_data', data: data });
+    }
 }
-
+// === 📦 搬家日记加载补丁 ===
+if (typeof loadAllBigData === 'function') {
+    const _origLoadMoving = window.loadAllBigData;
+    window.loadAllBigData = async function() {
+        // 先运行原有的加载逻辑
+        if (_origLoadMoving) await _origLoadMoving();
+        
+        // 额外强制读取一次 moving_data，确保万无一失
+        try {
+            if (typeof idb !== 'undefined') {
+                let res = await idb.get('universal_store', 'moving_data');
+                if (res && res.data) {
+                    window.BIG_MEMORY.moving_data = res.data;
+                    console.log("📦 搬家日记数据已加载");
+                }
+            }
+        } catch(e) {
+            console.log("搬家数据加载跳过");
+        }
+    };
+}
 // 2. 打开 APP
 window.openMovingApp = function() {
     document.getElementById('moving-app-modal').style.display = 'flex';
@@ -23243,7 +23294,15 @@ const ADV_SCENES = {
     },
     'mall_gift': { bg:'https://i.postimg.cc/26W3ZQFv/IMG_1996.png', buttons:[{text:'买礼物(5金)', pos:'pos-center', action:'logic:buy_gift'}, {text:'打工', pos:'pos-center', style:'top:65%', action:'logic:work_gift'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
     'mall_clothes': { bg:'https://i.postimg.cc/7hyhM5mn/IMG_1994.png', buttons:[{text:'买衣服(随机)', pos:'pos-center', action:'logic:buy_clothes'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
-    'mall_sweet': { bg:'https://i.postimg.cc/zBh3gCSw/IMG_1995.png', buttons:[{text:'买高级甜品(8金)', pos:'pos-center', action:'logic:buy_sweet'}, {text:'一起做甜品', pos:'pos-center', style:'top:65%', action:'logic:make_sweet_together'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
+    'mall_sweet': { 
+        bg:'https://i.postimg.cc/zBh3gCSw/IMG_1995.png', 
+        buttons:[
+            {text:'🍫 做巧克力', pos:'pos-center', style:'top:30%', action:'logic:open_choco_game'}, // 新增
+            {text:'买高级甜品(8金)', pos:'pos-center', action:'logic:buy_sweet'}, 
+            {text:'一起做甜品', pos:'pos-center', style:'top:65%', action:'logic:make_sweet_together'}, 
+            {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}
+        ]
+    },
     'mall_walk': { bg:'https://i.postimg.cc/bJndtxHJ/IMG_1997.png', buttons:[{text:'一起逛街', pos:'pos-center', action:'logic:walk_together'}, {text:'自己逛街', pos:'pos-center', style:'top:65%', action:'logic:walk_alone'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
     'mall_food': { bg:'https://i.postimg.cc/8khjkbzn/IMG_1990.png', buttons:[{text:'吃点小吃', pos:'pos-center', action:'logic:eat_snack'}, {text:'🔙 返回', pos:'pos-btm-mid', action:'goto:mall_main'}]},
       'travel_main': {
@@ -23623,6 +23682,9 @@ function executeAdvLogic(logicKey) {
             const c = rnd(1,6);
             if(data.money>=c){ modAdv({money:-c}); advAddItem("衣服",1,"clothes"); msg = `买衣服花了 ${c} 金。`; }
             else msg = "钱不够买衣服。"; break;
+        case 'open_choco_game':
+            initChocoGame(); // 进入巧克力游戏
+            return; // 阻止后续默认逻辑
         
         case 'buy_sweet':
             if(data.money>=8){ modAdv({money:-8}); advAddItem("高级甜品",1,"high_sweet"); msg = "买了高级甜品。"; }
@@ -31421,5 +31483,126 @@ window.openGameApp = async function() {
     
     toggleHalfBodies('both'); 
 };
+// ==================== 🍫 巧克力制作小游戏逻辑 ====================
+let chocoStep = 0; // 0:空, 1:加黄油, 2:加牛奶, 3:加巧克力, 4:完成
+
+function initChocoGame() {
+    chocoStep = 0;
+    const container = document.getElementById('adv-scene-container');
+    container.innerHTML = `
+        <div class="choco-game-container" style="background-image: url('https://i.postimg.cc/2y9RGX90/IMG_2239.png');">
+                <img id="c-pot" class="choco-pot" src="https://i.postimg.cc/vT2FhS2r/IMG_2243.png" style="top: 75%;"> 
+            
+            <!-- 材料 -->
+            <img id="c-butter" class="choco-item" src="https://i.postimg.cc/kGY3shYN/IMG_2242.png" style="top:40%; left:5%;width:140px;" onload="enableDrag(this, 1)">
+            <img id="c-milk" class="choco-item" src="https://i.postimg.cc/MH325r3Y/IMG_2240.png" style="top:30%; left:40%;" onload="enableDrag(this, 2)">
+            <img id="c-choco" class="choco-item" src="https://i.postimg.cc/8cXQ4nXB/IMG_2241.png" style="top:40%; right:5%;width:140px;" onload="enableDrag(this, 3)">
+            <img id="c-rod" class="choco-item" src="https://i.postimg.cc/cCLGQNhw/IMG_2247.png" style="top:6%; right:10%;" onload="enableDrag(this, 4)">
+
+            <!-- 退出按钮 -->
+            <div class="adv-btn pos-btm-mid" onclick="renderAdvScene('mall_sweet')">🔙 离开</div>
+        </div>
+    `;
+    // 隐藏立绘防止遮挡
+    if(typeof hideAdvDialog === 'function') hideAdvDialog();
+}
+
+function enableDrag(el, stepReq) {
+    let startX, startY, initialLeft, initialTop;
+    const pot = document.getElementById('c-pot');
+
+    const start = (e) => {
+        e.preventDefault();
+        const touch = e.touches ? e.touches[0] : e;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        initialLeft = el.offsetLeft;
+        initialTop = el.offsetTop;
+        document.addEventListener('mousemove', move);
+        document.addEventListener('touchmove', move, {passive: false});
+        document.addEventListener('mouseup', end);
+        document.addEventListener('touchend', end);
+    };
+
+    const move = (e) => {
+        e.preventDefault();
+        const touch = e.touches ? e.touches[0] : e;
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        el.style.left = (initialLeft + dx) + 'px';
+        el.style.top = (initialTop + dy) + 'px';
+    };
+
+    const end = (e) => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('mouseup', end);
+        document.removeEventListener('touchend', end);
+        
+        // 碰撞检测
+        const r1 = el.getBoundingClientRect();
+        const r2 = pot.getBoundingClientRect();
+        const overlap = !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
+
+        if (overlap) {
+            handleChocoStep(stepReq, el);
+        } else {
+            // 复位
+            el.style.left = initialLeft + 'px';
+            el.style.top = initialTop + 'px';
+        }
+    };
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, {passive: false});
+}
+
+function handleChocoStep(req, el) {
+    const pot = document.getElementById('c-pot');
+    
+    // 逻辑顺序检查
+    if (req !== chocoStep + 1) {
+        alert("请按顺序添加：黄油 -> 牛奶 -> 巧克力 -> 搅拌棒");
+        // 复位
+        el.style.left = ""; el.style.top = ""; 
+        return;
+    }
+
+    chocoStep = req;
+    el.style.display = 'none'; // 放入锅中后隐藏物品
+
+    // 图片变化逻辑
+    if (req === 1) pot.src = "https://i.postimg.cc/gj2bvPsq/IMG_2246.png"; // 黄油入锅
+    else if (req === 2) pot.src = "https://i.postimg.cc/sxgCpRmJ/IMG_2245.png"; // 牛奶入锅
+    else if (req === 3) {
+        // 巧克力入锅 (根据你的描述，这一步不换图，只隐藏巧克力，或者复用2245，等待搅拌)
+        // 你的描述是：巧克力拖动 -> 第三步(放在右边) -> 搅拌棒 -> 换图
+        // 这里我们让巧克力消失，表示进入锅里了
+    }
+    else if (req === 4) {
+        pot.src = "https://i.postimg.cc/GtgwKSgY/IMG_2244.png"; // 搅拌完成
+        setTimeout(finishChocoMaking, 500);
+    }
+}
+
+function finishChocoMaking() {
+    const style = prompt("巧克力制作完成！\n请输入巧克力的样式 (如: 心形/小熊):", "心形");
+    if (!style) return;
+    const flavor = prompt("请输入额外的味道 (如: 榛子/朗姆酒):", "海盐");
+    if (!flavor) return;
+
+    // 触发文游生成逻辑
+    const text = `我亲手在甜品店制作了一份【${flavor}口味的${style}巧克力】，并把它送给了你。`;
+    
+    // 调用全局 LLM (支持梦占模式)
+    if (typeof checkDreamMode === 'function' && typeof callGlobalLLM === 'function') {
+        checkDreamMode((ctx) => {
+            callGlobalLLM(text, "event", ctx + "\n【特殊指令】这是一次甜蜜的互动，请描写角色收到这份手工巧克力的反应，以及品尝后的评价。");
+        });
+    }
+    
+    // 返回商场
+    renderAdvScene('mall_sweet');
+}
 </script>
 </html> 
