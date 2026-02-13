@@ -3894,6 +3894,31 @@ canvas {
     transition: transform 0.1s; touch-action: none;
 }
 .choco-item:active { cursor: grabbing; transform: scale(1.1); }
+/* === 😘 亲亲互动模式专用样式 === */
+#adv-kiss-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000; z-index: 30000; /* 最高层级 */
+    display: none; flex-direction: column; align-items: center; justify-content: flex-end;
+}
+#kiss-char-img {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; /* 充满屏幕，模拟凑近的效果 */
+    object-position: top center;
+    filter: brightness(0.9);
+    pointer-events: none; /* 让点击穿透到遮罩层处理 */
+}
+.kiss-dialog {
+    position: relative; z-index: 10; margin-bottom: 100px;
+    background: rgba(255,255,255,0.9); color: #333;
+    padding: 15px 25px; border-radius: 20px; font-weight: bold;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    max-width: 80%; text-align: center;
+    border: 2px solid #ff7675;
+    animation: popIn 0.3s;
+}
+/* 呼吸动画，模拟期待 */
+@keyframes kiss-breathe { 0% {transform: scale(1);} 50% {transform: scale(1.02);} 100% {transform: scale(1);} }
+.kiss-active #kiss-char-img { animation: kiss-breathe 3s infinite ease-in-out; }
     </style>
 </head>
 <body>
@@ -17096,12 +17121,12 @@ window.addEventListener('load', function() {
 });
 // 全局变量用于存储打包好的文件，供 iOS 二次点击使用
 let pendingBackupFile = null;
-
 async function exportFullBackup() {
     const btn = event.target;
     
-    // === 阶段二：如果文件已经准备好，直接触发分享/下载 (iOS 核心修复) ===
+    // === 阶段二：用户手动点击绿色按钮，触发下载 ===
     if (pendingBackupFile) {
+        // 尝试调用原生分享 (部分手机浏览器支持)
         if (navigator.canShare && navigator.canShare({ files: [pendingBackupFile] })) {
             try {
                 await navigator.share({
@@ -17110,11 +17135,11 @@ async function exportFullBackup() {
                     text: '这是您的全量备份数据'
                 });
             } catch (err) {
-                // 用户取消分享不报错
-                if (err.name !== 'AbortError') alert("分享失败，请重试");
+                if (err.name !== 'AbortError') alert("分享失败，请重试，或者尝试在该页面直接下载。");
             }
         } else {
-            // PC 端兜底
+            // PC / 安卓 APK / 不支持分享的浏览器 -> 走传统下载链接
+            // 因为这是在用户的“点击事件”中直接执行的，所以不会被拦截
             const url = URL.createObjectURL(pendingBackupFile);
             const a = document.createElement('a');
             a.href = url;
@@ -17125,7 +17150,7 @@ async function exportFullBackup() {
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
         
-        // 重置按钮状态
+        // 下载触发后，重置按钮状态
         btn.innerText = "📤 导出备份 (.json)";
         btn.style.backgroundColor = "";
         btn.style.color = "";
@@ -17134,7 +17159,7 @@ async function exportFullBackup() {
         return;
     }
 
-    // === 阶段一：开始打包数据 ===
+    // === 阶段一：用户点击导出，开始打包数据 ===
     if(btn.getAttribute('data-processing')) return;
     btn.setAttribute('data-processing', 'true');
     const originalText = btn.innerText;
@@ -17158,12 +17183,12 @@ async function exportFullBackup() {
         const anniversaryData = await idb.getAll('anniversary_data');
         const tvData = await idb.getAll('tv');
         const chatHistory = await idb.getAll('chat_history'); 
-        const tarotDeck = await idb.getAll('tarot_deck'); // 塔罗牌库
-        const lenormandDeck = await idb.getAll('lenormand_deck'); // 雷诺曼牌库
+        const tarotDeck = await idb.getAll('tarot_deck'); 
+        const lenormandDeck = await idb.getAll('lenormand_deck'); 
 
         const backupData = {
             meta: {
-                version: "5.0_iOS_Fixed",
+                version: "5.0_Universal_Fix", // 版本标记
                 date: new Date().toLocaleString(),
                 timestamp: Date.now(),
                 app: "RetroOS_Full_Backup"
@@ -17172,7 +17197,6 @@ async function exportFullBackup() {
             chat_history: chatHistory,
             pickup_data: await idb.getAll('pickup_data'),
             
-            // 包含了所有图片资源
             image_stores: {
                 album_data: albumData,
                 settings_heavy: settingsHeavy,
@@ -17184,16 +17208,16 @@ async function exportFullBackup() {
             }
         };
 
-        // 3. 生成文件对象
+        // 3. 生成文件对象 (关键修改：使用 octet-stream)
         const jsonStr = JSON.stringify(backupData);
-        const blob = new Blob([jsonStr], { type: "application/json" });
+        const blob = new Blob([jsonStr], { type: "application/octet-stream" });
         const fileName = `RetroOS_Backup_${new Date().toISOString().slice(0,10)}.json`;
         
-        // 存入全局变量
-        pendingBackupFile = new File([blob], fileName, { type: "application/json" });
+        // 生成待下载文件
+        pendingBackupFile = new File([blob], fileName, { type: "application/octet-stream" });
 
-        // 4. 改变按钮状态，引导用户进行“第二次点击”
-        // 这是绕过 iOS 安全限制的唯一方法
+        // 4. 改变按钮状态，引导用户进行第二次点击
+        // 这一步至关重要，它将“自动行为”转变为“用户行为”，从而避开拦截
         btn.removeAttribute('data-processing');
         btn.setAttribute('data-ready', 'true');
         btn.innerText = "✅ 打包完成！点击此处保存";
@@ -17202,23 +17226,7 @@ async function exportFullBackup() {
         btn.style.opacity = "1";
         btn.style.fontWeight = "bold";
         
-        // 对于 PC，我们可以尝试直接触发一次
-        if (!navigator.canShare) {
-             const url = URL.createObjectURL(blob);
-             const a = document.createElement('a');
-             a.href = url;
-             a.download = fileName;
-             document.body.appendChild(a);
-             a.click();
-             document.body.removeChild(a);
-             // PC端直接复原
-             setTimeout(() => {
-                 btn.innerText = originalText;
-                 btn.style.backgroundColor = "";
-                 btn.style.color = "";
-                 pendingBackupFile = null;
-             }, 2000);
-        }
+        // 注意：此处删除了原本的自动下载代码
 
     } catch (e) {
         console.error(e);
@@ -22948,7 +22956,32 @@ window.generateGalgameEndingAPI = async function() {
         </div>
     </div>
 </div>
-<!-- 2. 功能脚本 -->
+<!-- ❤️ 画爱心互动层 (含呼吸特效) -->
+<div id="adv-heart-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: flex-end;">
+    <!-- 呼吸动画样式 -->
+    <style>
+        @keyframes char-breathing {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.03) translateY(-1%); } /* 吸气：变大且微上浮 */
+            100% { transform: scale(1) translateY(0); }
+        }
+    </style>
+
+    <!-- 底层立绘 (已添加 animation 属性) -->
+    <img id="heart-char-img" src="" style="position: absolute; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.8); pointer-events: none; transform-origin: bottom center; animation: char-breathing 4s ease-in-out infinite;">
+    
+    <!-- 绘画层 -->
+    <canvas id="heart-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; touch-action: none;"></canvas>
+
+    <!-- 对话框 -->
+    <div id="heart-msg-box" style="position: relative; z-index: 10; margin-bottom: 80px; background: rgba(255,255,255,0.95); color: #333; padding: 15px 25px; border-radius: 20px; font-weight: bold; box-shadow: 0 5px 20px rgba(0,0,0,0.5); max-width: 80%; text-align: center; border: 2px solid #ff7675; transition: all 0.3s;">
+        你玩好久了，休息一下快说爱我！
+    </div>
+    
+    <div style="position:absolute; bottom:30px; z-index:10; color:rgba(255,255,255,0.6); font-size:0.8rem; pointer-events:none;">
+        (请在屏幕上画个爱心)
+    </div>
+</div>
 <script>
 (function() {
     console.log("正在初始化学习总结 APP...");
@@ -31604,5 +31637,244 @@ function finishChocoMaking() {
     // 返回商场
     renderAdvScene('mall_sweet');
 }
+
+// ==================== ❤️ 画爱心互动完整逻辑 (含更衣室测试) ====================
+
+let heartCtx;
+let isDrawingHeart = false;
+let heartDrawDistance = 0; // 记录画画的总长度
+let heartLastPoint = { x: 0, y: 0 };
+
+// 1. 触发事件 (入口)
+window.triggerHeartEvent = function() {
+    const data = window.BIG_MEMORY.adv_data;
+    
+    // 检查开关 (复用 kiss_mode 变量名以便兼容)
+    if (data.kiss_mode === false) return; 
+
+    // 获取立绘 (必须有角色立绘才触发)
+    const charImg = data.avatars.char;
+    if (!charImg) return; 
+
+    const overlay = document.getElementById('adv-heart-overlay');
+    const img = document.getElementById('heart-char-img');
+    const msg = document.getElementById('heart-msg-box');
+    const canvas = document.getElementById('heart-canvas');
+
+    // 初始化界面
+    img.src = charImg;
+    msg.innerText = "你玩好久了，休息一下快说爱我！";
+    msg.style.color = "#333";
+    msg.style.transform = "scale(1)";
+    overlay.style.display = 'flex';
+
+    // 初始化画布
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    heartCtx = canvas.getContext('2d');
+    
+    // 设置画笔样式 (粉色荧光笔触感)
+    heartCtx.strokeStyle = "#ff7675"; 
+    heartCtx.lineWidth = 6;
+    heartCtx.lineCap = "round";
+    heartCtx.lineJoin = "round";
+    heartCtx.shadowBlur = 5;
+    heartCtx.shadowColor = "#ff7675";
+
+    // 清空画布
+    heartCtx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 重置数据
+    heartDrawDistance = 0;
+    isDrawingHeart = false;
+
+    // 绑定绘画事件 (兼容 鼠标 & 触摸)
+    canvas.ontouchstart = startHeart;
+    canvas.ontouchmove = moveHeart;
+    canvas.ontouchend = endHeart;
+    canvas.onmousedown = startHeart;
+    canvas.onmousemove = moveHeart;
+    canvas.onmouseup = endHeart;
+}
+
+// 2. 开始画
+function startHeart(e) {
+    // 阻止默认滚动
+    if(e.cancelable) e.preventDefault();
+    
+    isDrawingHeart = true;
+    const pt = getPoint(e);
+    heartLastPoint = pt;
+    heartCtx.beginPath();
+    heartCtx.moveTo(pt.x, pt.y);
+}
+
+// 3. 画画中 (累加距离)
+function moveHeart(e) {
+    if (!isDrawingHeart) return;
+    if(e.cancelable) e.preventDefault();
+    
+    const pt = getPoint(e);
+    
+    // 画线
+    heartCtx.lineTo(pt.x, pt.y);
+    heartCtx.stroke();
+    
+    // 计算这段的距离并累加
+    const dist = Math.hypot(pt.x - heartLastPoint.x, pt.y - heartLastPoint.y);
+    heartDrawDistance += dist;
+    
+    heartLastPoint = pt;
+}
+
+// 4. 结束画画 (判定逻辑)
+function endHeart(e) {
+    if (!isDrawingHeart) return;
+    isDrawingHeart = false;
+    
+    const msg = document.getElementById('heart-msg-box');
+    
+    // === 判定标准 ===
+    // 距离阈值设为 300 像素。
+    // 点击一下距离通常是 0~10，画个圈或心通常 > 400。
+    if (heartDrawDistance > 300) {
+        // 成功！
+        msg.innerText = "爱你！";
+        msg.style.color = "#e84393"; // 亮粉色
+        msg.style.transform = "scale(1.2)"; // 放大一点表示高兴
+        
+        // 1.5秒后关闭
+        setTimeout(() => {
+            document.getElementById('adv-heart-overlay').style.display = 'none';
+        }, 1500);
+        
+    } else {
+        // 失败 (敷衍)
+        msg.innerText = "怎么敷衍我。";
+        msg.style.color = "#d63031"; // 红色
+        
+        // 0.5秒后清空画布，让用户重画
+        setTimeout(() => {
+            if(heartCtx) heartCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            heartDrawDistance = 0;
+            // 恢复提示语颜色，暗示可以重试
+            setTimeout(() => {
+                if(document.getElementById('adv-heart-overlay').style.display !== 'none') {
+                    msg.innerText = "快好好画！";
+                    msg.style.color = "#333";
+                }
+            }, 1000);
+        }, 500);
+    }
+}
+
+// 辅助：获取坐标
+function getPoint(e) {
+    if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+}
+
+// 5. 注入功能栏开关 (自动执行)
+const _origInjectMenu = window.injectAdvMenu;
+window.injectAdvMenu = function() {
+    if(_origInjectMenu) _origInjectMenu(); 
+
+    const menuBtn = document.getElementById('btn-adv-menu');
+    if (menuBtn) {
+        menuBtn.onclick = () => {
+            const data = window.BIG_MEMORY.adv_data;
+            if(data.kiss_mode === undefined) data.kiss_mode = true; // 默认开启
+
+            const choice = prompt(
+                `===== 文游功能菜单 =====\n` +
+                `1. ${data.dream_mode ? '✅' : '⬜'} 梦占模式\n` +
+                `2. 📅 约会系统\n` +
+                `3. 📖 历史回顾\n` +
+                `4. 🔚 结束世界\n` +
+                `5. ${data.kiss_mode ? '❤️' : '🚫'} 画爱心互动 (开关)\n` + 
+                `请输入数字：`
+            );
+            
+            if (choice === '5') {
+                data.kiss_mode = !data.kiss_mode;
+                saveToBigDB('adv_data', data);
+                alert(`画爱心互动已${data.kiss_mode ? '开启' : '关闭'}！`);
+            }
+            // 兼容旧逻辑
+            else if (choice === '1') {
+                data.dream_mode = !data.dream_mode;
+                saveToBigDB('adv_data', data);
+                alert(`梦占模式已${data.dream_mode ? '开启' : '关闭'}`);
+            } else if (choice === '2') openDatingMenu();
+            else if (choice === '3') openAdvHistory();
+            else if (choice === '4') document.getElementById('adv-ending-modal').style.display = 'flex';
+        };
+    }
+};
+
+// 6. 🔥 注入更衣室测试按钮 (100% 触发)
+const _origRenderCloset = window.renderClosetUI;
+window.renderClosetUI = function() {
+    // 先渲染原版界面
+    _origRenderCloset(); 
+    
+    // 找到容器
+    const container = document.querySelector('.closet-container');
+    if (container) {
+        // 创建测试按钮
+        const testBtn = document.createElement('button');
+        testBtn.className = "m-btn secondary";
+        testBtn.innerText = "❤️ 画爱心 (100%触发)";
+        testBtn.style.width = "100%";
+        testBtn.style.marginBottom = "15px";
+        testBtn.style.background = "#ff7675"; // 粉色背景
+        testBtn.style.color = "white";
+        testBtn.style.fontWeight = "bold";
+        
+        // 绑定触发事件
+        testBtn.onclick = function() {
+            // 强制开启开关，防止因为关闭了开关导致测试无效
+            window.BIG_MEMORY.adv_data.kiss_mode = true;
+            window.triggerHeartEvent();
+        };
+        
+        // 插入到 "我的背包" 标题前面
+        // 我们寻找包含“我的背包”字样的 div
+        const allDivs = container.getElementsByTagName('div');
+        let targetDiv = null;
+        for(let div of allDivs) {
+            if(div.innerText.includes("我的背包")) {
+                targetDiv = div;
+                break;
+            }
+        }
+        
+        if(targetDiv) {
+            container.insertBefore(testBtn, targetDiv);
+        } else {
+            // 如果没找到，就插在最后面
+            container.appendChild(testBtn);
+        }
+    }
+};
+
+// 7. 随机触发器 (挂载到游戏逻辑)
+const _origLogicHeart = window.executeAdvLogic;
+window.executeAdvLogic = function(logicKey) {
+    // 5% 概率触发，且必须有角色立绘
+    if (Math.random() < 0.05) {
+        const data = window.BIG_MEMORY.adv_data;
+        if (data.avatars && data.avatars.char) {
+            triggerHeartEvent(); // 触发画爱心
+            return; // 阻断原操作
+        }
+    }
+    // 否则执行原逻辑
+    _origLogicHeart(logicKey);
+}
+
+console.log("✅ 画爱心系统已加载：检测拖动距离 + 更衣室测试按钮");
 </script>
 </html> 
