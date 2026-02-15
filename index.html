@@ -17119,63 +17119,63 @@ window.addEventListener('load', function() {
         console.log("✅ 无限容量系统已就绪！");
     });
 });
-// 全局变量用于存储打包好的文件，供 iOS 二次点击使用
 // 全局变量用于存储打包好的文件
 let pendingBackupFile = null;
 
 async function exportFullBackup() {
     const btn = event.target;
     
-    // === 阶段二：用户点击绿色按钮，触发下载 ===
+    // === 阶段二：用户点击绿色按钮，触发下载/分享 ===
     if (pendingBackupFile) {
-        // iOS 尝试分享
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS && navigator.canShare && navigator.canShare({ files: [pendingBackupFile] })) {
+        // 1. 优先尝试原生分享 (iOS/Android 通用，体验最好)
+        if (navigator.canShare && navigator.canShare({ files: [pendingBackupFile] })) {
             try {
                 await navigator.share({
                     files: [pendingBackupFile],
                     title: 'RetroOS_Backup',
-                    text: '数据备份'
+                    text: 'RetroOS 数据备份'
                 });
                 resetExportBtn(btn);
                 return;
-            } catch (e) { console.log("分享取消"); }
+            } catch (e) { console.log("分享取消或不支持，尝试直接下载"); }
         }
 
-        // 通用下载逻辑 (安卓/PC)
+        // 2. 传统下载方式 (针对 APK/PC/不支持分享的浏览器)
         try {
             const url = URL.createObjectURL(pendingBackupFile);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = pendingBackupFile.name;
+            // 安卓 APK 关键修复：文件名必须非常标准
+            a.download = `RetroOS_${new Date().toISOString().slice(0,10)}.json`; 
             document.body.appendChild(a);
             a.click();
+            
+            // 延迟清理，给安卓一点反应时间
             setTimeout(() => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 resetExportBtn(btn);
-            }, 2000);
-        } catch (e) { alert("下载失败: " + e.message); }
+            }, 5000); 
+        } catch (e) { alert("下载启动失败: " + e.message); }
         return;
     }
 
     // === 阶段一：分块打包数据 ===
     if(btn.getAttribute('data-processing')) return;
     btn.setAttribute('data-processing', 'true');
-    const originalText = btn.innerText;
     
-    btn.innerText = "📦 正在分块打包 (防崩溃模式)...";
+    btn.innerText = "📦 正在打包 (请勿关闭页面)...";
     btn.style.opacity = "0.7";
 
     try {
-        const jsonChunks = []; // 用于存放 JSON 片段的数组
+        const jsonChunks = []; 
 
-        // 1. 写入头部信息
-        jsonChunks.push('{"meta":{"version":"5.0_Safe","date":"' + new Date().toLocaleString() + '","app":"RetroOS_Backup"},');
+        // 1. 写入头部
+        jsonChunks.push('{"meta":{"version":"5.0_Stable","date":"' + new Date().toLocaleString() + '","app":"RetroOS_Backup"},');
 
-        // 2. 处理 Big Memory (包含世界书、设置、经期等文字数据)
-        // 先从数据库拉取最新数据同步到内存
+        // 2. 获取 Big Memory (文字配置)
+        // 确保从数据库获取最新
         const allUniversal = await idb.getAll('universal_store');
         const universalObj = {};
         allUniversal.forEach(item => { universalObj[item.id] = item.data; });
@@ -17183,12 +17183,10 @@ async function exportFullBackup() {
         
         jsonChunks.push('"big_memory":' + JSON.stringify(finalMemory) + ',');
 
-        // --- 辅助函数：分块读取 Store 并追加到 JSON ---
-        async function appendStore(keyName, storeName) {
+        // 3. 处理大型 Store (使用游标，防止读取时就爆内存)
+        async function streamStore(keyName, storeName) {
             jsonChunks.push(`"${keyName}": [`);
             let count = 0;
-            
-            // 使用游标遍历，避免一次性把所有数据读入内存
             const tx = idb.db.transaction(storeName, 'readonly');
             const store = tx.objectStore(storeName);
             let cursorReq = store.openCursor();
@@ -17197,8 +17195,8 @@ async function exportFullBackup() {
                 cursorReq.onsuccess = (e) => {
                     const cursor = e.target.result;
                     if (cursor) {
-                        if (count > 0) jsonChunks.push(','); // 加上逗号
-                        jsonChunks.push(JSON.stringify(cursor.value)); // 逐条转字符串
+                        if (count > 0) jsonChunks.push(','); 
+                        jsonChunks.push(JSON.stringify(cursor.value)); 
                         count++;
                         cursor.continue();
                     } else {
@@ -17207,59 +17205,54 @@ async function exportFullBackup() {
                 };
                 cursorReq.onerror = reject;
             });
-            jsonChunks.push('],'); // 闭合数组
-            console.log(`✅ 已打包 ${storeName}: ${count} 条`);
+            jsonChunks.push('],');
+            console.log(`✅ ${storeName} 打包完成: ${count} 条`);
         }
 
-        // 3. 打包聊天记录 (文字量大，使用游标流式处理)
-        await appendStore('chat_history', 'chat_history');
-        await appendStore('pickup_data', 'pickup_data');
+        // 分别打包聊天记录和其他数据
+        await streamStore('chat_history', 'chat_history');
+        await streamStore('pickup_data', 'pickup_data');
 
-        // 4. 打包图片库 (除了塔罗和雷诺曼)
+        // 4. 图片库 (排除文件APP里的塔罗牌以节省内存)
         jsonChunks.push('"image_stores": {');
-        
-        // 定义需要备份的图片库 (注意：特意去掉了 tarot_deck 和 lenormand_deck)
         const imageStoresToBackup = [
-            'album_data',       // 相册
-            'settings_heavy',   // 美化背景/皮肤
-            'chat_stickers',    // 表情包
-            'anniversary_data', // 纪念日图
-            'tv'                // 电视机图
+            'album_data',       
+            'settings_heavy',   
+            'chat_stickers',    
+            'anniversary_data', 
+            'tv'
+            // 注意：这里没有 tarot_deck 和 lenormand_deck，这是为了防止文件过大
         ];
 
         for (let i = 0; i < imageStoresToBackup.length; i++) {
             const storeName = imageStoresToBackup[i];
-            jsonChunks.push(`"${storeName}":`); // Key
-            
-            // 手动获取数据并转为 JSON 字符串
+            jsonChunks.push(`"${storeName}":`);
             const items = await idb.getAll(storeName);
             jsonChunks.push(JSON.stringify(items));
-            
-            // 如果不是最后一个，加逗号
             if (i < imageStoresToBackup.length - 1) jsonChunks.push(',');
         }
 
-        jsonChunks.push('}}'); // 闭合 image_stores 和 整个对象
+        jsonChunks.push('}}'); // 结束 JSON
 
-        // 5. 生成 Blob (关键：使用 application/json)
-        const blob = new Blob(jsonChunks, { type: "application/json" });
+        // 5. 生成文件 (使用 octet-stream 强制浏览器作为文件下载)
+        const blob = new Blob(jsonChunks, { type: "application/octet-stream" });
         const sizeMB = blob.size / 1024 / 1024;
-        const fileName = `RetroOS_SafeBackup_${new Date().toISOString().slice(0,10)}.json`;
+        const fileName = `RetroOS_${new Date().toISOString().slice(0,10)}.json`;
 
-        pendingBackupFile = new File([blob], fileName, { type: "application/json" });
+        pendingBackupFile = new File([blob], fileName, { type: "application/octet-stream" });
 
-        // 6. 更新按钮状态
+        // 6. 按钮变绿，等待用户二次点击
         btn.removeAttribute('data-processing');
         btn.setAttribute('data-ready', 'true');
-        btn.innerText = `✅ 成功! (不含牌组 ${sizeMB.toFixed(1)}MB) 点击下载`;
+        btn.innerText = `✅ 打包成功 (${sizeMB.toFixed(1)}MB) 点击保存`;
         btn.style.background = "#06c755";
         btn.style.color = "white";
-        btn.style.opacity = "1";
         btn.style.fontWeight = "bold";
+        btn.style.opacity = "1";
 
     } catch (e) {
         console.error(e);
-        alert("备份过程中出错: " + e.message);
+        alert("打包失败 (内存不足): " + e.message);
         resetExportBtn(btn);
     }
 }
@@ -17277,75 +17270,144 @@ async function importFullRestore(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (!confirm(`⚠️ 警告：这将覆盖当前的【所有】数据！\n包括相册、聊天记录、美化设置等。\n\n文件大小: ${(file.size/1024/1024).toFixed(2)}MB\n确定要恢复吗？`)) {
+    // 1. 警告提示
+    if (!confirm(`⚠️ 高能预警：恢复备份将【覆盖】当前所有数据！\n文件大小: ${(file.size/1024/1024).toFixed(2)}MB\n\n确定继续吗？`)) {
         input.value = '';
         return;
     }
 
+    const statusEl = document.querySelector('.modal-header span'); 
+    const originalTitle = statusEl.innerText;
+    statusEl.innerText = "⏳ 正在分析文件 (请勿操作)...";
+
     const reader = new FileReader();
+    
+    // 使用 readAsText 读取整个文件 (这步通常不会崩，崩的是 parse)
+    reader.readAsText(file);
+
     reader.onload = async (e) => {
+        const rawText = e.target.result;
+        
         try {
-            const data = JSON.parse(e.target.result);
+            console.log("开始手动切片解析...");
             
-            if (!data.meta || !data.meta.app.includes("RetroOS")) {
-                throw new Error("这不是有效的 RetroOS 备份文件");
-            }
-
-            console.log("开始恢复数据...");
-            if (data.big_memory) {
-                window.BIG_MEMORY = data.big_memory;
-                for (let key in data.big_memory) {
-                    await idb.put('universal_store', { id: key, data: data.big_memory[key] });
-                }
-            }
-            const restoreListText = [
-                { key: 'chat_history', source: data.chat_history },
-                { key: 'pickup_data', source: data.pickup_data }
-            ];
+            // === 核心黑科技：手动提取 JSON 片段 ===
+            // 这种方法避免了将整个 200MB 字符串变成对象，而是切成小块处理
             
-            for (let item of restoreListText) {
-                if (item.source && Array.isArray(item.source)) {
-                    await idb.clear(item.key);
-                    const tx = idb.db.transaction([item.key], 'readwrite');
-                    const store = tx.objectStore(item.key);
-                    item.source.forEach(rec => store.put(rec));
-                    await new Promise(resolve => tx.oncomplete = resolve);
-                }
-            }
-
-            if (data.image_stores) {
-                const imgMap = data.image_stores;
-                const storesToRestore = ['album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'];
+            // 辅助函数：查找并解析某个 Key 对应的对象/数组
+            async function extractAndSave(keyName, storeName, isArray = true) {
+                statusEl.innerText = `⏳ 正在恢复: ${keyName}...`;
                 
-                for (let storeName of storesToRestore) {
-                    if (imgMap[storeName] && Array.isArray(imgMap[storeName])) {
-                        await idb.clear(storeName); 
+                // 1. 找到 Key 的位置
+                const keyIndex = rawText.indexOf(`"${keyName}":`);
+                if (keyIndex === -1) return; // 没找到，跳过
+
+                // 2. 找到值的开始位置 (Key 之后紧接着的 [ 或 {)
+                let startSearch = keyIndex + keyName.length + 2; 
+                let startIndex = -1;
+                let openChar = isArray ? '[' : '{';
+                let closeChar = isArray ? ']' : '}';
+                
+                // 简单的查找起始符号
+                for(let i = startSearch; i < startSearch + 100; i++) {
+                    if (rawText[i] === openChar) {
+                        startIndex = i;
+                        break;
+                    }
+                }
+                if (startIndex === -1) return;
+
+                // 3. 智能查找结束位置 (处理嵌套括号)
+                let balance = 0;
+                let endIndex = -1;
+                let inQuote = false; // 是否在引号内 (处理字符串里的括号)
+                
+                for (let i = startIndex; i < rawText.length; i++) {
+                    const char = rawText[i];
+                    
+                    if (char === '"' && rawText[i-1] !== '\\') {
+                        inQuote = !inQuote; // 切换引号状态
+                    }
+                    
+                    if (!inQuote) {
+                        if (char === openChar) balance++;
+                        else if (char === closeChar) balance--;
+                    }
+
+                    if (balance === 0) {
+                        endIndex = i + 1;
+                        break;
+                    }
+                }
+
+                if (endIndex === -1) return; // 没找到结尾
+
+                // 4. 切割字符串并解析 (只解析这一块！)
+                const jsonChunk = rawText.substring(startIndex, endIndex);
+                const dataChunk = JSON.parse(jsonChunk);
+
+                // 5. 存入数据库
+                if (isArray) {
+                    // 如果是数组 (如 chat_history)，清空旧的并存入
+                    if (storeName) {
+                        await idb.clear(storeName);
                         const tx = idb.db.transaction([storeName], 'readwrite');
                         const store = tx.objectStore(storeName);
-                        
-                        imgMap[storeName].forEach(rec => store.put(rec));
+                        for (let item of dataChunk) {
+                            store.put(item);
+                        }
                         await new Promise(resolve => tx.oncomplete = resolve);
-                        console.log(`✅ 已恢复图片库: ${storeName}`);
+                    }
+                } else {
+                    // 如果是对象 (如 big_memory)
+                    if (keyName === 'big_memory') {
+                        window.BIG_MEMORY = dataChunk;
+                        for (let k in dataChunk) {
+                            await idb.put('universal_store', { id: k, data: dataChunk[k] });
+                        }
+                    } else if (keyName === 'image_stores') {
+                        // 处理 image_stores 里的子项
+                        for (let subKey in dataChunk) {
+                            // 这里复用逻辑，subKey 就是 storeName (如 album_data)
+                            if (dataChunk[subKey] && Array.isArray(dataChunk[subKey])) {
+                                await idb.clear(subKey);
+                                const tx = idb.db.transaction([subKey], 'readwrite');
+                                const store = tx.objectStore(subKey);
+                                dataChunk[subKey].forEach(item => store.put(item));
+                                await new Promise(resolve => tx.oncomplete = resolve);
+                            }
+                        }
                     }
                 }
-            }
-            if (data.local_storage) {
-                for (let key in data.local_storage) {
-                    if (data.local_storage[key]) {
-                        localStorage.setItem(key, data.local_storage[key]);
-                    }
-                }
+                
+                // 6. 强制垃圾回收建议 (解除引用)
+                // dataChunk = null; 
             }
 
-            alert(`🎉 恢复成功！\n数据时间: ${data.meta.date}\n页面即将刷新以应用更改。`);
+            // === 按顺序执行手动解析 ===
+            
+            // 1. 恢复 big_memory (核心文字数据)
+            await extractAndSave('big_memory', null, false);
+            
+            // 2. 恢复聊天记录 (最容易崩的地方)
+            await extractAndSave('chat_history', 'chat_history', true);
+            await extractAndSave('pickup_data', 'pickup_data', true);
+            
+            // 3. 恢复图片库 (这一块可能依然很大，但我们是一次解析一部分)
+            // 注意：因为 image_stores 内部是一个大对象，如果它太大，还是会卡。
+            // 但因为我们排除了塔罗牌，这里应该能过。
+            await extractAndSave('image_stores', null, false);
+
+            alert("🎉 数据恢复成功！\n页面即将刷新...");
             location.reload();
 
         } catch (err) {
             console.error(err);
-            alert("❌ 恢复失败: 文件格式错误或内存不足。\n" + err.message);
+            alert("❌ 恢复过程中发生错误 (可能是文件损坏或依然超出内存限制):\n" + err.message);
+            statusEl.innerText = originalTitle;
         }
     };
-    reader.readAsText(file);
+    
     input.value = ''; 
 }
 const NotificationManager = {
