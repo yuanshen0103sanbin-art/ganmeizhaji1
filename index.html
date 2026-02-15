@@ -27800,6 +27800,133 @@ window.flipDreamCard = async function(el, cardData) {
 };
 console.log("✅ 梦APP 抽牌桌层级修复已加载");
 </script>
+<!-- ================== 新年限时公告代码 START ================== -->
+<script>
+(function() {
+    // --- 1. 时间控制：17号及以后不再显示 ---
+    // 获取当前日期
+    var now = new Date();
+    var date = now.getDate(); // 获取几号
+    // 如果今天是17号或更大，直接退出，不显示
+    if (date >= 17) return;
+
+    // --- 2. 唯一性控制：本地已读过则不显示 ---
+    var storageKey = "ganmei_newyear_2025_read"; 
+    if (localStorage.getItem(storageKey)) return;
+
+    // --- 3. 样式定义 ---
+    var overlayStyle = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s;";
+    var cardStyle = "background:#fff; width:85%; max-width:450px; padding:25px; border-radius:16px; box-shadow:0 0 30px rgba(0,0,0,0.5); font-family:sans-serif; position:relative; max-height:80vh; overflow-y:auto;";
+    var btnStyle = "margin-top:20px; width:100%; padding:12px; border:none; background:#ff7675; color:white; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer; transition:0.2s;";
+
+    // --- 第一步：显示祝福公告 ---
+    function showGreeting() {
+        var div = document.createElement('div');
+        div.id = "gm-step1";
+        div.style.cssText = overlayStyle;
+        div.innerHTML = `
+            <div style="${cardStyle} border: 2px solid #ff7675;">
+                <h3 style="color:#d63031; margin-top:0; text-align:center;">🧧 节日快乐！</h3>
+                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                    <p>很感谢大家喜欢甘梅小手机也愿意玩甘梅小手机，各位小甘梅节日快乐！（晚点要上课这边就只能提前祝福了）</p>
+                    <p>承蒙大家的喜欢总会想是不是还有哪里没做到位没有做好，看着大家的喜欢也更有动力去更新了。今天还是想说很感谢各位小甘梅的喜欢，也希望小甘梅们新年快乐！事事顺心万事如意。</p>
+                    <p style="background:#fff0f6; padding:10px; border-radius:8px;">这个红包是每次看到大家的喜欢我也想大家开心些所以想为大家更加做些什么的想法，也麻烦小甘梅们请不要推荐甘梅炸机谢谢大家（因为可能导致会有一些小甘梅收不到糖果），请一直以来照顾我的各位们吃口新年快乐糖。</p>
+                </div>
+                <button id="gm-btn-ok" style="${btnStyle}">确定</button>
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        // 点击确定后
+        document.getElementById('gm-btn-ok').onclick = function() {
+            // 标记为已读，下次不再显示第一步
+            localStorage.setItem(storageKey, "true");
+            // 移除当前弹窗
+            div.remove();
+            // 进入第二步
+            showWarning();
+        };
+    }
+
+    // --- 第二步：显示保密提示 (强制8秒) ---
+    function showWarning() {
+        var div = document.createElement('div');
+        div.style.cssText = overlayStyle;
+        div.innerHTML = `
+            <div style="${cardStyle}">
+                <h3 style="color:#e17055; margin-top:0; text-align:center;">🤫 悄悄话</h3>
+                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                    <p style="font-weight:bold;">请大家因此不要宣传甘梅炸机，也请大家保密这部分内容因为只是祝福的想法想感谢大家而不是想要被推广之类的，很感谢大家喜欢甘梅炸机。</p>
+                    <p style="font-size:0.85rem; color:#666; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                        （我也不希望除了小甘梅们的人领到糖果而且可能会让一部分小甘梅没法领到糖果，因为大家的喜欢，我才有创作的动力，如果发现异常行为会马上删除这个口令和公告）
+                    </p>
+                </div>
+                <button id="gm-btn-wait" style="${btnStyle}; background:#b2bec3; cursor:not-allowed;" disabled>
+                    请认真阅读 (8s)
+                </button>
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        // 倒计时逻辑
+        var timeLeft = 8;
+        var btn = document.getElementById('gm-btn-wait');
+        var timer = setInterval(function() {
+            timeLeft--;
+            btn.innerText = "请认真阅读 (" + timeLeft + "s)";
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                btn.disabled = false;
+                btn.innerText = "我明白了";
+                btn.style.background = "#e17055";
+                btn.style.cursor = "pointer";
+            }
+        }, 1000);
+
+        btn.onclick = function() {
+            div.remove();
+            showImage();
+        };
+    }
+
+    // --- 第三步：显示图片 (10秒自动关闭) ---
+    function showImage() {
+        var div = document.createElement('div');
+        // 背景设为深黑色，突出图片
+        div.style.cssText = overlayStyle + "background:rgba(0,0,0,0.95);";
+        div.innerHTML = `
+            <img src="https://i.postimg.cc/bYLT92Yh/IMG-2372.png" 
+                 style="max-width:95%; max-height:80vh; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); object-fit:contain;">
+            <div style="color:white; margin-top:20px; font-weight:bold; font-size:1.1rem;">
+                图片将在 <span id="img-timer" style="color:#ff7675;">10</span> 秒后自动关闭
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        var timeLeft = 10;
+        var timerSpan = document.getElementById('img-timer');
+        var timer = setInterval(function() {
+            timeLeft--;
+            if(timerSpan) timerSpan.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                div.remove(); // 关闭图片
+            }
+        }, 1000);
+        
+        // 点击背景也可以提前关闭
+        div.onclick = function() {
+            clearInterval(timer);
+            div.remove();
+        }
+    }
+
+    // 启动流程
+    showGreeting();
+
+})();
+</script>
+<!-- ================== 新年限时公告代码 END ================== -->
 </body>
 <style>
 @viewport { fit: cover; }
@@ -31975,4 +32102,5 @@ window.executeAdvLogic = function(logicKey) {
 
 console.log("✅ 画爱心系统已加载：检测拖动距离 + 更衣室测试按钮");
 </script>
+
 </html> 
