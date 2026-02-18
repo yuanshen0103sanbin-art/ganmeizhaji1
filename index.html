@@ -5233,12 +5233,19 @@ function handleFileToInput(inputEl, type) {
                 }
             }, delay);
         }
-        async function clearChatHistory() { 
-            if(confirm('确定清空聊天记录？')) {
-                await idb.clear('chat_history');
-                document.getElementById('chat-history').innerHTML = ''; 
-            }
-        }
+// === 确认版：只清空聊天记录 ===
+async function clearChatHistory() { 
+    if(confirm('确定清空聊天记录？\n(已收藏的消息不会被删除)')) { // 改一下提示语让人放心
+        // 1. 清空 IndexedDB 里的聊天记录表
+        await idb.clear('chat_history');
+        
+        // 2. 清空界面显示
+        document.getElementById('chat-history').innerHTML = ''; 
+        
+        // 3. 这里的关键是：不要去动 window.BIG_MEMORY.chat_collections 或 universal_store 里的 chat_collections
+        // 只要不做多余操作，上面的 confirmCollectMessages 存的数据就是安全的。
+    }
+}
         function renderChatHistory() {
     return new Promise((resolve) => {
         const history = document.getElementById('chat-history');
@@ -5640,9 +5647,10 @@ function saveThesaurusData(data) {
                 r.readAsText(e.target.files[0]);
             }; input.click();
         }
-// 🔍 找到这一行
-const wbCategories = ["1.全局", "2.小剧场", "3.塔罗牌", "4.雷诺曼", "5.传讯", "6.报纸", "7.论坛体", "8.捡手机文学", "9.冰箱", "10.假如你是ta的梦角", "11.捡到ta的手机", "12.学习计划", "13.信件", "14.日记", "15.六爻", "16.梅花", "17.老福特", "18.宠物", "19.旮旯game", "20.像素小屋"];
-        let currentCategory = wbCategories[0]; let editingIndex = -1;
+// 增加 "宠物"
+const wbCategories = ["占卜向全局", "无占卜向全局", "宠物"];
+let currentCategory = wbCategories[0]; 
+let editingIndex = -1;
         function getWBData() { 
     return window.BIG_MEMORY.world_book || {}; 
 }
@@ -6578,7 +6586,7 @@ async function analyzeCycleWithAI() {
     if (apiUrl && apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
     if (!apiUrl) apiUrl = "https://api.openai.com/v1"; 
     const wb = getWBData();
-    const globalContext = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+  const globalContext = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const prompt = `
 你是一位贴心的健康管家，同时你必须**严格扮演世界书中的角色**。
 
@@ -6776,11 +6784,14 @@ async function finishReadingAndGenerate() {
         
         return `【${name}${status}】`;
     }).join(", ");
-    const wb = getWBData();
-    const globalContext = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const newsContext = (wb['6.报纸'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"); 
+       const wb = getWBData();
+    // ✅ 【修改】报纸属于抽牌功能，读取[占卜向全局]
+    // 注意：原来的“6.报纸”设定在迁移时已经合并到了“占卜向全局”里，所以这里只读这一个即可
+    const globalContext = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
     let locationStr = `User's Real Location: ${currentCity}`; 
-    let userPersona = (wb['1.全局'] || []).filter(i=>i.title.includes("人设") || i.title.includes("User")).map(i=>i.content).join("\n");
+    // ✅ 【修改】人设也从[占卜向全局]里筛选
+    let userPersona = (wb['占卜向全局'] || []).filter(i=>i.title.includes("人设") || i.title.includes("User")).map(i=>i.content).join("\n");
     const dateStr = new Date().toLocaleDateString();
     
     const realTemp = document.getElementById('real-temp').innerText;
@@ -6791,8 +6802,7 @@ async function finishReadingAndGenerate() {
 【输入信息】
 1. **抽出的命运牌组**：${cardsDesc}
 2. **梦角世界设定**：${globalContext}
-3. **报纸特别设定**：${newsContext}
-4. **现实世界坐标**：
+3. **现实世界坐标**：
    - 地点：${currentCity} (必须基于此真实地点)
    - 日期：${dateStr}
    - 天气：${realWeather}
@@ -7409,24 +7419,10 @@ async function startDivination() {
     }).join(", ");
 
     // --- 2. 准备世界书上下文 (保持原逻辑) ---
+        // --- 2. 准备世界书上下文 (新：只读占卜向) ---
     const wbData = getWBData();
-    let worldContext = "";
-    if(document.getElementById('wb-ctx-global')?.checked) {
-        worldContext += `\n【世界观全局设定】:\n${(wbData['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")}\n`;
-    }
-    if(document.getElementById('wb-ctx-tarot')?.checked && tarotState.mode === 'tarot') {
-        worldContext += `\n【塔罗特殊设定】:\n${(wbData['3.塔罗牌'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")}\n`;
-    }
-    if(document.getElementById('wb-ctx-lenormand')?.checked && tarotState.mode === 'lenormand') {
-        worldContext += `\n【雷诺曼特殊设定】:\n${(wbData['4.雷诺曼'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")}\n`;
-    }
-    if(document.getElementById('wb-ctx-iching')?.checked && isEastern) {
-        const ichingText = (wbData['15.六爻'] || []).concat(wbData['16.梅花'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-        if(ichingText) worldContext += `\n【易学设定】:\n${ichingText}\n`;
-    }
-    if(document.getElementById('wb-ctx-char')?.checked) {
-        worldContext += `\n【相关信件/人设】:\n${(wbData['13.信件'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")}\n`;
-    }
+    // 直接读取 "占卜向全局" 的所有内容
+    const worldContext = (wbData['占卜向全局'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
 
     // --- 3. UI 准备 ---
     const outputDiv = document.getElementById('divination-output');
@@ -8027,11 +8023,9 @@ async function finishLetterReading() {
     // (B) 翻牌数据：只用来决定“是否已读” (New Logic)
     const tableCardsDesc = letterPickedCards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     
-    // (C) 世界书数据
     const wb = getWBData();
-    const globalText = (wb['1.全局'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
-    const letterText = (wb['13.信件'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
-
+    // 【修改】直接读取“占卜向全局”，因为旧的信件设定已经合并进去了
+    const globalText = (wb['占卜向全局'] || []).filter(i => i.enabled).map(i => i.content).join("\n");
         let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
     let model = document.getElementById('model-select').value;
@@ -8051,8 +8045,6 @@ async function finishLetterReading() {
     const prompt = `
 你现在是世界书中的角色。
 ${globalText}
-【信件设定】: ${letterText}
-
 【用户来信】: ${content}
 
 【神秘学能量场】
@@ -8409,14 +8401,9 @@ async function generateTheaterSegment() {
     document.getElementById('theater-content-list').appendChild(loadingDiv);
     scrollArea.scrollTop = scrollArea.scrollHeight;
 
-    const wb = getWBData();
-    let worldContext = "";
-    if (document.getElementById('th-use-global').checked) {
-        worldContext += "【世界观(全局)】:\n" + ((wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
-    }
-    if (document.getElementById('th-use-theater').checked) {
-        worldContext += "【剧场设定】:\n" + ((wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
-    }
+        const wb = getWBData();
+    // ✅ 修改为：直接读取无占卜向全局
+    let worldContext = ((wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"));
 
     const recentHistory = currentContent.slice(-20).map(h => {
         return h.role === 'user' ? `[用户指令]: ${h.text}` : `[小说正文]: ${h.text}`;
@@ -8674,7 +8661,12 @@ async function generateForumThread() {
     const inputEl = document.getElementById('forum-input');
     const userText = inputEl.value.trim();
     const btn = document.getElementById('btn-forum-gen');
-    const roleType = document.getElementById('forum-role-select').value; 
+    
+    // ➤➤➤ 修改开始：改为获取单选按钮的值，而不是 select ➤➤➤
+    const roleRadio = document.querySelector('input[name="forum_role"]:checked');
+    const roleType = roleRadio ? roleRadio.value : 'npc'; // 默认为npc
+    // ➤➤➤ 修改结束 ➤➤➤
+
     let isContinuation = !!currentForumId;
     let currentThread = isContinuation ? await getForumContent(currentForumId) : null;
 
@@ -8685,19 +8677,13 @@ async function generateForumThread() {
     const originalText = btn.innerText;
     btn.disabled = true;
     btn.innerText = "生成中(较慢)...";
-
-    // 【防卡死 1】强制等待 50ms，让 UI 先渲染出“生成中”状态，避免点击瞬间浏览器冻结
     await new Promise(r => setTimeout(r, 50));
 
     // --- 以下保持原生成逻辑 ---
+        // --- 修改：直接读取无占卜向全局 ---
     const wb = getWBData();
-    let context = "";
-    if(document.getElementById('forum-use-global').checked) {
-        context += "【世界观(全局)】:\n" + ((wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
-    }
-    if(document.getElementById('forum-use-forum').checked) {
-        context += "【论坛体设定】:\n" + ((wb['7.论坛体'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
-    }
+    // 无论 Checkbox 是否勾选，都强制读取合并后的新分类
+    let context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let previousContext = "";
     if (isContinuation && currentThread) {
@@ -9107,8 +9093,9 @@ async function generateWeChatRecipe(fridgeData) {
     const veg = fridgeData.vegetables.map(i => `${i.name}x${i.count}`).join(', ');
     const meat = fridgeData.meat.map(i => `${i.name}x${i.count}`).join(', ');
     const wb = getWBData();
-    let context = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const fridgeCtx = (wb['9.冰箱'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"); 
+    // 【修改】冰箱归类为无占卜，读取合并后的“无占卜向全局”
+    let context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const fridgeCtx = ""; // 旧的冰箱设定已合并到上面的context中，这里置空防止报错
     let apiKey = "", apiUrl = "", model = "";
     try {
         const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
@@ -9409,10 +9396,9 @@ async function generatePickupChat() {
     const originalText = btn.innerText;
     btn.disabled = true;
     btn.innerText = "生成中...";
-    const wb = getWBData();
-    let context = "";
-    context += "【世界观(全局)】:\n" + ((wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
-    context += "【捡手机文学设定】:\n" + ((wb['8.捡手机文学'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) + "\n";
+        const wb = getWBData();
+    // 修改：直接读取【无占卜向全局】条目
+    let context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const historyContext = currentMsgs.slice(-10).map(m => `${m.role==='me'?'用户':'角色'}: ${m.content}`).join("\n");
 
     const systemPrompt = `你是一个“捡手机文学”生成器。
@@ -10028,8 +10014,9 @@ async function finishDreamDrawing() {
         return `${name}${status}`;
     }).join(", ");
 
-    const wb = getWBData();
-    const globalContext = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        const wb = window.BIG_MEMORY.world_book || {};
+    // 修改：梦App属于占卜向，读取【占卜向全局】。旧的梦角设定已在加载时自动合并到此处。
+    const globalContext = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const dreamContextKey = Object.keys(wb).find(k => k.includes("梦角"));
     const dreamContext = dreamContextKey ? 
         (wb[dreamContextKey] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : "";
@@ -10297,8 +10284,8 @@ async function finishHisPhoneReading() {
     btn.disabled = true;
     const cardsDesc = hpFlippedCards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(",");
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const phoneCtx = (wb['11.捡到ta的手机'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
         let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
     let model = document.getElementById('model-select').value;
@@ -10320,8 +10307,6 @@ async function finishHisPhoneReading() {
 你现在正在模拟**目标角色**的手机内容。
 【角色/世界设定】：
 ${globalCtx}
-【捡手机特别设定】：
-${phoneCtx}
 【抽到的命运牌 (作为生成内容的潜意识指引)】：
 ${cardsDesc}
 
@@ -10717,7 +10702,8 @@ async function generateStudyPlan() {
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
     const charName = chatSettings.title || "角色";
     const wb = getWBData();
-    const globalContext = useWb ? ((wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n")) : "";
+    const globalContext = useWb ? ((wb['无占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n")) : "";
     
     // --- 修改了 Prompt ---
     const prompt = `
@@ -11737,8 +11723,8 @@ async function processGameTurn(userInput, cards) {
     // 2. 准备基础数据
     const cardsDesc = cards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const msgCtx = (wb['5.传讯'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 获取历史记录用于上下文
     const history = (window.BIG_MEMORY.game_history || []).slice(0, 5); // 取最近5条即可，避免token过多
@@ -11763,7 +11749,6 @@ async function processGameTurn(userInput, cards) {
 你现在正在进行一个 RPG 角色扮演游戏。
 【世界观/人设】：
 ${globalCtx}
-${msgCtx}
 【当前扮演角色名】：${charName}
 
 【当前状态】：
@@ -12085,7 +12070,8 @@ const btn = document.getElementById('btn-comp-start');
     
     // 准备 API 数据
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     const duration = parseInt(document.getElementById('comp-duration').value);
     
     // 构建 Prompt
@@ -12596,8 +12582,8 @@ async function finishDiaryDrawing() {
     // 准备 Prompt 数据
     const cardsDesc = diaryFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const diaryCtx = (wb['14.日记'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n"); // 记得在世界书里加这个分类
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n"); // 记得在世界书里加这个分类
     
         let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
@@ -12620,7 +12606,6 @@ async function finishDiaryDrawing() {
     const prompt = `
 你现在正在以第一人称撰写日记。
 【角色设定】: ${globalCtx}
-【日记特别设定】: ${diaryCtx}
 【今日命运牌 (必须完全基于牌意生成今日经历)】: ${cardsDesc}
 
 【任务要求】
@@ -12974,7 +12959,8 @@ window.finishTeachingDraw = async function() {
     // 准备数据
     const cardsDesc = teachingFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     const synopsis = document.getElementById('teach-synopsis').value;
     const subject = currentTeachingSession.subject;
     const scope = currentTeachingSession.scope;
@@ -13443,7 +13429,8 @@ window.finishWitchDraw = async function() {
     // 数据准备
     const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     const userPunish = document.getElementById('witch-user-punishment').value;
     const userTrapIdx = witchGameState.myTrap;
 
@@ -13989,7 +13976,7 @@ window.renderWitchHistory = function() {
                 <span style="color:#ff7675; cursor:pointer;" onclick="deleteWitchHistory(${index})">🗑️ 删除</span>
             </div>
             <div style="font-weight:bold; margin:5px 0; color:${statusColor}; font-size:1rem;">
-                ${item.winner === 'User' ? '🏆 你赢了' : (item.winner === 'Char' ? '💀 你输了' : '💾 存档点')}
+                ${item.winner === 'User' ? '💀 你输了' : (item.winner === 'Char' ? '🏆 你赢了' : '💾 存档点')}
             </div>
             <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">
                 惩罚: ${item.userPunish.substring(0, 15)}...
@@ -14496,7 +14483,7 @@ window.finishMovingDraw = async function() {
     // 准备数据
     const cardsDesc = movingFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -14627,20 +14614,19 @@ window.handleMovingChoice = function(choice) { // choice: 'keep' or 'toss'
     document.getElementById('moving-action-btns').style.display = 'none'; // 隐藏选择按钮
     reactionBox.style.display = 'block'; // 显示反应和下一步按钮
     
-    // 实时保存进度
-    const data = getMovingData();
-    data.current_session.current_index = currentItemIndex; // 保持索引，防止刷新丢失
-    // data.current_session.items[currentItemIndex] 已经在上面被修改引用了
-    saveMovingData(data);
+
+    if(currentMovingSession) currentMovingSession.current_index = currentItemIndex;
+    saveMovingData(getMovingData());
 };
 
 // 7. 下一个物品
 window.nextMovingItem = function() {
     currentItemIndex++;
     // 更新进度并保存
-    const data = getMovingData();
-    data.current_session.current_index = currentItemIndex;
-    saveMovingData(data);
+
+        // 修复：直接更新当前会话引用
+    if(currentMovingSession) currentMovingSession.current_index = currentItemIndex; 
+    saveMovingData(getMovingData());
     
     renderMovingItem();
 };
@@ -14845,7 +14831,7 @@ window.finishScentDraw = async function() {
     // 数据准备
     const cardsDesc = scentFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -15813,7 +15799,8 @@ window.submitTacitChallenge = async function() {
 
     // 准备 Prompt
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -16279,7 +16266,7 @@ async function finishSmsDraw() {
     // 准备数据
     const cardsDesc = smsFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -16494,7 +16481,7 @@ window.finishPuzzleDraw = async function() {
     // 准备上下文
     const cardsDesc = puzzleFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -16561,36 +16548,67 @@ window.finishPuzzleDraw = async function() {
         btn.innerText = oldText; btn.disabled = false;
     }
 };
+// === 💾 新增：手动保存拼图功能的逻辑 ===
+window.manualSavePuzzle = function() {
+    // 1. 检查是否有正在进行的拼图数据
+    if (!puzzleCurrentImgData || !puzzleGameState.stories || puzzleGameState.stories.length === 0) {
+        return alert("⚠️ 当前没有生成任何回忆，无法保存！\n请先上传图片并抽取命运牌。");
+    }
+
+    // 2. 获取当前的存储数据
+    const data = window.getPuzzleData();
+    if (!data.history) data.history = [];
+
+    // 3. 构建新的存档记录
+    const newRecord = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        img: puzzleCurrentImgData,       // 保存当前图片
+        stories: puzzleGameState.stories, // 保存生成的故事
+        cards: document.getElementById('puzzle-cards-display').innerText || "神秘牌意",
+        solved: puzzleGameState.isSolved // 记录是否拼完
+    };
+
+    // 4. 存入历史列表的最前面
+    data.history.unshift(newRecord);
+
+    // 5. 写入无限存储数据库
+    window.savePuzzleData(data);
+    
+    alert("✅ 已成功保存到拼图册！\n你可以随时在【📂 拼图册】中回顾。");
+};
 // ==================== 🧩 拼图游戏逻辑 (修复版) ====================
 
-// 6. 拼图游戏核心逻辑
 
 // A. 初始化游戏：只在开始时调用一次 (负责洗牌)
 function initPuzzleBoard(imgSrc) {
     const board = document.getElementById('puzzle-board');
+    if(!board) return;
     board.innerHTML = '';
-    
-    // 生成索引 [0,1,2...8]
+    board.style.border = "2px dashed #ccc"; // 重置边框，防止历史记录的绿框残留
+
+    // 1. 生成打乱的索引
     let pieces = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     
-    // 洗牌算法：只在这里执行一次！
+    // 洗牌算法
     for (let i = pieces.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
     }
-    // 确保打乱后不是原图 (防极低概率)
+    // 防止极其罕见的直接拼好情况
     if (pieces.join('') === '012345678') {
         [pieces[0], pieces[1]] = [pieces[1], pieces[0]];
     }
     
-    // 保存状态到全局变量
+    // 2. 核心修复：更新全局状态
+    puzzleCurrentImgData = imgSrc; // 必须在这里更新图片源，否则保存时会为空
     puzzleGameState.pieces = pieces;
-    puzzleGameState.selectedIdx = -1; // 重置选中状态
+    puzzleGameState.isSolved = false; // 新游戏标记为未解开
+    puzzleGameState.selectedIdx = -1;
     
-    // 调用渲染函数
+    // 3. 渲染
     renderBoardByState();
 }
-
 // B. 渲染函数：只负责画图，不负责洗牌
 function renderBoardByState() {
     const board = document.getElementById('puzzle-board');
@@ -16734,29 +16752,80 @@ window.deletePuzzleHistory = function(index) {
     savePuzzleData(data);
     renderPuzzleHistory();
 };
-
 window.loadPuzzleHistory = function(index) {
-    const item = getPuzzleData().history[index];
-    puzzleCurrentImgData = item.img;
-    puzzleGameState.stories = item.stories;
-    puzzleGameState.isSolved = true; // 历史记录直接是拼好的
-    puzzleGameState.pieces = [0,1,2,3,4,5,6,7,8]; // 正序
+    // 增加数据获取的健壮性
+    const list = window.getPuzzleData().history || [];
+    const item = list[index];
+
+    if (!item) return;
+
+    // 1. 恢复核心数据
+    puzzleCurrentImgData = item.img;       
+    puzzleGameState.stories = item.stories; 
+    puzzleGameState.isSolved = true;       // 历史记录强制设为已解开
+    puzzleGameState.pieces = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // 强制设为正序（已拼好）
+    puzzleGameState.selectedIdx = -1;      
+
+    // 2. 恢复界面文本
+    const displayEl = document.getElementById('puzzle-cards-display');
+    if (displayEl) displayEl.innerText = item.cards || "历史记录";
     
-    document.getElementById('puzzle-cards-display').innerText = item.cards;
-    document.getElementById('puzzle-status-text').innerHTML = `<span style="color:#00b894">🎉 历史回顾模式 (可直接翻看)</span>`;
-    
-    renderBoardByState();
-    
+    document.getElementById('puzzle-status-text').innerHTML = 
+        `<span style="color:#00b894">🎉 历史回顾模式 (可直接点击碎片翻看回忆)</span>`;
+
+    // 3. 切换视图
     document.getElementById('puzzle-app-modal').style.display = 'flex';
     document.getElementById('puzzle-create-view').style.display = 'block';
     document.getElementById('puzzle-history-view').style.display = 'none';
+    
+    // 隐藏上传面板，显示游戏面板
     document.getElementById('puzzle-upload-panel').style.display = 'none';
     document.getElementById('puzzle-game-panel').style.display = 'flex';
-    
-    // 历史界面也需要高亮边框
-    document.getElementById('puzzle-board').style.border = "3px solid #00b894";
-};
 
+    // 4. 给拼图板加上成功边框
+    const board = document.getElementById('puzzle-board');
+    if(board) board.style.border = "3px solid #00b894";
+
+    // 5. 立即渲染
+    renderBoardByState(); 
+};
+window.loadPuzzleHistory = function(index) {
+    // 增加数据获取的健壮性
+    const list = window.getPuzzleData().history || [];
+    const item = list[index];
+
+    if (!item) return;
+
+    // 1. 恢复核心数据
+    puzzleCurrentImgData = item.img;       
+    puzzleGameState.stories = item.stories; 
+    puzzleGameState.isSolved = true;       // 历史记录强制设为已解开
+    puzzleGameState.pieces = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // 强制设为正序（已拼好）
+    puzzleGameState.selectedIdx = -1;      
+
+    // 2. 恢复界面文本
+    const displayEl = document.getElementById('puzzle-cards-display');
+    if (displayEl) displayEl.innerText = item.cards || "历史记录";
+    
+    document.getElementById('puzzle-status-text').innerHTML = 
+        `<span style="color:#00b894">🎉 历史回顾模式 (可直接点击碎片翻看回忆)</span>`;
+
+    // 3. 切换视图
+    document.getElementById('puzzle-app-modal').style.display = 'flex';
+    document.getElementById('puzzle-create-view').style.display = 'block';
+    document.getElementById('puzzle-history-view').style.display = 'none';
+    
+    // 隐藏上传面板，显示游戏面板
+    document.getElementById('puzzle-upload-panel').style.display = 'none';
+    document.getElementById('puzzle-game-panel').style.display = 'flex';
+
+    // 4. 给拼图板加上成功边框
+    const board = document.getElementById('puzzle-board');
+    if(board) board.style.border = "3px solid #00b894";
+
+    // 5. 立即渲染
+    renderBoardByState(); 
+};
 // 🔴 关键：将 puzzle_data 添加到无限存储加载列表
 if (typeof loadAllBigData === 'function') {
     const _origLoad = loadAllBigData;
@@ -16893,7 +16962,7 @@ window.finishWorkDraw = async function() {
     // 1. 准备基础数据
     const cardsDesc = workFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     // 2. 修复 API 读取逻辑 (优先读取缓存，防止设置为空导致连接失败)
     let apiKey = document.getElementById('api-key').value;
@@ -17656,33 +17725,6 @@ window.deleteStudyPlan = function() {
                         <div class="input-group"><label>当前关系</label><input type="text" id="divine-status" placeholder="现状..."></div>
                     </div>
                 </details>
-<div class="morandi-card" style="padding:10px; margin-bottom:15px; border:1px solid #e0d0d0;">
-    <label style="font-size:0.8rem; color:#8b0000; font-weight:bold; display:block; margin-bottom:8px;">🔗 链接世界书 (勾选以注入API)</label>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:0.85rem;">
-        <label style="display:flex; align-items:center;">
-            <input type="checkbox" id="wb-ctx-global" checked> 
-            <span style="margin-left:4px;">1.全局设定</span>
-        </label>
-        
-        <label style="display:flex; align-items:center;">
-            <input type="checkbox" id="wb-ctx-tarot" checked> 
-            <span style="margin-left:4px;">3.塔罗牌</span>
-        </label>
-        <label style="display:flex; align-items:center;">
-            <input type="checkbox" id="wb-ctx-lenormand"> 
-            <span style="margin-left:4px;">4.雷诺曼</span>
-        </label>
-<!-- 追加在 checkbox 列表末尾 -->
-<label style="display:flex; align-items:center;">
-    <input type="checkbox" id="wb-ctx-iching" checked> 
-    <span style="margin-left:4px;">六爻/梅花设定</span>
-</label>
-        <label style="display:flex; align-items:center;">
-            <input type="checkbox" id="wb-ctx-char"> 
-            <span style="margin-left:4px;">信件</span>
-        </label>
-    </div>
-</div>
 
                 <div class="input-group">
                     <label>解读方式</label>
@@ -17883,20 +17925,25 @@ window.deleteStudyPlan = function() {
                 </div>
             </div>
         </div>
-        <div class="forum-footer-bar">
-            <div class="forum-input-settings">
-                <label><input type="checkbox" id="forum-use-global" checked> 引用世界书(全局)</label>
-                <label><input type="checkbox" id="forum-use-forum" checked> 引用世界书(论坛体)</label>
-                <select id="forum-role-select" style="border:1px solid #ddd; padding:2px;">
-                    <option value="npc">路人/NPC发帖</option>
-                    <option value="user">主角/我发帖</option>
-                </select>
-            </div>
-            <div style="display:flex; gap:10px;">
-                <textarea id="forum-input" class="th-textarea" style="height:50px;" placeholder="输入标题、梗概或关键词..."></textarea>
-                <button class="m-btn primary" onclick="generateForumThread()" id="btn-forum-gen" style="background:#00d2d3; width:80px;">发帖 / 续写</button>
-            </div>
-        </div>
+       <div class="forum-footer-bar">
+    <!-- 修改部分开始：改为单选按钮 -->
+    <div class="forum-input-settings" style="display:flex; gap:15px; padding:5px 0; align-items:center;">
+        <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
+            <input type="radio" name="forum_role" value="npc" checked style="margin-right:4px;"> 
+            👥 路人/NPC视角
+        </label>
+        <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
+            <input type="radio" name="forum_role" value="user" style="margin-right:4px;"> 
+            👤 主角/我视角
+        </label>
+    </div>
+    <!-- 修改部分结束 -->
+
+    <div style="display:flex; gap:10px;">
+        <textarea id="forum-input" class="th-textarea" style="height:50px;" placeholder="输入标题、梗概或关键词..."></textarea>
+        <button class="m-btn primary" onclick="generateForumThread()" id="btn-forum-gen" style="background:#00d2d3; width:80px;">发帖 / 续写</button>
+    </div>
+</div>
     </div>
     <div id="forum-history-panel" class="chat-settings-panel">
         <h3>📂 帖子历史</h3>
@@ -18190,6 +18237,8 @@ window.deleteStudyPlan = function() {
             <option value="user_beauty">😋 必吃榜：你的排名</option>
             <option value="char_sleep">🌙 夜袭：Ta对你...</option>
             <option value="user_sleep">💤 夜袭：你对Ta...</option>
+<option value="chunwan">🧧 假如一起上春晚</option>
+<option value="side_piece">💔 假如 Ta 是小三</option>
         </select>
         <div style="display:flex; gap:10px;">
             <button class="m-btn small" onclick="toggleDreamHistory()" style="background:transparent; color:#6a1b9a;">📜 历史</button>
@@ -19158,8 +19207,7 @@ async function generateLofterFeed() {
 
     // 1. 获取世界观配置
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    
+const globalCtx = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
         // 2. 获取 API Key (修复版：优先读取本地缓存，无需重新拉取)
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
@@ -19268,7 +19316,7 @@ async function readLofterFic(index) {
     bodyEl.innerHTML = `<div class="skeleton-text" style="margin-top:50px;">正在根据梗概扩写全文...<br>太太正在激情码字中...</div>`;
     
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 获取 API 设置
     let apiKey = document.getElementById('api-key').value;
@@ -19600,7 +19648,7 @@ async function finishPainAnalysis() {
     }).join(", ");
 
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 获取API Key
     let apiKey = document.getElementById('api-key').value;
@@ -19955,7 +20003,8 @@ async function finishGashaponDrawing() {
 
     // 准备 Prompt
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+const globalCtx = (wb['占卜向全局'] || [])
+.filter(i=>i.enabled).map(i=>i.content).join("\n");
     const cardsDesc = gashaponFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     
     let apiKey = document.getElementById('api-key').value;
@@ -20317,7 +20366,8 @@ function finalizeAdoption() {
     const wb = getWBData();
     
     // 👇👇👇 修改这一行 👇👇👇
-    const targetCategory = '18.宠物'; // 改成特定的分类
+    // 修改目标分类为纯净的 "宠物"
+const targetCategory = '宠物'; 
     
     if(!wb[targetCategory]) wb[targetCategory] = [];
     
@@ -20330,7 +20380,7 @@ function finalizeAdoption() {
             enabled: true
         });
         saveWBData(wb);
-        alert("🎉 领养成功！宠物档案已自动存入世界书【18.宠物】分类中。");
+        alert("🎉 领养成功！宠物档案已自动存入世界书【宠物】分类中。");
     } else {
         // 如果想更新，可以在这里写更新逻辑，或者保持不变
         saveWBData(wb);
@@ -20986,9 +21036,11 @@ async function generatePetStory(action, objectName) {
     
     // 获取设定
     const wb = window.BIG_MEMORY.world_book || {};
-    // 优先读取 "18.宠物" 分类的设定
-    const petCtx = (wb['18.宠物'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    // 1. 读取 "宠物" 分类里的设定 (读取你领养时生成的档案)
+const petCtx = (wb['宠物'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+// 2. 读取 "无占卜向全局" (按照你的要求，改为非占卜类)
+const globalCtx = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     // 检查 API
     let apiKey = document.getElementById('api-key').value;
@@ -21044,11 +21096,15 @@ async function generatePetStory(action, objectName) {
         // 限制历史数量防止卡顿
         if(data.history.length > 50) data.history.pop();
 
-        // 存入 IndexedDB
+                // 存入 IndexedDB
         savePetData(data);
         
         alert("✅ 故事已生成！请在【宠物日记】中查看。");
-        updateSettingsUI(); // 刷新界面
+        
+        // 👇 修改开始：给刷新界面加个容错保护 👇
+        try { updateSettingsUI(); } catch(err) {} 
+        return; // 强制结束，不再往下走
+        // 👆 修改结束 👆
 
     } catch(e) {
         console.error(e);
@@ -21251,8 +21307,7 @@ window.finishGalgameDraw = async function() {
         // 准备数据
         const cardsDesc = galFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
         const wb = window.BIG_MEMORY.world_book || {};
-        const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-        const gameCtx = (wb['19.旮旯game'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+      const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
         let prompt = "";
         let userInputs = {};
@@ -21269,7 +21324,7 @@ window.finishGalgameDraw = async function() {
             };
             saveGalData(data);
 
-            prompt = `你是一个Galgame引擎。世界观：${globalCtx}。游戏设定：${gameCtx}。初始情境：${plot}。命运牌：${cardsDesc}。
+            prompt = `你是一个Galgame引擎。世界观：${globalCtx}。游戏设定：${globalCtx}。初始情境：${plot}。命运牌：${cardsDesc}。
             任务：生成游戏的**开篇故事**。
             要求：200字左右，侧重描写角色的行为。结局开放。直接输出正文。`;
         } 
@@ -21435,8 +21490,7 @@ window.generateGalgameEndingAPI = async function() {
     alert("🎉 好感度已满！正在为您回溯所有记忆并编织结局...\n(文本较长，请耐心等待 15-20 秒)");
     
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const gameCtx = (wb['19.旮旯game'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 🔥【关键修改】：读取全部历史，并保留最近 20,000 个字符 (约 1万汉字)
     // 1. 不再使用 .slice(-5) 限制条数，而是处理所有历史
@@ -21455,7 +21509,6 @@ window.generateGalgameEndingAPI = async function() {
     const prompt = `
     你是一个Galgame引擎。
     【世界观】：${globalCtx}
-    【设定】：${gameCtx}
     
     【完整前情回顾 (Context)】：
     ${historyText}
@@ -21882,7 +21935,7 @@ async function finishShadowAnalysis() {
     // 准备数据
     const cardsDesc = shadowFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -22027,8 +22080,7 @@ window.generateGalgameEndingAPI = async function() {
     alert("🎉 好感度已满！正在为您编织最终结局 (请耐心等待约10秒)...");
     
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const gameCtx = (wb['19.旮旯game'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 🔥 关键优化：只提取最近的剧情，防止 token 溢出导致 Load failed
     // 只取最后 5 条记录的内容，并且截取最后 1500 个字符
@@ -22041,7 +22093,7 @@ window.generateGalgameEndingAPI = async function() {
     const prompt = `
     你是一个Galgame引擎。
     【世界观】：${globalCtx}
-    【设定】：${gameCtx}
+    【设定】：${globalCtx}
     【前情回顾】：${historyText}
     
     【当前状态】：好感度 100 (Max)。
@@ -22874,6 +22926,9 @@ window.generateGalgameEndingAPI = async function() {
 
                 <div class="morandi-card" style="width:100%; margin-top:20px; padding:10px;">
                     <div style="font-size:0.8rem; color:#888;">🔮 命运牌指引: <span id="puzzle-cards-display"></span></div>
+<!-- 新增的保存按钮 -->
+<!-- 修改后的保存按钮，调用新写的 manualSavePuzzle 函数 -->
+<button class="m-btn primary" onclick="manualSavePuzzle()" style="width:100%; margin-top:10px; background:#00b894;">💾 手动保存进度</button>
                     <button class="m-btn small" onclick="resetPuzzleGame()" style="width:100%; margin-top:10px; background:#fab1a0; color:#d63031;">🏳️ 放弃 / 重来</button>
                 </div>
             </div>
@@ -23158,8 +23213,8 @@ window.generateGalgameEndingAPI = async function() {
         // 获取世界书上下文
         const wb = window.BIG_MEMORY.world_book || {};
         const globalCtx = document.getElementById('sum-use-wb').checked 
-            ? (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") 
-            : "";
+    ? (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") 
+    : "";
 
         const prompt = `
 你是一位专业的学习导师，同时你需要**严格扮演世界书中的角色**。
@@ -23912,7 +23967,7 @@ function executeAdvLogic(logicKey) {
             break;
             
         // ======= ⬆️ 插入结束 ⬆️ =======
-    }
+    wa}
     
     if(msg) showAdvDialog(msg, talker);
 }
@@ -24164,9 +24219,18 @@ Object.assign(window.BIG_MEMORY.adv_data, {
 // 2. 全局 API 调用封装 (修正好感度定义)
 async function callGlobalLLM(userPrompt, type = "normal", extraContext = "") {
     const data = getAdvData();
-    const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const gameCtx = (wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+const wb = getWBData();
+
+// 默认读取无占卜
+let targetCategory = "无占卜向全局"; 
+
+// 如果开启了梦占模式，则读取占卜向
+if (data.dream_mode === true) {
+    targetCategory = "占卜向全局"; 
+}
+
+// 读取
+const globalCtx = (wb[targetCategory] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
     const charName = chatSettings.title || "Ta";
@@ -24823,10 +24887,21 @@ function updateSmallAvatar(who) {
 // 🔧 文游核心逻辑修正版 (名字修复 + 去星号)
 // ==========================================
 window.callGlobalLLM = async function(userPrompt, type = "normal", extraContext = "") {
-    const data = getAdvData();
+        const data = getAdvData();
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const gameCtx = (wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    // 【修改】根据梦占模式开关，决定读取哪个世界书
+    let targetCategory = "无占卜向全局"; // 默认（关闭时）
+    
+    if (data.dream_mode === true) {
+        targetCategory = "占卜向全局"; // 开启时
+    }
+    
+    // 读取对应分类的内容
+    const globalCtx = (wb[targetCategory] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    // gameCtx 也可以统一使用 globalCtx，或者直接定义为空字符串，防止报错
+    const gameCtx = ""; 
     
     // 【修改点1】名字获取逻辑修正：优先读取文游存档(data.charName)，没有才读聊天设置，最后默认"Ta"
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
@@ -25957,7 +26032,6 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
     };
 
     let pendingSummary = null;
-
     window.generateSummary = async function() {
         const subject = document.getElementById('sum-subject').value;
         const notes = document.getElementById('sum-notes').value;
@@ -25967,27 +26041,36 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
         const oldText = btn.innerText;
         btn.disabled = true; btn.innerText = "🧠 正在连接大脑...";
 
-        // 强力获取 API Key
-        let apiKey = "";
-        try { apiKey = document.getElementById('api-key').value; } catch(e){}
-        if(!apiKey) {
-            try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){}
+        // === 修复：统一 API 读取逻辑 ===
+        let apiKey = document.getElementById('api-key').value;
+        let apiUrl = document.getElementById('api-url').value;
+        let model = document.getElementById('model-select').value;
+
+        // 从缓存补全
+        if (!apiKey || !apiUrl) {
+            try {
+                const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
+                if (!apiKey) apiKey = s.key;
+                if (!apiUrl) apiUrl = s.url;
+                if (!model) model = s.model;
+            } catch (e) {}
         }
-        if(!apiKey) { 
+
+        if (!apiKey) {
             alert("请先在桌面【设置】中配置 API Key！");
             btn.disabled = false; btn.innerText = oldText;
             return;
         }
 
-        let apiUrl = document.getElementById('api-url')?.value || "https://api.openai.com/v1";
-        if(apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0,-1);
-        let model = document.getElementById('model-select')?.value || "gpt-3.5-turbo";
-
-        // 获取世界书上下文
+        // 处理 URL 格式
+        if (!apiUrl) apiUrl = "https://api.openai.com/v1";
+        if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+        if (!model) model = "gpt-3.5-turbo";
+            // 获取世界书上下文
         const wb = window.BIG_MEMORY.world_book || {};
         const globalCtx = document.getElementById('sum-use-wb').checked 
-            ? (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") 
-            : "";
+    ? (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") 
+    : "";
 
         const prompt = `
 你是一位专业的学习导师，同时你需要**严格扮演世界书中的角色**。
@@ -26912,8 +26995,7 @@ async function finishRpgChat() {
     // 准备上下文数据
     const cardsDesc = rpgFlippedCards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const chatCtx = (wb['2.小剧场'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalContext = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
         let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value;
@@ -27092,7 +27174,7 @@ function showRpgLoading(text) {
 
 async function getRpgContext() {
     const wb = window.BIG_MEMORY.world_book || {};
-    const global = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     if(!apiKey) {
@@ -27278,7 +27360,7 @@ async function generateStoreShopping(item) {
 
     // 准备数据
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -27378,8 +27460,7 @@ async function generatePixelStory(promptText, isR18 = false, userExtra = "") {
     alert(`⏳ 正在生成剧情...\n主题: ${promptText.substring(0,10)}...`);
     
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     if(!apiKey) { try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){} }
@@ -27576,10 +27657,7 @@ window.finishRpgChat = async function() {
     
     // 获取世界书数据
     const wb = window.getWBData(); 
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    
-    // 🔥【关键修改】这里改成读取 '5.传讯'
-    const msgCtx = (wb['5.传讯'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     // 获取 API Key
     let apiKey = document.getElementById('api-key').value;
@@ -27595,7 +27673,6 @@ window.finishRpgChat = async function() {
     const prompt = `
 你现在正在和用户进行面对面的亲密对话。
 【角色设定】：${globalCtx}
-【传讯/短信风格设定】：${msgCtx} 
 【情境】：用户说："${userInput}"
 【命运卡牌】：${cardsDesc}
 
@@ -27800,6 +27877,132 @@ window.flipDreamCard = async function(el, cardData) {
 };
 console.log("✅ 梦APP 抽牌桌层级修复已加载");
 </script>
+<script>
+(function() {
+    // --- 1. 时间控制：17号及以后不再显示 ---
+    // 获取当前日期
+    var now = new Date();
+    var date = now.getDate(); // 获取几号
+    // 如果今天是17号或更大，直接退出，不显示
+    if (date >= 20) return;
+
+    // --- 2. 唯一性控制：本地已读过则不显示 ---
+    var storageKey = "ganmei_newyear_2025_v2_read"; 
+    if (localStorage.getItem(storageKey)) return;
+
+    // --- 3. 样式定义 ---
+    var overlayStyle = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s;";
+    var cardStyle = "background:#fff; width:85%; max-width:450px; padding:25px; border-radius:16px; box-shadow:0 0 30px rgba(0,0,0,0.5); font-family:sans-serif; position:relative; max-height:80vh; overflow-y:auto;";
+    var btnStyle = "margin-top:20px; width:100%; padding:12px; border:none; background:#ff7675; color:white; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer; transition:0.2s;";
+
+    // --- 第一步：显示祝福公告 ---
+    function showGreeting() {
+        var div = document.createElement('div');
+        div.id = "gm-step1";
+        div.style.cssText = overlayStyle;
+        div.innerHTML = `
+            <div style="${cardStyle} border: 2px solid #ff7675;">
+                <h3 style="color:#d63031; margin-top:0; text-align:center;">🧧 节日快乐！</h3>
+                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                    <p>很感谢大家喜欢甘梅小手机也愿意玩甘梅小手机，各位小甘梅新年快乐！</p>
+                    <p>承蒙大家的喜欢总会想是不是还有哪里没做到位没有做好，看着大家的喜欢也更有动力去更新了。今天还是想说很感谢各位小甘梅的喜欢，也希望小甘梅们新年快乐！事事顺心万事如意。</p>
+                    <p style="background:#fff0f6; padding:10px; border-radius:8px;">这个红包是每次看到大家的喜欢我也想大家开心些所以想为大家更加做些什么的想法，也麻烦小甘梅们请不要推荐甘梅炸机谢谢大家（因为可能导致会有一些小甘梅收不到糖果），请一直以来照顾我的各位们吃口新年快乐糖。</p>
+                </div>
+                <button id="gm-btn-ok" style="${btnStyle}">确定</button>
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        // 点击确定后
+        document.getElementById('gm-btn-ok').onclick = function() {
+            // 标记为已读，下次不再显示第一步
+            localStorage.setItem(storageKey, "true");
+            // 移除当前弹窗
+            div.remove();
+            // 进入第二步
+            showWarning();
+        };
+    }
+
+    // --- 第二步：显示保密提示 (强制8秒) ---
+    function showWarning() {
+        var div = document.createElement('div');
+        div.style.cssText = overlayStyle;
+        div.innerHTML = `
+            <div style="${cardStyle}">
+                <h3 style="color:#e17055; margin-top:0; text-align:center;">🤫 悄悄话</h3>
+                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                    <p style="font-weight:bold;">请大家因此不要宣传甘梅炸机，也请大家保密这部分内容因为只是祝福的想法想感谢大家而不是想要被推广之类的，很感谢大家喜欢甘梅炸机。</p>
+                    <p style="font-size:0.85rem; color:#666; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                        （我也不希望除了小甘梅们的人领到糖果而且可能会让一部分小甘梅没法领到糖果，因为大家的喜欢，我才有创作的动力，如果发现异常行为会马上删除这个口令和公告）
+                    </p>
+                </div>
+                <button id="gm-btn-wait" style="${btnStyle}; background:#b2bec3; cursor:not-allowed;" disabled>
+                    请认真阅读 (8s)
+                </button>
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        // 倒计时逻辑
+        var timeLeft = 8;
+        var btn = document.getElementById('gm-btn-wait');
+        var timer = setInterval(function() {
+            timeLeft--;
+            btn.innerText = "请认真阅读 (" + timeLeft + "s)";
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                btn.disabled = false;
+                btn.innerText = "我明白了";
+                btn.style.background = "#e17055";
+                btn.style.cursor = "pointer";
+            }
+        }, 1000);
+
+        btn.onclick = function() {
+            div.remove();
+            showImage();
+        };
+    }
+
+    // --- 第三步：显示图片 (10秒自动关闭) ---
+    function showImage() {
+        var div = document.createElement('div');
+        // 背景设为深黑色，突出图片
+        div.style.cssText = overlayStyle + "background:rgba(0,0,0,0.95);";
+        div.innerHTML = `
+            <img src="https://i.postimg.cc/W3QpWP5q/IMG-2501.png" 
+                 style="max-width:95%; max-height:80vh; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); object-fit:contain;">
+            <div style="color:white; margin-top:20px; font-weight:bold; font-size:1.1rem;">
+                图片将在 <span id="img-timer" style="color:#ff7675;">10</span> 秒后自动关闭
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        var timeLeft = 10;
+        var timerSpan = document.getElementById('img-timer');
+        var timer = setInterval(function() {
+            timeLeft--;
+            if(timerSpan) timerSpan.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                div.remove(); // 关闭图片
+            }
+        }, 1000);
+        
+        // 点击背景也可以提前关闭
+        div.onclick = function() {
+            clearInterval(timer);
+            div.remove();
+        }
+    }
+
+    // 启动流程
+    showGreeting();
+
+})();
+</script>
+<!-- ================== 新年限时公告代码 END ================== -->
 </body>
 <style>
 @viewport { fit: cover; }
@@ -28904,8 +29107,7 @@ window.finishRpgChat = async function() {
     const userInput = document.getElementById('rpg-chat-input').value;
     const cardsDesc = rpgFlippedCards.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData(); 
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const msgCtx = (wb['5.传讯'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
@@ -28995,7 +29197,7 @@ window.generateRpgStory = async function(item) {
     storyList.prepend(loadingDiv);
     
     const wb = getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -29479,7 +29681,7 @@ window.renderWitchHistory = function() {
         div.style.border = '1px solid #6c5ce7';
         div.style.color = '#dfe6e9';
         
-        let statusText = item.winner === 'User' ? '🏆 你赢了' : (item.winner === 'Char' ? '💀 你输了' : '💾 存档点');
+        let statusText = item.winner === 'User' ? '💀 你输了' : (item.winner === 'Char' ? '🏆 你赢了' : '💾 存档点');
 
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:5px;">
@@ -29613,6 +29815,76 @@ window.addEventListener('load', function() {
             console.log("✅ [补丁] 系统就绪，无限存储与全局样式已激活。");
         });
     }, 500);
+});
+window.addEventListener('load', function() {
+    console.log("⚡ 系统正在初始化...");
+    
+    idb.init().then(async () => {
+        // ... (保留你原有的 loadAllBigData 等加载逻辑) ...
+        await loadAllBigData();
+        loadTVContent();
+        // ... (其他初始化代码) ...
+
+        // ➤➤➤ 【新增】世界书数据迁移与合并逻辑 ➤➤➤
+        const wbData = window.BIG_MEMORY.world_book || {};
+        
+        // 检查是否已经迁移过（如果新分类有数据，说明迁移过，或者是新用户）
+        // 如果旧的"1.全局"还存在，说明需要迁移
+        if (wbData["1.全局"] || wbData["2.小剧场"] || wbData["12.学习计划"]) {
+            console.log("♻️ 检测到旧版世界书结构，正在执行合并迁移...");
+            
+            const newWb = {
+                "占卜向全局": [],
+                "无占卜向全局": []
+            };
+
+            // 规则1：无占卜向全局（归纳指定的旧分类）
+            // 学习计划、小剧场、捡手机、经期、冰箱、论坛体、老福特、学习总结、游戏机(剧情)、宠物(电视)、故事生成
+            // 对应旧分类名称关键词映射
+            const noDivinationKeys = [
+                "学习计划", "小剧场", "捡手机", "经期", "冰箱", "论坛体", "老福特", 
+                "学习总结", "旮旯", "宠物", "故事", "像素" // 涵盖了游戏机、宠物、故事生成等
+            ];
+
+            // 规则2：占卜向全局（剩下的，以及原本的全局，以及用户自定义的）
+            // 将所有旧分类遍历一遍
+            for (let oldCat in wbData) {
+                const entries = wbData[oldCat];
+                if (!Array.isArray(entries)) continue;
+
+                // 判断这个分类属于哪边
+                let target = "占卜向全局"; // 默认为占卜向
+                
+                // 检查分类名是否包含"无占卜"关键词
+                for (let key of noDivinationKeys) {
+                    if (oldCat.includes(key)) {
+                        target = "无占卜向全局";
+                        break;
+                    }
+                }
+
+                // 给内容加上来源标签，方便用户分辨
+                const labeledEntries = entries.map(entry => ({
+                    ...entry,
+                    title: `[原:${oldCat}] ${entry.title}`,
+                    enabled: entry.enabled
+                }));
+
+                // 合并数据
+                newWb[target] = newWb[target].concat(labeledEntries);
+            }
+
+            // 保存新结构并覆盖
+            window.BIG_MEMORY.world_book = newWb;
+            if (typeof idb !== 'undefined') {
+                idb.put('universal_store', { id: 'world_book', data: newWb });
+            }
+            console.log("✅ 世界书迁移完成！只保留[占卜向全局]与[无占卜向全局]");
+        }
+        // ➤➤➤ 【迁移结束】 ➤➤➤
+
+        console.log("✅ 系统启动完毕！所有组件已就绪。");
+    });
 });
 // ==================== 🧹 一键瘦身工具 (无需重新上传) ====================
 
@@ -29929,7 +30201,7 @@ window.finishWitchDraw = async function() {
     // 准备数据
     const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const userPunish = document.getElementById('witch-user-punishment').value;
     const userTrapIdx = witchGameState.myTrap;
 
@@ -30090,7 +30362,7 @@ window.finishScentDraw = async function() {
     // 准备数据
     const cardsDesc = scentFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.getWBData();
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
@@ -30461,9 +30733,7 @@ window.generatePixelStory = async function(promptText, isR18 = false) {
     alert(`⏳ 正在生成剧情...\n主题: ${promptText.substring(0,10)}...`);
     
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     let apiKey = document.getElementById('api-key').value;
     if(!apiKey) { 
         try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; } catch(e){} 
@@ -30850,8 +31120,7 @@ window.generatePixelStory = async function(promptText, isR18 = false, userExtra 
     
     // 获取数据
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const pixelCtx = (wb['20.像素小屋'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const global = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let apiKey = document.getElementById('api-key').value;
     if(!apiKey) { 
@@ -31299,6 +31568,18 @@ window.updateDreamUI = function() {
         btnText = "💘 抽取相遇回忆";
         hint = "默念“我们相遇的那一刻...”并抽牌";
     }
+    else if (mode === 'chunwan') {
+        title = "全网热搜预定...<br>假如你们一起受邀上春晚？";
+        sub = "抽取命运牌，看看是压轴大戏还是车祸现场。";
+        btnText = "🧧 抽取节目单";
+        hint = "默念“我们的春晚节目...”并抽牌";
+    } 
+    else if (mode === 'side_piece') {
+        title = "背德的假设...<br>假如 Ta 是你的地下情人(小三)？";
+        sub = "揭秘他阴暗、隐忍的上位计划与心理博弈。";
+        btnText = "💔 抽取上位剧本";
+        hint = "默念“如果他是小三...”并抽牌";
+    }
     // 👆👆👆 新增结束 👆👆👆
 
     descTitle.innerHTML = title;
@@ -31331,9 +31612,9 @@ window.finishDreamDrawing = async function() {
     }).join(", ");
 
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalContext = (wb['1.全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const dreamContext = (wb['10.假如你是ta的梦角'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-
+    const globalContext = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const dreamContextKey = Object.keys(wb).find(k => k.includes("梦角"));
+    const dreamContext = dreamContextKey ? (wb[dreamContextKey] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : "";
     let apiKey = document.getElementById('api-key').value; 
     let apiUrl = document.getElementById('api-url').value;
     let model = document.getElementById('model-select').value;
@@ -31526,7 +31807,39 @@ else if (mode === 'meeting') {
     10. **他对用户目前的动物塑**：现在觉得你像什么动物？
     `;
 }
-
+    // --- 9. 一起上春晚 (新增) ---
+    else if (mode === 'chunwan') {
+        prompt = `${baseInstruction}
+        【情境】：用户和角色（Ta）被邀请参加春节联欢晚会。根据牌意（牌面的能量流动）生成节目单和舆论反馈。
+        如果牌意混乱（如高塔、宝剑3），可能是演出事故；如果牌意积极（如太阳、世界），则是神级现场。
+        
+        表格内容：
+        1. **受到邀请的原因**：是因为人气、才华还是凑数的？
+        2. **春晚中的身份**：(主持人/独唱/伴舞/魔术师/小品演员等)。
+        3. **表演的节目名称**：(请起一个符合春晚风格或反差萌的名字)。
+        4. **表演节目的具体内容**：详细描述表演了什么（正经或搞笑）。
+        5. **因为你们出现了什么梗**：(全网疯传的热梗)。
+        6. **你们上热搜因为什么**：(例如：#Ta的眼神拉丝 #用户走位失误 #神级救场)。
+        7. **观众对你们节目的评价**：(毒舌网友或粉丝的弹幕)。
+        `;
+    }
+    // --- 10. 假如他是小三 (新增) ---
+    else if (mode === 'side_piece') {
+        prompt = `${baseInstruction}
+        【情境】：假设用户（我）已经有正宫（原配），而【角色】是用户的**地下情人（小三）**。
+        请根据牌意分析他的心理状态和手段。
+        
+        表格内容：
+        1. **是否愿意做小三**：(是主动勾引还是被迫/为了爱忍辱负重？)。
+        2. **为什么答应做小三**：(是因为爱、利益、还是单纯想破坏？)。
+        3. **打算怎么上位**：(他的具体策略是什么？等待、陷害还是色诱？)。
+        4. **离间手段**：他会做什么行为来离间正宫和用户的关系？(绿茶语录/制造误会等)。
+        5. **做小三时的心理**：(嫉妒、快感、痛苦还是麻木？)。
+        6. **对正宫的态度**：(蔑视、羡慕、还是表面由此内心诅咒？)。
+        7. **如果上位成功会发生什么**：(是甜甜蜜蜜还是变得疑神疑鬼？)。
+        8. **做小三和做正宫时的区别**：(性格或对待用户的方式有什么反差？)。
+        `;
+    }
     try {
         const res = await fetch(`${apiUrl}/chat/completions`, {
             method: 'POST',
