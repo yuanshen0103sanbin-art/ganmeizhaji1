@@ -4344,7 +4344,7 @@ canvas {
             <div class="morandi-card">
                 <h3>🔮 塔罗牌库 (0-77)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择78张JPEG图片 (文件名需包含数字0-77)</p>
-              <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="*/*">
+           <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/jpeg, image/jpg, image/png">
 
 
                 <button class="m-btn primary" onclick="document.getElementById('file-tarot-input').click()">批量上传塔罗牌</button>
@@ -4354,7 +4354,7 @@ canvas {
             <div class="morandi-card">
                 <h3>⚜️ 雷诺曼牌库 (1-36)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择36张JPEG图片 (文件名需包含数字1-36)</p>
-  <input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="*/*">
+<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/jpeg, image/jpg, image/png">
                 <button class="m-btn primary" onclick="document.getElementById('file-lenormand-input').click()">批量上传雷诺曼</button>
                 <div id="lenormand-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
             </div>
@@ -8662,10 +8662,9 @@ async function generateForumThread() {
     const userText = inputEl.value.trim();
     const btn = document.getElementById('btn-forum-gen');
     
-    // ➤➤➤ 修改开始：改为获取单选按钮的值，而不是 select ➤➤➤
+    // 获取单选按钮的值 (保持你原来的逻辑)
     const roleRadio = document.querySelector('input[name="forum_role"]:checked');
-    const roleType = roleRadio ? roleRadio.value : 'npc'; // 默认为npc
-    // ➤➤➤ 修改结束 ➤➤➤
+    const roleType = roleRadio ? roleRadio.value : 'npc'; 
 
     let isContinuation = !!currentForumId;
     let currentThread = isContinuation ? await getForumContent(currentForumId) : null;
@@ -8677,17 +8676,15 @@ async function generateForumThread() {
     const originalText = btn.innerText;
     btn.disabled = true;
     btn.innerText = "生成中(较慢)...";
-    await new Promise(r => setTimeout(r, 50));
 
-    // --- 以下保持原生成逻辑 ---
-        // --- 修改：直接读取无占卜向全局 ---
+    // --- 1. 获取上下文 (保持你原来的逻辑) ---
     const wb = getWBData();
-    // 无论 Checkbox 是否勾选，都强制读取合并后的新分类
+    // 兼容新旧世界书结构
     let context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     
     let previousContext = "";
     if (isContinuation && currentThread) {
-        const lastPosts = currentThread.posts.slice(-15); // 取最后15条上下文
+        const lastPosts = currentThread.posts.slice(-15); // 上下文数量保持你原来的设置
         previousContext = "【前文摘要】:\n帖子标题：" + currentThread.title + "\n";
         previousContext += lastPosts.map((p,i) => `[${p.name}]: ${p.content}`).join("\n");
         previousContext += "\n(请接续上面的讨论，不要重复)";
@@ -8697,7 +8694,7 @@ async function generateForumThread() {
         ? "楼主是【主角/用户自己】，请发帖求助或吐槽，引发路人围观。" 
         : "楼主是【NPC/路人】，正在讨论关于主角或世界观发生的八卦/事件。";
 
-    // 保持原 Prompt 核心
+    // --- 🔥 2. Prompt 核心：保留你的创意，加上【格式锁】 ---
     const systemPrompt = `你是一个论坛体小说生成器。
 ${context}
 
@@ -8706,34 +8703,27 @@ ${context}
 风格要求：网络用语、玩梗、甚至有杠精、不同立场的路人。
 ${modePrompt}
 
-【格式要求】
-**必须**严格输出 JSON 数组格式，不要包含Markdown代码块标记。
-结构如下：
-[
-  {"name": "楼主ID", "content": "主楼内容..."},
-  {"name": "路人A", "content": "回复内容..."},
-  ...
-]
+【⚠️ 格式绝对强制要求 (API Protocol) ⚠️】
+1. **只输出纯 JSON 数组**。
+2. **严禁**使用 Markdown 代码块（即：**不要**写 \`\`\`json）。
+3. **严禁**在 JSON 前后写任何前言后语。
+4. 如果内容中有双引号 "，**必须**转义为 \\" (例如：\\"你好\\")。
+5. 结构必须是：[{"name":"ID","content":"内容"},...]
 
 【数量要求】
-**请尽力一次性生成不少于 20 个回复（楼层）**。如果话题火爆，内容要丰富，甚至包含撕逼、歪楼。`;
+请尽力一次性生成不少于 20 个回复（楼层）。内容要丰富，甚至包含撕逼、歪楼。`;
 
-    let apiKey = "", apiUrl = "", model = "";
-    try {
-        const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
-        apiKey = s.key; apiUrl = s.url; model = s.model;
-    } catch(e){}
-    if (!apiKey) apiKey = document.getElementById('api-key').value;
-    if (!apiUrl) apiUrl = document.getElementById('api-url').value;
-    if (!model) model = document.getElementById('model-select').value;
-
-    if (!apiKey) {
-        btn.disabled = false; btn.innerText = originalText;
-        return alert("API Key 未配置！");
-    }
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    // 缓存读取
+    if(!apiKey) { try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey = s.key; apiUrl = s.url; model = s.model; } catch(e){} }
+    if (!apiKey) { btn.disabled = false; btn.innerText = originalText; return alert("API Key 未配置！"); }
+    if (!apiUrl) apiUrl = "https://api.openai.com/v1";
 
     try {
-        const res = await fetch(`${apiUrl}/chat/completions`, {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
@@ -8742,25 +8732,30 @@ ${modePrompt}
                     { role: "system", content: systemPrompt },
                     { role: "user", content: `${previousContext}\n\n【本次指令】: ${userText || "继续热烈讨论，增加更多楼层"}` }
                 ],
-                temperature: 0.8,
+                temperature: 0.75, // 稍微降低一点点温度以保证 JSON 格式，但保留创造性
                 max_tokens: 3500
             })
         });
 
         const json = await res.json();
+        
+        if (json.error) throw new Error("API Error: " + json.error.message);
+        
         let raw = json.choices[0].message.content;
 
-        // 【JSON 增强逻辑 1】清洗 Markdown 标记
+        // --- 🔥 3. 解析逻辑：增强版 (针对你遇到的格式不对问题) ---
+        
+        // A. 暴力清洗 Markdown 和多余空白
         raw = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
 
-        // 【JSON 增强逻辑 2】寻找数组边界 (防止 AI 在 JSON 前后说废话)
+        // B. 寻找数组边界 (防止 AI 在前面说 "好的，这是数据：")
         const firstBracket = raw.indexOf('[');
         const lastBracket = raw.lastIndexOf(']');
         
         if (firstBracket !== -1 && lastBracket !== -1) {
             raw = raw.substring(firstBracket, lastBracket + 1);
-        } else if (raw.startsWith('{')) {
-            // 如果 AI 只生成了一个对象而不是数组，强制包裹
+        } else if (raw.trim().startsWith('{')) {
+            // 如果 AI 抽风只返回了一个对象，手动包成数组
             raw = `[${raw}]`;
         }
 
@@ -8768,15 +8763,27 @@ ${modePrompt}
         try {
             newPosts = JSON.parse(raw);
         } catch(e) {
-            console.warn("JSON解析失败，尝试修复...", e);
-            // 【JSON 增强逻辑 3】终极兜底：如果解析还是失败，把原始内容作为一条系统消息显示出来，防止用户白等
-            newPosts = [{
-                name: "System_Error", 
-                content: "解析格式出错，原始返回如下：\n" + raw.substring(0, 200) + "..."
-            }];
+            console.warn("JSON解析失败，尝试修复截断...", e);
+            // C. 尝试修复截断问题 (如果 max_tokens 不够，JSON 可能会断在中间)
+            if (raw.startsWith('[') && !raw.endsWith(']')) {
+                // 尝试找到最后一个闭合的对象花括号 '}'
+                const lastValidBrace = raw.lastIndexOf('}');
+                if (lastValidBrace !== -1) {
+                    // 截取到最后一个完整的对象，并强行闭合数组
+                    let fixedRaw = raw.substring(0, lastValidBrace + 1) + ']';
+                    try {
+                        newPosts = JSON.parse(fixedRaw);
+                    } catch(e2) {
+                        // 如果还是失败，生成错误提示帖
+                        newPosts = [{name: "系统", content: "⚠️ 生成内容过长被截断或格式错误，请尝试减少生成数量。"}];
+                    }
+                }
+            } else {
+                 newPosts = [{name: "系统", content: "⚠️ API 返回格式错误，请重试。\n(调试信息: " + raw.substring(0,50) + "...)"}];
+            }
         }
 
-        // 保存逻辑保持不变
+        // --- 4. 保存逻辑 (保持你原来的) ---
         if (!isContinuation) {
             const id = Date.now().toString();
             const title = userText.substring(0, 20) + (userText.length>20?"...":"");
@@ -17188,45 +17195,46 @@ window.addEventListener('load', function() {
         console.log("✅ 无限容量系统已就绪！");
     });
 });
-// 全局变量用于存储打包好的文件
-let pendingBackupFile = null;
+// 全局变量用于存储打包好的文件 (保持不变)
+let pendingBackupBlob = null; // 修改：只存 Blob，不存 File 对象
+let pendingFileName = "";
 
 async function exportFullBackup() {
     const btn = event.target;
     
-    // === 阶段二：用户点击绿色按钮，触发下载/分享 ===
-    if (pendingBackupFile) {
-        // 1. 优先尝试原生分享 (iOS/Android 通用，体验最好)
-        if (navigator.canShare && navigator.canShare({ files: [pendingBackupFile] })) {
-            try {
-                await navigator.share({
-                    files: [pendingBackupFile],
-                    title: 'RetroOS_Backup',
-                    text: 'RetroOS 数据备份'
-                });
-                resetExportBtn(btn);
-                return;
-            } catch (e) { console.log("分享取消或不支持，尝试直接下载"); }
-        }
-
-        // 2. 传统下载方式 (针对 APK/PC/不支持分享的浏览器)
+    // === 阶段二：用户点击绿色按钮，触发下载 ===
+    if (pendingBackupBlob) {
+        // 优先尝试下载 (这是最稳妥的方式)
         try {
-            const url = URL.createObjectURL(pendingBackupFile);
+            const url = URL.createObjectURL(pendingBackupBlob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            // 安卓 APK 关键修复：文件名必须非常标准
-            a.download = `RetroOS_${new Date().toISOString().slice(0,10)}.json`; 
+            a.download = pendingFileName; // 使用生成的标准文件名
             document.body.appendChild(a);
+            
+            // 触发点击
             a.click();
             
-            // 延迟清理，给安卓一点反应时间
+            // 延迟清理
             setTimeout(() => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 resetExportBtn(btn);
-            }, 5000); 
-        } catch (e) { alert("下载启动失败: " + e.message); }
+            }, 2000);
+            
+            // 尝试原生分享作为辅助 (仅支持的浏览器)
+            if (navigator.canShare && navigator.canShare({ files: [new File([pendingBackupBlob], pendingFileName, {type: "application/json"})] })) {
+                 try {
+                    await navigator.share({
+                        files: [new File([pendingBackupBlob], pendingFileName, {type: "application/json"})],
+                        title: 'RetroOS_Backup',
+                        text: 'RetroOS 数据备份'
+                    });
+                } catch(e) {}
+            }
+            
+        } catch (e) { alert("导出启动失败: " + e.message); }
         return;
     }
 
@@ -17234,7 +17242,7 @@ async function exportFullBackup() {
     if(btn.getAttribute('data-processing')) return;
     btn.setAttribute('data-processing', 'true');
     
-    btn.innerText = "📦 正在打包 (请勿关闭页面)...";
+    btn.innerText = "📦 正在打包 (请勿关闭)...";
     btn.style.opacity = "0.7";
 
     try {
@@ -17243,8 +17251,7 @@ async function exportFullBackup() {
         // 1. 写入头部
         jsonChunks.push('{"meta":{"version":"5.0_Stable","date":"' + new Date().toLocaleString() + '","app":"RetroOS_Backup"},');
 
-        // 2. 获取 Big Memory (文字配置)
-        // 确保从数据库获取最新
+        // 2. 获取 Big Memory
         const allUniversal = await idb.getAll('universal_store');
         const universalObj = {};
         allUniversal.forEach(item => { universalObj[item.id] = item.data; });
@@ -17252,7 +17259,7 @@ async function exportFullBackup() {
         
         jsonChunks.push('"big_memory":' + JSON.stringify(finalMemory) + ',');
 
-        // 3. 处理大型 Store (使用游标，防止读取时就爆内存)
+        // 3. 处理大型 Store
         async function streamStore(keyName, storeName) {
             jsonChunks.push(`"${keyName}": [`);
             let count = 0;
@@ -17275,14 +17282,12 @@ async function exportFullBackup() {
                 cursorReq.onerror = reject;
             });
             jsonChunks.push('],');
-            console.log(`✅ ${storeName} 打包完成: ${count} 条`);
         }
 
-        // 分别打包聊天记录和其他数据
         await streamStore('chat_history', 'chat_history');
         await streamStore('pickup_data', 'pickup_data');
 
-        // 4. 图片库 (排除文件APP里的塔罗牌以节省内存)
+        // 4. 图片库
         jsonChunks.push('"image_stores": {');
         const imageStoresToBackup = [
             'album_data',       
@@ -17290,7 +17295,6 @@ async function exportFullBackup() {
             'chat_stickers',    
             'anniversary_data', 
             'tv'
-            // 注意：这里没有 tarot_deck 和 lenormand_deck，这是为了防止文件过大
         ];
 
         for (let i = 0; i < imageStoresToBackup.length; i++) {
@@ -17301,16 +17305,20 @@ async function exportFullBackup() {
             if (i < imageStoresToBackup.length - 1) jsonChunks.push(',');
         }
 
-        jsonChunks.push('}}'); // 结束 JSON
+        jsonChunks.push('}}'); 
 
-        // 5. 生成文件 (使用 octet-stream 强制浏览器作为文件下载)
-        const blob = new Blob(jsonChunks, { type: "application/octet-stream" });
+        // 5. 生成 Blob (核心修改：使用 application/json)
+        // 安卓系统对 application/octet-stream 支持不好，改成 json
+        const blob = new Blob(jsonChunks, { type: "application/json" });
         const sizeMB = blob.size / 1024 / 1024;
-        const fileName = `RetroOS_${new Date().toISOString().slice(0,10)}.json`;
+        
+        // 存入全局变量
+        pendingBackupBlob = blob;
+        // 生成一个纯净的文件名 (去除冒号等特殊字符，兼容安卓文件系统)
+        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
+        pendingFileName = `RetroOS_Backup_${dateStr}.json`;
 
-        pendingBackupFile = new File([blob], fileName, { type: "application/octet-stream" });
-
-        // 6. 按钮变绿，等待用户二次点击
+        // 6. 按钮变绿
         btn.removeAttribute('data-processing');
         btn.setAttribute('data-ready', 'true');
         btn.innerText = `✅ 打包成功 (${sizeMB.toFixed(1)}MB) 点击保存`;
@@ -17321,11 +17329,10 @@ async function exportFullBackup() {
 
     } catch (e) {
         console.error(e);
-        alert("打包失败 (内存不足): " + e.message);
+        alert("打包失败: " + e.message);
         resetExportBtn(btn);
     }
 }
-
 function resetExportBtn(btn) {
     btn.innerText = "📤 导出备份 (.json)";
     btn.style.background = "";
@@ -17333,7 +17340,10 @@ function resetExportBtn(btn) {
     btn.style.opacity = "1";
     btn.removeAttribute('data-ready');
     btn.removeAttribute('data-processing');
-    pendingBackupFile = null;
+    
+    // 修改点：清理新的 Blob 变量，而不是原来的 File 变量
+    pendingBackupBlob = null; 
+    pendingFileName = "";
 }
 async function importFullRestore(input) {
     const file = input.files[0];
