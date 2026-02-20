@@ -27894,10 +27894,10 @@ console.log("✅ 梦APP 抽牌桌层级修复已加载");
     var now = new Date();
     var date = now.getDate(); // 获取几号
     // 如果今天是17号或更大，直接退出，不显示
-    if (date >= 20) return;
+    if (date >= 22) return;
 
     // --- 2. 唯一性控制：本地已读过则不显示 ---
-    var storageKey = "ganmei_newyear_2025_v2_read"; 
+    var storageKey = "ganmei_newyear_2026_v3_read"; 
     if (localStorage.getItem(storageKey)) return;
 
     // --- 3. 样式定义 ---
@@ -27955,7 +27955,7 @@ console.log("✅ 梦APP 抽牌桌层级修复已加载");
         document.body.appendChild(div);
 
         // 倒计时逻辑
-        var timeLeft = 8;
+        var timeLeft = 5;
         var btn = document.getElementById('gm-btn-wait');
         var timer = setInterval(function() {
             timeLeft--;
@@ -27981,7 +27981,7 @@ console.log("✅ 梦APP 抽牌桌层级修复已加载");
         // 背景设为深黑色，突出图片
         div.style.cssText = overlayStyle + "background:rgba(0,0,0,0.95);";
         div.innerHTML = `
-            <img src="https://i.postimg.cc/W3QpWP5q/IMG-2501.png" 
+            <img src="https://i.postimg.cc/50MSJk4f/IMG-2615.png" 
                  style="max-width:95%; max-height:80vh; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); object-fit:contain;">
             <div style="color:white; margin-top:20px; font-weight:bold; font-size:1.1rem;">
                 图片将在 <span id="img-timer" style="color:#ff7675;">10</span> 秒后自动关闭
