@@ -4334,19 +4334,13 @@ canvas {
         <div class="modal-header"><span>文件管理</span><button class="close-btn" onclick="document.getElementById('file-modal').style.display='none'">×</button></div>
         <div class="modal-body">
             <div class="morandi-card">
-                <h3>📁 通用导入</h3>
-                <p style="font-size:0.8rem; color:#888;">从手机文件导入图片或文档</p>
-
-                <input type="file" id="file-generic-input" class="hidden-file-input" accept="image/*, .jpg, .jpeg, .png, .gif, .webp, .txt, .pdf, .json, */*">
-                <button class="m-btn secondary" onclick="document.getElementById('file-generic-input').click()">选择文件...</button>
-            </div>
+             
 
             <div class="morandi-card">
                 <h3>🔮 塔罗牌库 (0-77)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择78张JPEG图片 (文件名需包含数字0-77)</p>
-           <input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/jpeg, image/jpg, image/png">
-
-
+          <!-- ✅ 修复：将 accept 改为 image/* 以兼容安卓相册批量选择 -->
+<input type="file" id="file-tarot-input" class="hidden-file-input" multiple accept="image/*">
                 <button class="m-btn primary" onclick="document.getElementById('file-tarot-input').click()">批量上传塔罗牌</button>
                 <div id="tarot-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
             </div>
@@ -4354,7 +4348,7 @@ canvas {
             <div class="morandi-card">
                 <h3>⚜️ 雷诺曼牌库 (1-36)</h3>
                 <p style="font-size:0.8rem; color:#888;">请选择36张JPEG图片 (文件名需包含数字1-36)</p>
-<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/jpeg, image/jpg, image/png">
+<input type="file" id="file-lenormand-input" class="hidden-file-input" multiple accept="image/*">
                 <button class="m-btn primary" onclick="document.getElementById('file-lenormand-input').click()">批量上传雷诺曼</button>
                 <div id="lenormand-status" style="margin-top:10px; font-size:0.8rem; color:#666;"></div>
             </div>
@@ -17203,18 +17197,40 @@ async function exportFullBackup() {
     const btn = event.target;
     
     // === 阶段二：用户点击绿色按钮，触发下载 ===
+        // === 🟢 替换开始：找到 if (pendingBackupBlob) { ... } 这一块并替换为以下内容 ===
     if (pendingBackupBlob) {
-        // 优先尝试下载 (这是最稳妥的方式)
+        // 1. 构造文件对象 (兼容安卓分享)
+        const fileToSave = new File([pendingBackupBlob], pendingFileName, { type: "application/json" });
+
+        // 2. 优先尝试：原生系统分享 (解决安卓弹出 Save As 的问题)
+        // 大多数现代安卓 WebView 和 iOS 都支持这个，会弹出"保存到文件"或"发送给好友"
+        if (navigator.canShare && navigator.canShare({ files: [fileToSave] })) {
+            try {
+                await navigator.share({
+                    files: [fileToSave],
+                    title: 'RetroOS_Backup',
+                    text: 'RetroOS 数据备份文件'
+                });
+                
+                // 分享成功后，重置按钮状态
+                resetExportBtn(btn);
+                return; 
+            } catch (e) {
+                // 如果用户取消了分享，或者分享失败，继续向下执行传统的下载逻辑
+                console.log("分享被取消或不支持，尝试传统下载...");
+            }
+        }
+
+        // 3. 兜底方案：传统下载 (电脑端或不支持分享的旧手机)
         try {
             const url = URL.createObjectURL(pendingBackupBlob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = pendingFileName; // 使用生成的标准文件名
+            a.download = pendingFileName;
             document.body.appendChild(a);
             
-            // 触发点击
-            a.click();
+            a.click(); // 触发下载
             
             // 延迟清理
             setTimeout(() => {
@@ -17223,21 +17239,11 @@ async function exportFullBackup() {
                 resetExportBtn(btn);
             }, 2000);
             
-            // 尝试原生分享作为辅助 (仅支持的浏览器)
-            if (navigator.canShare && navigator.canShare({ files: [new File([pendingBackupBlob], pendingFileName, {type: "application/json"})] })) {
-                 try {
-                    await navigator.share({
-                        files: [new File([pendingBackupBlob], pendingFileName, {type: "application/json"})],
-                        title: 'RetroOS_Backup',
-                        text: 'RetroOS 数据备份'
-                    });
-                } catch(e) {}
-            }
-            
-        } catch (e) { alert("导出启动失败: " + e.message); }
+        } catch (e) { 
+            alert("导出启动失败: " + e.message); 
+        }
         return;
     }
-
     // === 阶段一：分块打包数据 ===
     if(btn.getAttribute('data-processing')) return;
     btn.setAttribute('data-processing', 'true');
