@@ -3855,7 +3855,7 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 20000;
+    z-index: 999999 !important;
     cursor: pointer;
     transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     border-left: 4px solid #fff;
@@ -16340,18 +16340,16 @@ function closeSmsResult() {
     document.getElementById('sms-result-overlay').style.display = 'none';
     closeSmsModal();
 }
-
-// 5. 随机触发器 (每 5 分钟检查一次，10% 概率触发)
+// 修改后的代码
+// 5. 随机触发器 (每 5 分钟检查一次)
 setInterval(() => {
-    // 只有在没有打开其他弹窗时才触发
-    const modals = document.querySelectorAll('.modal-overlay');
-    let anyOpen = false;
-    modals.forEach(m => { if(m.style.display === 'flex' || m.style.display === 'block') anyOpen = true; });
-    
-    if (!anyOpen && Math.random() < 0.05) {
+    // 🔥 修改：直接进行概率判定，不再检查是否打开了其他软件
+    // Math.random() < 0.05 代表 5% 的概率。
+    // 如果你想让它更容易出现，可以把 0.05 改成 0.3 (30%) 或更高。
+    if (Math.random() < 0.05) {
         triggerRandomSms();
     }
-}, 5 * 60 * 1000); // 5分钟
+}, 5 * 60 * 1000); 
 
 // === 测试接口：暴露给控制台或测试按钮 ===
 window.testRandomSms = function() {
