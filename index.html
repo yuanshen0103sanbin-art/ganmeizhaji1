@@ -4062,29 +4062,67 @@ canvas {
 .xhs-slide.forum-style {
     background: #fff;
 }
+/* === 📕 小红书模式-论坛截图样式修正 === */
 .forum-floor-row {
-    margin-bottom: 12px;
-    border-bottom: 1px solid #f5f5f5;
-    padding-bottom: 8px;
+    margin-bottom: 0; /* 紧凑布局 */
+    padding: 12px 5px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fff;
 }
-.forum-floor-header {
+
+/* 仿照主论坛的方形头像 */
+.xhs-forum-avatar-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px; /* 方形圆角 */
+    background-color: #ddd;
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    flex-shrink: 0;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.xhs-forum-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.xhs-forum-info {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     margin-bottom: 4px;
 }
-.forum-floor-num {
-    font-size: 0.7rem; color: #999;
-    background: #f0f0f0; padding: 1px 4px; border-radius: 4px;
+
+.xhs-forum-name {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #555;
 }
+
 .forum-lz-tag {
-    font-size: 0.6rem; color: #ff9c00; border: 1px solid #ff9c00;
-    padding: 0 3px; border-radius: 2px;
+    font-size: 0.6rem; 
+    color: #ff9c00; 
+    border: 1px solid #ff9c00;
+    padding: 0 3px; 
+    border-radius: 2px;
+    line-height: 1;
 }
+
 .forum-floor-text {
-    font-size: 0.95rem; color: #333; line-height: 1.5;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.95rem; 
+    color: #222; 
+    line-height: 1.5;
     text-align: justify;
+    word-wrap: break-word;
 }
 
 /* --- 样式B：私聊截图风格 (捡手机) --- */
@@ -32853,8 +32891,8 @@ async function generateXHSThread() {
         btn.disabled = false; btn.innerText = oldText;
     }
 }
-// === 4. XHS 渲染逻辑 (修改版：Line头像与备注修正) ===
-// 参数新增：lineName (Line里的备注名)
+// === 4. XHS 渲染逻辑 (修正版：头像置换 + 论坛样式) ===
+// roleType: 'npc' | 'user' | 'character'
 function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineName = "对方") {
     const container = document.getElementById('forum-xhs-view');
     container.innerHTML = ''; 
@@ -32863,7 +32901,7 @@ function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineNa
     const sliderContainer = document.createElement('div');
     sliderContainer.className = 'xhs-slider-container';
     
-    // 切片逻辑 (论坛4条一页，聊天5条一页)
+    // 切片逻辑：论坛每页4-5条，聊天每页5-6条，保证总页数多
     let slides = [];
     let currentChunk = [];
     let currentType = null;
@@ -32871,13 +32909,13 @@ function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineNa
     
     flow.forEach((item) => {
         if (item.type !== currentType) {
-            if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 4, 5);
+            if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 5, 6);
             currentChunk = [];
             currentType = item.type;
         }
         currentChunk.push(item);
     });
-    if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 4, 5);
+    if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 5, 6);
     
     const totalPages = slides.length;
     
@@ -32886,60 +32924,73 @@ function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineNa
         const type = slideItems[0].type;
         slideDiv.className = `xhs-slide ${type === 'forum' ? 'forum-style' : 'chat-style'}`;
         
-        // 头部：聊天模式显示对方名字，论坛模式显示标题
+        // 头部标题逻辑
         if (type === 'chat') {
             let chatHeaderName = "对方";
-            
             if (roleType === 'npc') {
-                // 路人视角：模拟路人的朋友
-                chatHeaderName = "姐妹/基友"; 
+                chatHeaderName = "姐妹/基友"; // 路人视角
+            } else if (roleType === 'character') {
+                chatHeaderName = "我"; // 角色发帖，他手机里备注"我"(即玩家)的名字，这里暂用"我"或玩家昵称
+                // 如果能获取到玩家昵称更好，这里暂用“我”或者“宝贝”之类的
+                chatHeaderName = "宝宝"; 
             } else {
-                // 🔥 修改点：主角视角：直接使用传入的 Line 备注名
-                chatHeaderName = lineName || "Ta";
+                chatHeaderName = lineName || "Ta"; // 我发帖，显示Ta的名字
             }
-            
             slideDiv.innerHTML = `<div class="fake-chat-header">${chatHeaderName}</div>`;
         } else {
-            slideDiv.innerHTML = `<div style="font-weight:bold; font-size:0.9rem; margin-bottom:10px; color:#333;">${data.xhs_caption.title}</div>`;
+            slideDiv.innerHTML = `<div style="font-weight:bold; font-size:0.9rem; margin-bottom:5px; padding-left:5px; border-left:3px solid #ff9c00; color:#333;">${data.xhs_caption.title}</div>`;
         }
 
         slideItems.forEach(item => {
             if (type === 'forum') {
-                // 论坛渲染保持不变
+                // 论坛渲染 (带样式修正)
                 const row = document.createElement('div');
                 row.className = 'forum-floor-row';
+                const avatarColor = stringToColor(item.name || "路人");
+                const firstChar = (item.name || "路")[0];
+
                 row.innerHTML = `
-                    <div class="forum-floor-header">
-                        <span style="font-weight:bold; color:#444;">${item.name}</span>
-                        ${item.is_lz ? '<span class="forum-lz-tag">楼主</span>' : ''}
+                    <div class="xhs-forum-avatar-box" style="background-color: ${avatarColor};">
+                        ${firstChar}
                     </div>
-                    <div class="forum-floor-text">${item.content}</div>
+                    <div class="xhs-forum-right">
+                        <div class="xhs-forum-info">
+                            <span class="xhs-forum-name">${item.name}</span>
+                            ${item.is_lz ? '<span class="forum-lz-tag">楼主</span>' : ''}
+                        </div>
+                        <div class="forum-floor-text">${item.content}</div>
+                    </div>
                 `;
                 slideDiv.appendChild(row);
             } else {
-                // 🔥 聊天渲染 (头像逻辑核心修正) 🔥
+                // 🔥 聊天渲染 (核心：头像置换逻辑) 🔥
                 const row = document.createElement('div');
-                const isMe = (item.role === 'me'); // me=右边, other=左边
-                row.className = `fake-msg-row ${isMe ? 'right' : 'left'}`;
+                // item.role 是 JSON 里的 "me" (持手机者) 或 "other" (对面)
+                // isRight = true 代表气泡在右边
+                const isRight = (item.role === 'me'); 
+                row.className = `fake-msg-row ${isRight ? 'right' : 'left'}`;
                 
                 let avatarStyle = '';
                 
-                // === 逻辑判断 ===
                 if (roleType === 'npc') {
-                    // 路人视角：统一灰色，模拟路人和路人朋友
+                    // 路人模式：全灰
                     avatarStyle = `background-color: #ddd;`; 
-                } else {
-                    // 🔥 修改点：主角视角，强制使用 Line 头像
-                    // 右边(我) = myAvatarUrl
-                    // 左边(他) = botAvatarUrl
-                    const url = isMe ? myAvatarUrl : botAvatarUrl;
-                    
-                    if (url) {
-                        avatarStyle = `background-image: url(${url});`;
-                    } else {
-                        // 没设置头像时的颜色兜底
-                        avatarStyle = `background-color: ${isMe ? '#a5d6a7' : '#ffcc80'};`; 
-                    }
+                } 
+                else if (roleType === 'character') {
+                    // 🔥 角色发帖模式：
+                    // Right (me) = 角色自己 (botAvatarUrl)
+                    // Left (other) = 玩家 (myAvatarUrl)
+                    const url = isRight ? botAvatarUrl : myAvatarUrl;
+                    if (url) avatarStyle = `background-image: url(${url});`;
+                    else avatarStyle = `background-color: ${isRight ? '#ffcc80' : '#a5d6a7'};`;
+                } 
+                else {
+                    // 默认/用户发帖模式：
+                    // Right (me) = 玩家 (myAvatarUrl)
+                    // Left (other) = 角色 (botAvatarUrl)
+                    const url = isRight ? myAvatarUrl : botAvatarUrl;
+                    if (url) avatarStyle = `background-image: url(${url});`;
+                    else avatarStyle = `background-color: ${isRight ? '#a5d6a7' : '#ffcc80'};`;
                 }
                 
                 row.innerHTML = `
@@ -32961,7 +33012,7 @@ function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineNa
     
     container.appendChild(sliderContainer);
 
-    // --- B. 文案区 ---
+    // 文案区 (保持原样)
     const captionDiv = document.createElement('div');
     captionDiv.className = 'xhs-content-body';
     const post = data.xhs_caption || {};
@@ -32973,7 +33024,7 @@ function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineNa
     `;
     container.appendChild(captionDiv);
 
-    // --- C. 评论区 ---
+    // 评论区 (保持原样)
     const cmtArea = document.createElement('div');
     cmtArea.className = 'xhs-comments-area';
     const cmts = data.xhs_comments || [];
@@ -33037,10 +33088,9 @@ window.loadForum = async function(id) {
  * 📕 仿小红书增强补丁 V2 (修复弹窗不显示 + 历史头像修正)
  * =================================================================
  */
-
-// 1. 强制覆盖生成入口：增加视觉反馈
+// === 1. 强制覆盖生成入口：交互逻辑优化 ===
+// === 1. 强制覆盖生成入口：修复新帖不读输入的问题 ===
 window.handleForumGenerate = function() {
-    // 普通论坛模式，走原逻辑
     if (currentForumMode === 'normal') {
         generateForumThread(); 
         return;
@@ -33050,23 +33100,31 @@ window.handleForumGenerate = function() {
     const inputEl = document.getElementById('forum-input');
     const userText = inputEl.value.trim();
     
-    if (!userText && !currentForumId) return alert("请输入新帖标题！");
-
-    // 关键修复：检查当前是否有正在查看的帖子 ID
+    // 检查是否已有帖子ID
     if (currentForumId) {
-        // 弹出确认框
-        if (confirm(`检测到正在查看帖子。\n\n点击【确定】= ✍️ 续写当前帖子 (根据输入内容追加)\n点击【取消】= 🆕 生成全新帖子`)) {
-            // 续写：如果没有输入内容，提示一下，但允许空输入(让AI自由发挥)
-            if(!userText) {
-                const auto = confirm("输入框为空，是否让 AI 自动构思后续剧情？");
-                if(!auto) return;
-            }
-            generateXHSThread(true); // true = 续写
+        const confirmText = userText 
+            ? `检测到已有帖子。\n\n输入内容："${userText}"\n\n点击【确定】= 🎬 基于此生成续集 (Part 2, 3...)\n点击【取消】= 🆕 放弃当前，生成全新帖子`
+            : `检测到已有帖子。\n\n输入框为空。\n\n点击【确定】= 🎬 AI自动构思续集\n点击【取消】= 🆕 生成全新帖子`;
+
+        if (confirm(confirmText)) {
+            // === 选项A：续写 ===
+            generateXHSThread(true); 
         } else {
-            // 新帖
-            if(!userText) return alert("生成新帖必须输入标题/梗概！");
-            startNewForum(); // 清理界面
-            setTimeout(() => generateXHSThread(false), 100);
+            // === 选项B：新帖 ===
+            // 再次确认防止误触
+            if(confirm("确定要开启新帖吗？（将重置标题序号）")) {
+                if(!userText) return alert("新帖必须输入标题或梗概！");
+                
+                // 🔥【关键修复】暂存用户输入
+                const savedInput = inputEl.value;
+                
+                startNewForum(); // 这步会清空输入框
+                
+                // 🔥【关键修复】恢复用户输入，确保生成函数能读到
+                document.getElementById('forum-input').value = savedInput;
+                
+                setTimeout(() => generateXHSThread(false), 100);
+            }
         }
     } else {
         // 没有ID，直接生成新帖
@@ -33074,7 +33132,7 @@ window.handleForumGenerate = function() {
         generateXHSThread(false);
     }
 };
-// === 3. XHS 模式生成逻辑 (修复版：强制读取输入 + 灵活视角) ===
+// === 3. XHS 模式生成逻辑 (连续剧版：自动生成 (2), (3)...) ===
 window.generateXHSThread = async function(isContinuation = false) {
     const inputEl = document.getElementById('forum-input');
     const userText = inputEl.value.trim();
@@ -33082,95 +33140,133 @@ window.generateXHSThread = async function(isContinuation = false) {
     const oldText = btn.innerText;
     
     btn.disabled = true; 
-    btn.innerText = isContinuation ? "✍️ 正在续写..." : "🧠 理解剧情中...";
+    btn.innerText = isContinuation ? "🎬 正在拍摄下一集..." : "🧠 正在编排第一集...";
 
     // 1. 获取基础配置
     const roleRadio = document.querySelector('input[name="forum_role"]:checked');
-    let roleType = roleRadio ? roleRadio.value : 'npc';
+    let baseRoleType = roleRadio ? roleRadio.value : 'npc'; 
     let currentThreadData = null;
+    let newTitle = "";
+    let contextPrompt = "";
 
-    // 续写逻辑
+    // 2. 连续剧逻辑处理
     if (isContinuation && currentForumId) {
         currentThreadData = await getForumContent(currentForumId);
-        if (currentThreadData && currentThreadData.roleType) {
-            roleType = currentThreadData.roleType; 
+        if (currentThreadData) {
+            // A. 继承上一集的视角
+            if (currentThreadData.roleType) baseRoleType = currentThreadData.roleType;
+            
+            // B. 标题递增算法 (Title Algorithm)
+            // 去掉 emoji 前缀 (📕 )
+            let cleanTitle = currentThreadData.title.replace(/^📕\s*/, '');
+            
+            // 检查是否已经有 (数字)
+            const match = cleanTitle.match(/^(.*?)(\（(\d+)\）|\((\d+)\))$/); // 匹配中文或英文括号
+            if (match) {
+                // 已经有序号，数字+1
+                const baseName = match[1];
+                const currentNum = parseInt(match[3] || match[4]);
+                newTitle = `${baseName}(${currentNum + 1})`;
+            } else {
+                // 没有序号，加上 (2)
+                newTitle = `${cleanTitle}(2)`;
+            }
+
+            // C. 构建前情提要
+            const prevCaption = currentThreadData.data.xhs_caption;
+            // 提取上一集的最后几条内容作为上下文
+            const prevFlow = currentThreadData.data.slides_flow || [];
+            const lastMoments = prevFlow.slice(-5).map(s => {
+                if(s.type === 'chat') return `[私信] ${s.role==='me'?'右边':'左边'}: ${s.content}`;
+                return `[论坛] ${s.name}: ${s.content}`;
+            }).join("\n");
+
+            contextPrompt = `
+【续集模式】：这是系列帖子的下一集。
+上一集标题：《${cleanTitle}》
+上一集文案：${prevCaption.text}
+上一集最后发生的剧情：
+${lastMoments}
+
+请承接上一集的剧情继续发展！
+`;
         }
+    } else {
+        // 新帖模式
+        contextPrompt = `【新帖模式】：这是一个全新的故事开端。`;
     }
 
-    // 2. 获取名字 & 上下文
+    // 3. 获取名字 & 世界观
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
-    const lineName = chatSettings.title || "Ta"; // 对方的名字
-    const myName = "我"; // 你的名字
-    
+    const lineName = chatSettings.title || "Ta"; 
     const wb = window.getWBData ? window.getWBData() : {};
     const context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
-    // 3. 构建 Prompt 上下文
-    let promptTask = "";
-    if (isContinuation && currentThreadData) {
-        const prevData = currentThreadData.data;
-        const prevSlides = (prevData.slides_flow || []).slice(-3).map(s => `[${s.type}] ${s.content}`).join("\n");
-        promptTask = `【续写模式】：前文标题是《${prevData.xhs_caption.title}》。最后剧情是：\n${prevSlides}\n\n请根据用户的新指令续写。`;
-    } else {
-        promptTask = `【新帖模式】：这是一个全新的帖子。`;
+    // 4. 智能视角判断 (保持不变)
+    let actualLzType = baseRoleType; 
+    if (baseRoleType === 'user') {
+        if (userText.includes("他发帖") || userText.includes("她发帖") || userText.includes("角色发帖")) {
+            actualLzType = 'character';
+        }
     }
 
-    // 4. 视角指令 (核心修复)
+    // 5. 视角指令
     let perspectiveInstruction = "";
-    if (roleType === 'npc') {
+    if (actualLzType === 'npc') {
         perspectiveInstruction = `
         - **楼主身份**：吃瓜路人 (NPC)。
-        - **聊天截图**：是【楼主】和【朋友】的私聊，讨论主角CP的八卦。
-        - **内容方向**：旁观者视角，震惊、嗑到了、或者质疑。`;
-    } else {
-        // user 模式：不再强制是我，而是根据输入决定
+        - **聊天截图**：楼主和朋友的私聊。`;
+    } else if (actualLzType === 'character') {
         perspectiveInstruction = `
-        - **楼主身份**：【当事主角之一】。
-        - **智能判断**：请分析用户的输入内容 "${userText}"。
-          - 如果用户写"他发帖..." -> **楼主是角色(${lineName})**，在吐槽/表白玩家。
-          - 如果用户写"我发帖..." -> **楼主是玩家(我)**，在吐槽/表白角色。
-        - **聊天截图**：是【主角】和【CP对象】的私聊记录。
-        - **注意**：私聊截图的 \`role="me"\` 代表拿着手机截图的人(楼主)，\`role="other"\` 代表对话的另一方。`;
+        - **楼主身份**：【世界书里的角色 (${lineName})】。
+        - **聊天截图**：role="me"(右边)是角色，role="other"(左边)是玩家。`;
+    } else {
+        perspectiveInstruction = `
+        - **楼主身份**：【玩家(我)】。
+        - **聊天截图**：role="me"(右边)是玩家，role="other"(左边)是角色。`;
     }
 
-    // 5. 🔥 最终 Prompt (输入内容放最后)
+    // 6. 🔥 超级 Prompt：加入上下文 + 强制数量 🔥
     const prompt = `
-你是一个擅长制造爆点的小红书/论坛体生成器。
+你是一个小红书/论坛体生成器。
 【世界观】：${context}
+${contextPrompt}
+
+【⚠️ 用户的最高指令 (本集剧情)】
+用户的要求：**"${userText || "（请根据上一集剧情自动续写，要有戏剧性发展）"}"**
+请完全基于此要求生成本集内容！
 
 【任务目标】
-生成一个 JSON 对象，描述一组**图片流 (slides_flow)**。
-必须包含：标题、文案、评论、以及核心的**聊天截图与论坛正文穿插**。
+生成一个 JSON 对象，描述**本集**的图片流。
+**排版和数量要求（绝对强制，必须达标）：**
+1. **论坛回复(forum)**：总数 **>= 25 条**。
+2. **总图片数(slides)**： **>= 8 张**。
+3. **私信聊天截图(chat)**：
+   - 穿插次数 **>= 2 次** (不要连在一起，例如：论坛->私信->论坛->私信)。
+   - 每次私信截图包含 4-6 句对话。
+   - **必须**包含不少于 2 张不同的聊天截图。
 
-【排版规则 (强制)】
-1. **总量**：总图片数不少于 8 张（内容要长）。
-2. **穿插**：必须是 [论坛吐槽] -> [放聊天截图实锤] -> [网友反应] -> [再放截图] 的节奏。
-3. **数量**：论坛回复不少于 25 条，聊天截图至少 2 组。
-
-${perspectiveInstruction}
-
-【⚠️ 最高优先级指令 (用户输入) ⚠️】
-用户的具体剧情要求如下：
-"${userText}"
-
-**请完全忽略世界观中与此冲突的部分，严格按照上面的用户输入来编写剧情！**
-如果用户指定了具体的梗、台词或事件，必须在生成的内容中体现出来。
+4. **内容详情**：
+   ${perspectiveInstruction}
+   - 聊天截图必须紧扣本集剧情，展示实锤、争吵、甜蜜或反转。
 
 【输出格式】
 严格 JSON，不要 Markdown：
 {
   "slides_flow": [
-    { "type": "forum", "name": "楼主", "content": "..." },
+    { "type": "forum", "name": "楼主", "content": "..." , "is_lz": true },
     { "type": "chat", "role": "me", "content": "..." },
     { "type": "chat", "role": "other", "content": "..." },
-    ...
+    { "type": "forum", "name": "网友A", "content": "...", "is_lz": false },
+    ... (重复结构直到满足数量)
   ],
-  "xhs_caption": { "title": "标题...", "text": "文案...", "tags": "#..." },
-  "xhs_comments": [ { "user": "A", "text": "..." } ]
+  "xhs_caption": { "title": "${newTitle || "标题..."}", "text": "本集文案...", "tags": "#..." },
+  "xhs_comments": [ { "user": "A", "text": "..." } ],
+  "detected_lz_type": "${actualLzType}"
 }
 `;
 
-    // 6. API 调用
+    // 7. API 调用
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
@@ -33183,7 +33279,6 @@ ${perspectiveInstruction}
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: model,
-                // 增大 Token 确保长文不断
                 max_tokens: 30000, 
                 messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
                 temperature: 0.85
@@ -33196,19 +33291,17 @@ ${perspectiveInstruction}
         let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
         let result;
         
-        // 容错解析
         try {
             result = JSON.parse(raw);
         } catch (e) {
-            // 尝试修复截断
             const last = raw.lastIndexOf('}');
             if (last > -1) {
                 try { result = JSON.parse(raw.substring(0, last+1)); } catch(e2) {}
             }
-            if (!result) throw new Error("生成格式错误，请重试或减少内容要求");
+            if (!result) throw new Error("生成过长被截断，请重试或更换 16k 模型");
         }
         
-        // 7. 获取头像
+        // 8. 获取头像
         let myAvatar = '', botAvatar = '';
         try {
             const myRes = await idb.get('settings_heavy', 'myAvatar');
@@ -33217,37 +33310,52 @@ ${perspectiveInstruction}
             if (botRes) botAvatar = botRes.data;
         } catch(e){}
 
-        // 8. 渲染与保存
-        renderXHSView(result, myAvatar, botAvatar, roleType, lineName);
+        const finalLzType = result.detected_lz_type || actualLzType;
+
+        // 9. 渲染
+        renderXHSView(result, myAvatar, botAvatar, finalLzType, lineName);
         
-        const saveId = isContinuation ? currentForumId : Date.now().toString();
+        // 10. 🔥 保存为【新】历史记录 (关键：ID 一定要是新的)
+        const saveId = Date.now().toString(); // 无论是否续写，都生成新ID
+        
+        // 如果是续写，使用计算好的新标题；如果是新帖，使用AI生成的标题
+        let finalTitle = "";
+        if (isContinuation && newTitle) {
+            finalTitle = newTitle;
+            // 强制覆盖 AI 可能生成的乱七八糟的标题，保持队形
+            result.xhs_caption.title = newTitle; 
+        } else {
+            finalTitle = result.xhs_caption.title || "未命名帖子";
+        }
+
         const historyItem = {
             id: saveId,
-            title: "📕 " + (result.xhs_caption.title || "未命名"),
-            lzName: (roleType === 'npc' ? "吃瓜路人" : "主角"),
+            title: "📕 " + finalTitle,
+            lzName: (finalLzType === 'npc' ? "吃瓜路人" : (finalLzType === 'character' ? lineName : "我")),
             date: Date.now(),
             isXHS: true,
             data: result,
-            roleType: roleType
+            roleType: finalLzType
         };
 
+        // 保存内容
         if (typeof saveForumContent === 'function') await saveForumContent(saveId, historyItem);
         else await idb.put('forum_data', { id: `thread_${saveId}`, data: historyItem });
 
-        if (!isContinuation) {
-            let historyList = [];
-            try {
-                const res = await idb.get('forum_data', 'history_list');
-                if (res) historyList = res.data;
-            } catch(e) {}
-            historyList.unshift({ id: saveId, title: historyItem.title, date: historyItem.date });
-            
-            if (typeof saveForumHistory === 'function') await saveForumHistory(historyList);
-            else await idb.put('forum_data', { id: 'history_list', data: historyList });
-            
-            currentForumId = saveId; 
-        }
-
+        // 保存到列表 (插入到最前面)
+        let historyList = [];
+        try {
+            const res = await idb.get('forum_data', 'history_list');
+            if (res) historyList = res.data;
+        } catch(e) {}
+        
+        historyList.unshift({ id: saveId, title: historyItem.title, date: historyItem.date });
+        
+        if (typeof saveForumHistory === 'function') await saveForumHistory(historyList);
+        else await idb.put('forum_data', { id: 'history_list', data: historyList });
+        
+        // 更新当前 ID 为这个新 ID (这样下次点生成就是基于这个续写了)
+        currentForumId = saveId; 
         updateXHSButtonState(true);
         inputEl.value = ''; 
 
@@ -33255,20 +33363,18 @@ ${perspectiveInstruction}
         console.error(e);
         alert("生成失败: " + e.message);
     } finally {
-        btn.disabled = false; btn.innerText = isContinuation ? "📝 续写 / 新建" : "生成";
+        btn.disabled = false; btn.innerText = "📝 续写 / 新建";
     }
 };
-// 3. 修复历史记录加载 (强制使用当前头像和名字)
+// === 5. 修复历史记录加载 (支持新版视角) ===
 const _oldLoadForumFix = window.loadForum;
 window.loadForum = async function(id) {
     const thread = await getForumContent(id);
     if (thread && thread.isXHS) {
-        // 切换模式
         switchForumMode('xhs');
         document.getElementById('forum-mode-select').value = 'xhs';
         
-        // 🔥 强制读取当前的 Line 设置 (名字 + 头像)
-        // 这样即使历史记录是旧的，打开时也会套用现在的新头像
+        // 加载头像
         let myAvatar = '', botAvatar = '';
         try {
             const myRes = await idb.get('settings_heavy', 'myAvatar');
@@ -33280,11 +33386,10 @@ window.loadForum = async function(id) {
         const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
         const lineName = chatSettings.title || "Ta"; 
 
-        // 渲染
+        // 传入保存的 roleType，如果是旧数据没有这个字段，默认为 'npc'
         renderXHSView(thread.data, myAvatar, botAvatar, thread.roleType || 'npc', lineName);
-        document.getElementById('forum-history-panel').classList.remove('open');
         
-        // 更新 ID 和 按钮状态
+        document.getElementById('forum-history-panel').classList.remove('open');
         currentForumId = id;
         updateXHSButtonState(true);
         
