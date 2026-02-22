@@ -18685,7 +18685,8 @@ window.deleteStudyPlan = function() {
 
     <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; align-items:center;">
         <div class="morandi-card" style="width:100%; text-align:center; padding:30px 20px; margin-bottom:20px; background:rgba(255,255,255,0.8);">
-            <div style="font-size:3rem; margin-bottom:15px;">💭</div>
+
+<div style="font-size:3rem; margin-bottom:15px; cursor:pointer;" onclick="handleCloudTripleTap()">☁️</div>
             <h2 style="font-size:1.1rem; color:#4a148c; margin-bottom:10px; line-height:1.4;">
                 想知道ta做你的梦男/梦女时<br>会发生什么吗？
             </h2>
@@ -18707,7 +18708,6 @@ window.deleteStudyPlan = function() {
             </div>
 <button id="btn-dream-save" class="m-btn small" onclick="saveDreamResultToHistory()" style="width:100%; margin-top:10px; background:#d1c4e9; color:#4a148c;">💾 保存这份报告</button>
         </div>
-
     </div>
 </div>
 <div id="dream-card-table-modal" class="modal-overlay" style="background: rgba(40, 10, 60, 0.85); backdrop-filter: blur(5px);">
@@ -19138,6 +19138,90 @@ window.deleteStudyPlan = function() {
             </button>
             <button class="m-btn secondary" onclick="closeGameCardTable()" style="background:rgba(255,255,255,0.2); color:white;">
                 取消
+            </button>
+        </div>
+    </div>
+</div>
+<!-- ================= 🔒 隐藏功能：XP 表格 (XP Table) ================= -->
+<div id="xp-app-modal" class="modal-overlay" style="background:#fdfbf7; z-index:25000; display:none;">
+    <div class="modal-header" style="background:#2c3e50; color:#fff; border-bottom:1px solid #34495e;">
+        <span style="font-family:'Courier New'; font-weight:bold;">⚠️ XP Analysis Protocol</span>
+        <button class="close-btn" onclick="closeXPApp()" style="color:#fff;">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:15px; padding-bottom:0; display:flex; flex-direction:column; height:100%;">
+        
+        <!-- 1. 全局设置区 (固定在顶部) -->
+        <div class="morandi-card" style="padding:15px; background:#fff; border-left:5px solid #8e44ad; flex-shrink:0;">
+            <h4 style="margin:0 0 10px 0; color:#2c3e50;">⚙️ 关系与倾向设定</h4>
+            <div style="margin-bottom:10px;">
+                <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:5px;">你的倾向 / 角色定位：</label>
+                <div style="display:flex; gap:15px;">
+                    <label style="display:flex; align-items:center; font-size:0.9rem;"><input type="radio" name="xp_role" value="攻/S" checked> 我是攻/S (角色受)</label>
+                    <label style="display:flex; align-items:center; font-size:0.9rem;"><input type="radio" name="xp_role" value="受/M"> 我是受/M (角色攻)</label>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:5px;">施加对象：</label>
+                <div style="display:flex; gap:15px;">
+                  <!-- 修改后 -->
+<label style="display:flex; align-items:center; font-size:0.9rem;">
+    <input type="radio" name="xp_target" value="用户对角色" checked> 用户（我）对角色
+</label>
+                    <label style="display:flex; align-items:center; font-size:0.9rem;"><input type="radio" name="xp_target" value="对用户"> 角色对用户(我)</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 词条选择区 (可滚动区域) -->
+        <div class="morandi-card" style="padding:0; overflow:hidden; flex:1; display:flex; flex-direction:column; margin-bottom:0;">
+            <div style="padding:15px; background:#f5f6fa; border-bottom:1px solid #ddd; font-weight:bold; color:#57606f; flex-shrink:0;">
+                📋 欲望清单 (点击勾选抽牌)
+            </div>
+            <div id="xp-list-container" style="flex:1; overflow-y:auto; padding:10px;">
+                <!-- JS 动态生成列表 -->
+                <!-- 底部垫高层：解决最后几行点不到的问题 -->
+                <div style="height: 150px; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 3. 操作区 (固定在底部) -->
+        <div style="position:absolute; bottom:0; left:0; width:100%; padding:20px; background:linear-gradient(to top, #fdfbf7 80%, rgba(253,251,247,0.8)); pointer-events:none; z-index:10;">
+            <button id="btn-xp-gen" class="m-btn primary" onclick="generateXPTable()" style="width:100%; pointer-events:auto; background:#2c3e50; border:1px solid #8e44ad; box-shadow:0 5px 20px rgba(44, 62, 80, 0.4); height:55px; font-size:1.1rem;">
+                🚀 确认并生成报告
+            </button>
+        </div>
+
+        <!-- 4. 结果展示区 -->
+        <div id="xp-result-area" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#fff; z-index:20; overflow-y:auto; padding:20px; padding-top:80px;">
+            <button onclick="document.getElementById('xp-result-area').style.display='none'" style="position:absolute; top:20px; right:20px; padding:5px 15px; background:#eee; border:none; border-radius:4px;">关闭</button>
+            <div class="morandi-card">
+                <h3 style="color:#8e44ad; text-align:center; margin-bottom:15px;">📊 解析报告</h3>
+                <div id="xp-result-content" style="font-size:0.9rem; line-height:1.6; overflow-x:auto;"></div>
+            </div>
+            <div style="height:100px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 🎴 XP 专用抽牌桌 (新增) ================= -->
+<div id="xp-card-table-modal" class="modal-overlay" style="background: rgba(20, 10, 30, 0.98); z-index:26000; display:none;">
+    <div id="xp-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #2c3e50 0%, #000 100%);">
+        <div id="xp-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;">
+            <!-- 卡牌由 JS 生成 -->
+        </div>
+        
+        <div class="card-table-ui">
+            <div style="color:#a29bfe; font-weight:bold; font-size:1.1rem; text-shadow:0 1px 3px #000;">
+                正在探测：<span id="xp-current-item-name" style="color:#fff;">...</span>
+            </div>
+            <div style="font-size:0.8rem; color:#ccc; margin-bottom:5px;">(可多选，已选 <span id="xp-flipped-count">0</span> 张)</div>
+            
+            <button class="m-btn primary" onclick="confirmXPCards()" style="background:#8e44ad; border:1px solid #fff; color:white; box-shadow:0 0 15px rgba(142, 68, 173, 0.5);">
+                ✅ 确认这张牌
+            </button>
+            <button class="m-btn secondary" onclick="cancelXPDraw()" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消 (不勾选)
             </button>
         </div>
     </div>
@@ -28309,132 +28393,6 @@ window.flipDreamCard = async function(el, cardData) {
 };
 console.log("✅ 梦APP 抽牌桌层级修复已加载");
 </script>
-<script>
-(function() {
-    // --- 1. 时间控制：17号及以后不再显示 ---
-    // 获取当前日期
-    var now = new Date();
-    var date = now.getDate(); // 获取几号
-    // 如果今天是17号或更大，直接退出，不显示
-    if (date >= 22) return;
-
-    // --- 2. 唯一性控制：本地已读过则不显示 ---
-    var storageKey = "ganmei_newyear_2026_v3_read"; 
-    if (localStorage.getItem(storageKey)) return;
-
-    // --- 3. 样式定义 ---
-    var overlayStyle = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s;";
-    var cardStyle = "background:#fff; width:85%; max-width:450px; padding:25px; border-radius:16px; box-shadow:0 0 30px rgba(0,0,0,0.5); font-family:sans-serif; position:relative; max-height:80vh; overflow-y:auto;";
-    var btnStyle = "margin-top:20px; width:100%; padding:12px; border:none; background:#ff7675; color:white; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer; transition:0.2s;";
-
-    // --- 第一步：显示祝福公告 ---
-    function showGreeting() {
-        var div = document.createElement('div');
-        div.id = "gm-step1";
-        div.style.cssText = overlayStyle;
-        div.innerHTML = `
-            <div style="${cardStyle} border: 2px solid #ff7675;">
-                <h3 style="color:#d63031; margin-top:0; text-align:center;">🧧 节日快乐！</h3>
-                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
-                    <p>很感谢大家喜欢甘梅小手机也愿意玩甘梅小手机，各位小甘梅新年快乐！</p>
-                    <p>承蒙大家的喜欢总会想是不是还有哪里没做到位没有做好，看着大家的喜欢也更有动力去更新了。今天还是想说很感谢各位小甘梅的喜欢，也希望小甘梅们新年快乐！事事顺心万事如意。</p>
-                    <p style="background:#fff0f6; padding:10px; border-radius:8px;">这个红包是每次看到大家的喜欢我也想大家开心些所以想为大家更加做些什么的想法，也麻烦小甘梅们请不要推荐甘梅炸机谢谢大家（因为可能导致会有一些小甘梅收不到糖果），请一直以来照顾我的各位们吃口新年快乐糖。</p>
-                </div>
-                <button id="gm-btn-ok" style="${btnStyle}">确定</button>
-            </div>
-        `;
-        document.body.appendChild(div);
-
-        // 点击确定后
-        document.getElementById('gm-btn-ok').onclick = function() {
-            // 标记为已读，下次不再显示第一步
-            localStorage.setItem(storageKey, "true");
-            // 移除当前弹窗
-            div.remove();
-            // 进入第二步
-            showWarning();
-        };
-    }
-
-    // --- 第二步：显示保密提示 (强制8秒) ---
-    function showWarning() {
-        var div = document.createElement('div');
-        div.style.cssText = overlayStyle;
-        div.innerHTML = `
-            <div style="${cardStyle}">
-                <h3 style="color:#e17055; margin-top:0; text-align:center;">🤫 悄悄话</h3>
-                <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
-                    <p style="font-weight:bold;">请大家因此不要宣传甘梅炸机，也请大家保密这部分内容因为只是祝福的想法想感谢大家而不是想要被推广之类的，很感谢大家喜欢甘梅炸机。</p>
-                    <p style="font-size:0.85rem; color:#666; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
-                        （我也不希望除了小甘梅们的人领到糖果而且可能会让一部分小甘梅没法领到糖果，因为大家的喜欢，我才有创作的动力，如果发现异常行为会马上删除这个口令和公告）
-                    </p>
-                </div>
-                <button id="gm-btn-wait" style="${btnStyle}; background:#b2bec3; cursor:not-allowed;" disabled>
-                    请认真阅读 (8s)
-                </button>
-            </div>
-        `;
-        document.body.appendChild(div);
-
-        // 倒计时逻辑
-        var timeLeft = 5;
-        var btn = document.getElementById('gm-btn-wait');
-        var timer = setInterval(function() {
-            timeLeft--;
-            btn.innerText = "请认真阅读 (" + timeLeft + "s)";
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                btn.disabled = false;
-                btn.innerText = "我明白了";
-                btn.style.background = "#e17055";
-                btn.style.cursor = "pointer";
-            }
-        }, 1000);
-
-        btn.onclick = function() {
-            div.remove();
-            showImage();
-        };
-    }
-
-    // --- 第三步：显示图片 (10秒自动关闭) ---
-    function showImage() {
-        var div = document.createElement('div');
-        // 背景设为深黑色，突出图片
-        div.style.cssText = overlayStyle + "background:rgba(0,0,0,0.95);";
-        div.innerHTML = `
-            <img src="https://i.postimg.cc/50MSJk4f/IMG-2615.png" 
-                 style="max-width:95%; max-height:80vh; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); object-fit:contain;">
-            <div style="color:white; margin-top:20px; font-weight:bold; font-size:1.1rem;">
-                图片将在 <span id="img-timer" style="color:#ff7675;">10</span> 秒后自动关闭
-            </div>
-        `;
-        document.body.appendChild(div);
-
-        var timeLeft = 10;
-        var timerSpan = document.getElementById('img-timer');
-        var timer = setInterval(function() {
-            timeLeft--;
-            if(timerSpan) timerSpan.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                div.remove(); // 关闭图片
-            }
-        }, 1000);
-        
-        // 点击背景也可以提前关闭
-        div.onclick = function() {
-            clearInterval(timer);
-            div.remove();
-        }
-    }
-
-    // 启动流程
-    showGreeting();
-
-})();
-</script>
-<!-- ================== 新年限时公告代码 END ================== -->
 </body>
 <style>
 @viewport { fit: cover; }
@@ -33433,6 +33391,400 @@ function updateXHSButtonState(hasActiveThread) {
 }
 
 console.log("✅ 小红书续写 V2 & 历史修复补丁 已加载");
+// ==================== 🔒 隐藏功能：XP表格系统 ====================
+// ==================== 🔒 隐藏功能：XP表格系统 (V2.0 手动抽牌版) ====================
+
+// 1. 数据源
+const XP_LIST = [
+    "Dom/S倾向（作为施虐/控制方）", "Sub/M倾向（作为受虐/服从方）", "Switch/互攻（角色互换/无固定攻受）",
+    "主奴关系（明确的阶级差）", "宠物/饲养Play（项圈、笼子、非人化对待）", "Brat/反抗（受方故意挑衅攻方）",
+    "撒娇/依赖（极度的情感依赖）", "强制强迫（CNC，双方知情同意下的强暴扮演）", "下克上（地位低的人侵犯/控制地位高的人）",
+    "体格差强弱差带来的压制（非外貌描写，指剧情中的压制感）", "绳艺/捆绑", "手铐/镣铐",
+    "口塞/口球（剥夺语言能力）", "眼罩/蒙眼（剥夺视觉）", "放置Play（捆绑后被长时间晾在一边）",
+    "羞耻姿势固定（如M字开脚固定）", "悬吊", "拘束衣/木乃伊式包裹", "贞操带/贞操锁",
+    "感官剥夺（完全切断视听触觉）", "SP/打屁股（手）", "工具惩罚（教鞭、板子、皮拍）",
+    "鞭打（造成痛感或痕迹）", "低温/冰块Play", "高温/滴蜡", "咬痕/抓痕",
+    "窒息/掐脖子（Breath Control）", "电击/电刑", "针刺/穿刺", "耳光/羞辱性殴打",
+    "Dirty Talk/污言秽语", "辱骂/人格贬低", "夸奖/赞美式调教", "催眠/洗脑",
+    "常识以此改写（让受方认为变态的事情是正常的）", "无视/冷暴力",
+    "被迫暴露/羞耻Play（在很多人的地方或假装有人的地方）", "镜子Play（强迫看着自己被做的样子）",
+    "摄影/录像记录", "NTR/被睡/绿帽癖（不论是攻还是受视角）",
+    "寸止/边缘控射（Edging）", "高潮管理/射精许可", "强制高潮（不允许停下）", "绝顶地狱（高潮后继续刺激）",
+    "失禁/失禁调教", "深喉/口爆", "颜射/精液涂抹", "吞精", "内射/Creampie",
+    "标记/体内成结（如ABO设定中的成结）", "肛塞/拉珠", "按摩棒/跳蛋", "双头龙/双人同时使用道具",
+    "拳交/Fisting", "扩张/巨物", "异物插入（非性玩具的物品）", "灌肠/浣肠",
+    "Pegging/第四爱（女攻男受/受方使用假阳具）", "导尿/尿道Play", "远程控制/公共场合跳蛋",
+    "触手/异种奸", "产卵/腹部隆起", "媚药/催情剂", "睡眠奸（趁对方睡着时）",
+    "办公室/职场环境", "校园/师生/保健室", "医院/检查台/医疗Play", "野外/车震",
+    "多人运动/轮奸/而且（NP）", "事后温存/Aftercare（必须有温柔的清理和拥抱）",
+    "连体衣/死库水（竞泳泳衣或高叉设计）", "丝袜/网袜（包括撕破丝袜的情节）", "吊带袜/绝对领域",
+    "兽耳/兽尾配件（假扮动物，非真实兽人）", "女仆装/执事服（主仆服务的象征）", "护士/医生白大褂（医疗权力的象征）",
+    "警察/军服（暴力机关的制服诱惑）", "西装/正装（禁欲感，斯文败类）", "校服/水手服/西式制服（背德感）",
+    "体育服/布鲁马 (Bloomers)", "修女服/神职人员长袍（圣洁与堕落的反差）", "新娘婚纱/白无垢（在纯洁的仪式服装下进行）",
+    "偶像/演出服（华丽服装下的不堪）", "破烂的衣服/战损版（衣服被撕碎、弄脏的状态）",
+    "医生 x 病人（强制体检、妇科/泌尿科检查、用药）", "老师 x 学生（课后辅导、成绩要挟、违纪惩罚）",
+    "上司 x 下属（职场潜规则、以权谋私、办公室偷情）", "狱警 x 囚犯（审讯、搜身、完全服从）",
+    "房东 x 房客（免除房租的肉体偿还）", "讨债人 x 欠债者（暴力催收、卖身抵债）",
+    "施暴者 x 受害者（模拟绑架、监禁剧本）", "电车痴汉 x 乘客（模拟公共交通上的无助感）",
+    "神明 x 信徒（献祭、仪式性性爱、忏悔）", "卖春/风俗店Play（模拟金钱交易、指名服务、只谈肉体不谈感情）"
+];
+
+// 全局变量：存储每个选项对应的牌
+// 结构：{ "0": ["塔罗1", "塔罗2"], "5": ["雷诺曼3"] }
+let xpDraftData = {}; 
+let currentXPIndex = -1; // 当前正在抽牌的索引
+let xpActiveDeck = [];
+let xpFlippedCards = [];
+
+// 2. 触发逻辑
+let cloudTapCount = 0;
+let cloudTapTimer = null;
+
+function handleCloudTripleTap() {
+    cloudTapCount++;
+    if (cloudTapTimer) clearTimeout(cloudTapTimer);
+    cloudTapTimer = setTimeout(() => { cloudTapCount = 0; }, 500);
+
+    if (cloudTapCount === 3) {
+        const pwd = prompt("🔒 安全协议：请输入访问代码", "");
+        if (pwd === "715321") openXPApp();
+        else alert("❌ 访问被拒绝");
+        cloudTapCount = 0;
+    }
+}
+
+// 3. 打开/关闭
+function openXPApp() {
+    document.getElementById('xp-app-modal').style.display = 'flex';
+    document.getElementById('xp-result-area').style.display = 'none';
+    xpDraftData = {}; // 重置选择数据
+    renderXPList();
+}
+
+function closeXPApp() {
+    document.getElementById('xp-app-modal').style.display = 'none';
+}
+
+function renderXPList() {
+    const container = document.getElementById('xp-list-container');
+    // 保留最后的 spacer div，只清空前面的内容
+    container.innerHTML = '';
+    
+    XP_LIST.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'xp-list-item';
+        div.style.cssText = "display:flex; align-items:center; padding:12px 5px; border-bottom:1px solid #eee; transition:0.2s;";
+        
+        div.innerHTML = `
+            <input type="checkbox" id="xp-check-${index}" style="margin-right:10px; transform:scale(1.3); cursor:pointer;" onclick="toggleXPItem(this, ${index})">
+            <div style="flex:1;">
+                <label for="xp-check-${index}" style="font-size:0.95rem; color:#333; cursor:pointer; font-weight:500;">${item}</label>
+                <div id="xp-card-res-${index}" style="font-size:0.8rem; color:#8e44ad; font-weight:bold; margin-top:4px;"></div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+
+    // 🔥 再次添加底部垫高层 (确保不被遮挡)
+    const spacer = document.createElement('div');
+    spacer.style.height = "150px"; 
+    spacer.style.width = "100%";
+    container.appendChild(spacer);
+}
+
+// 4. 复选框点击逻辑
+function toggleXPItem(el, index) {
+    if (el.checked) {
+        // 选中 -> 弹出牌桌
+        currentXPIndex = index;
+        openXPCardTable(XP_LIST[index]);
+    } else {
+        // 取消选中 -> 清除数据
+        delete xpDraftData[index];
+        document.getElementById(`xp-card-res-${index}`).innerText = "";
+    }
+}
+
+// 5. 抽牌桌逻辑
+function openXPCardTable(itemName) {
+    const modal = document.getElementById('xp-card-table-modal');
+    const area = document.getElementById('xp-card-area');
+    const desk = document.getElementById('xp-card-table-desk');
+    
+    // 应用美化背景
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
+    document.getElementById('xp-current-item-name').innerText = itemName;
+    document.getElementById('xp-flipped-count').innerText = '0';
+    
+    area.innerHTML = '';
+    xpActiveDeck = [];
+    xpFlippedCards = [];
+
+    // 生成完整牌库
+    for(let i=0; i<=77; i++) xpActiveDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) xpActiveDeck.push({ type:'lenormand', id:i, isReversed:false });
+    xpActiveDeck.sort(()=>Math.random()-0.5);
+
+    // 布局
+    const deskW = window.innerWidth;
+    const cardW=60, cardH=90, gap=10;
+    let cols = Math.floor((deskW-20)/(cardW+gap)); if(cols<4) cols=4;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    xpActiveDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        // 点击逻辑：支持多选
+        el.onclick = () => {
+            if(el.classList.contains('flipped')) {
+                // 取消选择
+                el.classList.remove('flipped');
+                xpFlippedCards = xpFlippedCards.filter(c => !(c.id === card.id && c.type === card.type));
+                setTimeout(() => { front.style.backgroundImage = ''; front.innerText = ''; }, 300);
+            } else {
+                // 选中
+                el.classList.add('flipped');
+                xpFlippedCards.push(card);
+                
+                // 加载图片
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                if(typeof idb !== 'undefined') {
+                    idb.get(db, card.id).then(res=>{ 
+                        if(res && res.data) front.style.backgroundImage=`url(${res.data})`;
+                        else { front.style.background="#fff"; front.innerText=card.id; }
+                    });
+                } else {
+                    front.style.background="#fff"; front.innerText=card.id;
+                }
+                
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('xp-flipped-count').innerText = xpFlippedCards.length;
+        };
+        area.appendChild(el);
+    });
+    
+    // 设置高度
+    const rows = Math.ceil(xpActiveDeck.length / cols);
+    area.style.height = (60 + rows*(cardH+gap) + 100) + 'px';
+
+    modal.style.display = 'flex';
+}
+
+function cancelXPDraw() {
+    // 如果取消抽牌，取消勾选
+    const cb = document.getElementById(`xp-check-${currentXPIndex}`);
+    if(cb) cb.checked = false;
+    delete xpDraftData[currentXPIndex];
+    document.getElementById('xp-card-table-modal').style.display = 'none';
+}
+
+function confirmXPCards() {
+    if(xpFlippedCards.length === 0) return alert("请至少抽取一张牌！");
+    
+    // 转换牌名为字符串
+    const cardNames = xpFlippedCards.map(c => {
+        const name = c.type === 'tarot' ? (TAROT_NAMES[c.id] || c.id) : (LENORMAND_NAMES[c.id] || c.id);
+        const status = c.isReversed ? "(逆)" : "";
+        return name + status;
+    });
+    
+    // 存入数据
+    xpDraftData[currentXPIndex] = cardNames;
+    
+    // 更新 UI
+    const resDiv = document.getElementById(`xp-card-res-${currentXPIndex}`);
+    if(resDiv) {
+        resDiv.innerHTML = `🔮 牌意：${cardNames.join(", ")}`;
+        resDiv.style.height = "auto";
+    }
+    
+    document.getElementById('xp-card-table-modal').style.display = 'none';
+}
+// === 6. 生成报告 API 调用 (恢复原版Prompt + 增加历史记录保存) ===
+async function generateXPTable() {
+    const indexes = Object.keys(xpDraftData);
+    if(indexes.length === 0) return alert("请先勾选并抽取至少一项！");
+    
+    const btn = document.getElementById('btn-xp-gen');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "🧠 正在连接角色潜意识...";
+
+    // 1. 准备数据
+    let promptData = [];
+    indexes.forEach(idx => {
+        const item = XP_LIST[idx];
+        const cards = xpDraftData[idx].join(", ");
+        promptData.push(`【XP项目】：${item}\n【抽到的牌】：${cards}`);
+    });
+
+    const wb = window.getWBData ? window.getWBData() : {};
+    const globalContext = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta";
+    
+    const roleSetting = document.querySelector('input[name="xp_role"]:checked').value;
+    const targetSetting = document.querySelector('input[name="xp_target"]:checked').value;
+
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+    if(!apiKey) { btn.disabled=false; btn.innerText=oldText; return alert("请配置 API Key"); }
+
+    // ================= 🛑 这里保持原汁原味的 Prompt 逻辑 =================
+    const prompt = `
+你是一位深度角色心理分析师。
+【角色设定】：
+${globalContext}
+
+【本次分析设定】：
+- 角色姓名：${charName}
+- 角色在关系中的倾向：${roleSetting}
+- 行为施加对象：${targetSetting}
+
+【待分析的 XP (性癖) 清单与对应的命运牌】：
+${promptData.join('\n\n')}
+
+【任务要求】：
+请根据**每一项**抽到的【命运牌】的牌意（能量流动、象征意义），来解读角色对该 XP 的真实看法、接受度或心理活动。
+* 核心规则：牌意是最高指引。
+  - 例如：牌意是抗拒/痛苦，则角色可能反感或有心理阴影。
+  - 例如：牌意是热情/冲动，则角色可能非常渴望或沉迷。
+  - 例如：牌意是权衡/保守，则角色可能还在犹豫或只接受轻度。
+
+【输出格式】：
+请严格输出一个 Markdown 表格，包含三列：
+| 欲望项目 (XP) | 命运牌指引 | 角色的看法与反应 |
+| --- | --- | --- |
+| (项目名) | (牌名) | (详细解读，包含心理活动和接受程度) |
+
+不要输出其他废话，直接输出表格。
+`;
+    // =================================================================
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"You are a creative analyzer."}, {role:"user", content:prompt}],
+                temperature: 0.8
+            })
+        });
+
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+        
+        let content = json.choices[0].message.content;
+        
+        // 解析为 HTML 表格（用于显示和保存）
+        const htmlTable = parseMarkdownTable(content); 
+
+        // 1. 在当前 XP 窗口显示结果
+        const resultArea = document.getElementById('xp-result-area');
+        document.getElementById('xp-result-content').innerHTML = htmlTable;
+        resultArea.style.display = 'block';
+        
+        // 自动回到顶部
+        const modalBody = document.getElementById('xp-app-modal').querySelector('.modal-body');
+        if(modalBody) modalBody.scrollTop = 0;
+
+        // 2. 🔥【新增】自动保存到“梦App”的历史记录
+        if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+        if (!window.BIG_MEMORY.dream_history) window.BIG_MEMORY.dream_history = [];
+        
+        // 构造符合梦App历史格式的数据
+        const historyItem = {
+            id: Date.now(),             // 唯一ID
+            date: Date.now(),           // 时间戳
+            type: 'xp_table',           // 类型标记
+            prompt: "🔞 XP 欲望解析报告", // 在历史列表中显示的标题
+            response: content,          // 原始 Markdown 数据
+            htmlContent: htmlTable      // 渲染好的 HTML 表格
+        };
+
+        // 插入到历史记录最前面
+        window.BIG_MEMORY.dream_history.unshift(historyItem);
+        
+        // 限制历史记录数量（防止无限膨胀，保留最近50条）
+        if (window.BIG_MEMORY.dream_history.length > 50) {
+            window.BIG_MEMORY.dream_history.pop();
+        }
+
+        // 调用持久化保存函数 (如果存在)
+        if (typeof saveToBigDB === 'function') {
+            saveToBigDB('dream_history', window.BIG_MEMORY.dream_history);
+            // 提示用户保存成功
+            if(typeof NotificationManager !== 'undefined') {
+                NotificationManager.showToast("已存档", "报告已保存至梦App历史", "💾");
+            }
+        }
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = oldText;
+    }
+}
+// ==================== 🛠️ 缺失的辅助函数补丁 ====================
+
+// 辅助函数：简单的 Markdown 表格转 HTML
+function parseMarkdownTable(md) {
+    // 1. 找到表格部分 (以 | 开头的行)
+    const lines = md.split('\n').filter(l => l.trim().startsWith('|'));
+    
+    // 如果没找到表格结构，直接返回原文
+    if (lines.length < 3) return `<div style="white-space:pre-wrap; padding:10px;">${md}</div>`; 
+
+    let html = '<table class="dream-table" style="width:100%; border-collapse:collapse; margin-top:10px; font-size:0.85rem;">';
+    
+    // --- 处理表头 (Header) ---
+    // lines[0] 是表头，lines[1] 是分隔符 (---|---)
+    const headerCols = lines[0].split('|').filter(s => s.trim() !== '').map(s => s.trim());
+    
+    html += '<thead><tr>';
+    headerCols.forEach(col => {
+        html += `<th style="background:#e8d7d7; padding:8px; border:1px solid #ccc; color:#5d4037; font-weight:bold;">${col}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // --- 处理内容 (Body) ---
+    // 从 lines[2] 开始遍历
+    for (let i = 2; i < lines.length; i++) {
+        const cols = lines[i].split('|').filter(s => s.trim() !== '').map(s => s.trim());
+        // 防止空行
+        if (cols.length === 0) continue;
+        
+        html += '<tr>';
+        cols.forEach(col => {
+            html += `<td style="padding:8px; border:1px solid #ccc; background:#fff; color:#333; vertical-align:top;">${col}</td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    
+    return html;
+}
 </script>
 
 </html> 
