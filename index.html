@@ -3919,6 +3919,355 @@ canvas {
 /* 呼吸动画，模拟期待 */
 @keyframes kiss-breathe { 0% {transform: scale(1);} 50% {transform: scale(1.02);} 100% {transform: scale(1);} }
 .kiss-active #kiss-char-img { animation: kiss-breathe 3s infinite ease-in-out; }
+/* === 📕 仿小红书模式专用样式 === */
+#forum-xhs-view {
+    display: none; /* 默认隐藏 */
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto; /* 整体垂直滚动 */
+    background: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* 顶部图片轮播区 (横向滑动) */
+.xhs-slider-container {
+    width: 100%;
+    aspect-ratio: 3/4; /* 仿小红书图片比例 */
+    background: #f5f5f5;
+    overflow-x: auto; /* 横向滑动 */
+    overflow-y: hidden;
+    display: flex;
+    scroll-snap-type: x mandatory; /* 自动吸附 */
+    flex-shrink: 0; /* 防止被压缩 */
+}
+.xhs-slider-container::-webkit-scrollbar { display: none; }
+
+/* 单张图片/幻灯片 */
+.xhs-slide {
+    min-width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    box-sizing: border-box;
+    border-right: 1px solid #eee;
+    position: relative;
+}
+
+/* 模拟聊天记录截图样式 */
+.xhs-fake-chat-row {
+    display: flex; gap: 8px; margin-bottom: 10px; font-size: 0.9rem;
+}
+.xhs-fake-chat-row.right { flex-direction: row-reverse; }
+.xhs-fake-chat-avatar {
+    width: 35px; height: 35px; border-radius: 6px; background: #ddd; flex-shrink: 0;
+    background-size: cover; background-position: center;
+}
+.xhs-fake-chat-bubble {
+    background: #f2f2f2; padding: 8px 12px; border-radius: 8px; max-width: 75%;
+    color: #333; line-height: 1.4; word-break: break-word;
+}
+.xhs-fake-chat-row.right .xhs-fake-chat-bubble {
+    background: #95ec69; color: #000;
+}
+
+/* 右上角页码 */
+.xhs-page-indicator {
+    position: absolute; top: 15px; right: 15px;
+    background: rgba(0,0,0,0.5); color: #fff;
+    padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;
+    pointer-events: none;
+}
+
+/* 中间正文区 */
+.xhs-content-body {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+}
+.xhs-title {
+    font-size: 1.1rem; font-weight: bold; color: #333; margin-bottom: 10px; line-height: 1.4;
+}
+.xhs-text {
+    font-size: 0.95rem; line-height: 1.6; color: #333; white-space: pre-wrap;
+}
+.xhs-tags {
+    margin-top: 15px; color: #1e3799; font-size: 0.9rem;
+}
+.xhs-date {
+    font-size: 0.75rem; color: #999; margin-top: 10px;
+}
+
+/* 底部评论区 */
+.xhs-comments-area {
+    padding: 15px; background: #fff;
+    padding-bottom: 80px; /* 留出底部空隙 */
+}
+.xhs-cmt-count {
+    font-size: 0.9rem; color: #666; margin-bottom: 15px;
+}
+.xhs-cmt-row {
+    display: flex; gap: 10px; margin-bottom: 15px;
+}
+.xhs-cmt-avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: #eee; flex-shrink: 0;
+}
+.xhs-cmt-content { flex: 1; }
+.xhs-cmt-user { font-size: 0.8rem; color: #999; margin-bottom: 2px; }
+.xhs-cmt-text { font-size: 0.9rem; color: #333; line-height: 1.4; }
+.xhs-cmt-like { font-size: 0.75rem; color: #999; margin-top: 2px; }
+/* === 📕 新版 XHS 紧凑样式 === */
+#forum-xhs-view {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    background: #fff;
+    /* 核心：让页面整体滑动 */
+    -webkit-overflow-scrolling: touch; 
+}
+
+/* 顶部轮播容器 */
+.xhs-slider-container {
+    width: 100%;
+    /* 调整比例，稍微长一点容纳更多文字 */
+    aspect-ratio: 3/4.2; 
+    background: #f9f9f9;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    scroll-snap-type: x mandatory;
+    flex-shrink: 0;
+    /* 底部留一点阴影分隔 */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+/* 单个幻灯片 (基础) */
+.xhs-slide {
+    min-width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 15px; /* 减少内边距 */
+    box-sizing: border-box;
+    border-right: 1px solid #f0f0f0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* --- 样式A：论坛体截图风格 --- */
+.xhs-slide.forum-style {
+    background: #fff;
+}
+.forum-floor-row {
+    margin-bottom: 12px;
+    border-bottom: 1px solid #f5f5f5;
+    padding-bottom: 8px;
+}
+.forum-floor-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.forum-floor-num {
+    font-size: 0.7rem; color: #999;
+    background: #f0f0f0; padding: 1px 4px; border-radius: 4px;
+}
+.forum-lz-tag {
+    font-size: 0.6rem; color: #ff9c00; border: 1px solid #ff9c00;
+    padding: 0 3px; border-radius: 2px;
+}
+.forum-floor-text {
+    font-size: 0.95rem; color: #333; line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-align: justify;
+}
+
+/* --- 样式B：私聊截图风格 (捡手机) --- */
+.xhs-slide.chat-style {
+    background: #f2f2f2; /* 微信灰背景 */
+    justify-content: flex-start; /* 从顶部开始 */
+}
+.fake-chat-header {
+    text-align: center; font-size: 0.8rem; color: #333; font-weight: bold;
+    padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05);
+    margin-bottom: 10px;
+}
+.fake-msg-row {
+    display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-start;
+}
+.fake-msg-row.right { flex-direction: row-reverse; } /* 我在右边 */
+.fake-msg-avatar {
+    width: 38px; height: 38px; border-radius: 6px; 
+    background: #ccc; flex-shrink: 0;
+    background-size: cover; background-position: center;
+}
+.fake-msg-bubble {
+    background: #fff; padding: 9px 13px; border-radius: 6px;
+    font-size: 0.95rem; color: #000; line-height: 1.4;
+    max-width: 75%; position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+/* 绿气泡 (我) */
+.fake-msg-row.right .fake-msg-bubble {
+    background: #95ec69; 
+}
+/* 气泡小尖角 */
+.fake-msg-row.left .fake-msg-bubble::before {
+    content:""; position:absolute; left:-6px; top:12px;
+    border-top:6px solid transparent; border-bottom:6px solid transparent; border-right:6px solid #fff;
+}
+.fake-msg-row.right .fake-msg-bubble::after {
+    content:""; position:absolute; right:-6px; top:12px;
+    border-top:6px solid transparent; border-bottom:6px solid transparent; border-left:6px solid #95ec69;
+}
+
+/* 页码指示器 */
+.xhs-page-tag {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.6); color: #fff;
+    padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;
+    z-index: 10;
+}
+
+/* --- 底部文案区 (紧凑化) --- */
+.xhs-content-body {
+    padding: 12px 15px; /* 减少留白 */
+    border-bottom: 1px solid #f5f5f5;
+}
+.xhs-title {
+    font-size: 1.1rem; font-weight: 600; color: #333; 
+    margin-bottom: 6px; line-height: 1.3;
+}
+.xhs-text {
+    font-size: 0.9rem; line-height: 1.6; color: #333; 
+    white-space: pre-wrap; margin-bottom: 10px;
+}
+.xhs-tags {
+    font-size: 0.85rem; color: #1e3799; margin-bottom: 5px;
+}
+.xhs-date {
+    font-size: 0.7rem; color: #bbb;
+}
+
+/* 评论区 (紧凑化) */
+.xhs-comments-area {
+    padding: 10px 15px 80px 15px; /* 底部留空给输入栏 */
+    background: #fff;
+}
+.xhs-cmt-row {
+    display: flex; gap: 8px; margin-bottom: 12px;
+    border-bottom: 1px solid #fafafa; padding-bottom: 8px;
+}
+.xhs-cmt-avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: #eee;
+}
+.xhs-cmt-user { font-size: 0.75rem; color: #999; margin-bottom: 2px; }
+.xhs-cmt-text { font-size: 0.85rem; color: #333; line-height: 1.4; }
+/* === 📕 布局紧凑化修正 === */
+
+/* 1. 图片轮播容器：去除底部外边距 */
+.xhs-slider-container {
+    width: 100%;
+    aspect-ratio: 3/4.2; 
+    background: #f9f9f9;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    scroll-snap-type: x mandatory;
+    flex-shrink: 0;
+    margin-bottom: 0 !important; /* 🔥 强制去除底部缝隙 */
+    border-bottom: 1px solid #eee; /* 加条细线分隔 */
+}
+
+/* 2. 内容文案区：减少顶部内边距 */
+.xhs-content-body {
+    padding: 12px 15px;
+    padding-top: 8px !important; /* 🔥 标题向上顶 */
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* 3. 标题样式：去除顶部 margin */
+.xhs-title {
+    font-size: 1.1rem; 
+    font-weight: 600; 
+    color: #333; 
+    margin-top: 0 !important; /* 🔥 顶格显示 */
+    margin-bottom: 6px; 
+    line-height: 1.3;
+}
+/* === 📕 XHS 布局终极修正 === */
+/* === 📕 布局调整：图片变短，内容上移 === */
+.xhs-slider-container {
+    width: 100%;
+    /* 原来是 3/4.5 (瘦高)，改为 3/3.2 (稍矮)，相当于切掉了底部无内容区域 */
+    aspect-ratio: 3/3.2; 
+    background: #f5f5f5;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    scroll-snap-type: x mandatory;
+    flex-shrink: 0;
+    margin-bottom: 0 !important;
+    box-shadow: none;
+}
+
+/* 顺便把单页幻灯片的底部内边距也收紧 */
+.xhs-slide {
+    padding-bottom: 5px; /* 减少底部留白 */
+}
+
+/* 2. 单张幻灯片 (内容顶格排列，消除空白) */
+.xhs-slide {
+    min-width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* 🔥 内容从顶部开始，防止垂直居中导致的上下留白 */
+    padding: 15px 12px;
+    box-sizing: border-box;
+    border-right: 1px solid #f0f0f0;
+    overflow-y: hidden; /* 禁止内部滑动，保持图片感 */
+}
+
+/* 3. 聊天气泡布局优化 */
+.fake-msg-row {
+    display: flex; 
+    gap: 8px; 
+    margin-bottom: 15px; /* 增加一点气泡间距，填补空间 */
+    align-items: flex-start;
+    width: 100%;
+}
+.fake-msg-row.right { 
+    flex-direction: row-reverse; /* 🔥 关键：反转布局，让头像在右 */
+}
+
+/* 4. 底部文案区 (标题上移) */
+.xhs-content-body {
+    background: #fff;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f5f5f5;
+    position: relative;
+    z-index: 5;
+    margin-top: -5px; /* 🔥 稍微向上提，消除视觉缝隙 */
+}
+
+/* 5. 标题样式 */
+.xhs-title {
+    font-size: 1.1rem; 
+    font-weight: 600; 
+    color: #333; 
+    margin-top: 0 !important; /* 🔥 顶格 */
+    margin-bottom: 8px; 
+    line-height: 1.3;
+}
     </style>
 </head>
 <body>
@@ -8733,7 +9082,7 @@ ${modePrompt}
                     { role: "user", content: `${previousContext}\n\n【本次指令】: ${userText || "继续热烈讨论，增加更多楼层"}` }
                 ],
                 temperature: 0.75, // 稍微降低一点点温度以保证 JSON 格式，但保留创造性
-                max_tokens: 3500
+                max_tokens: 30000
             })
         });
 
@@ -9406,7 +9755,13 @@ async function generatePickupChat() {
         const wb = getWBData();
     // 修改：直接读取【无占卜向全局】条目
     let context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const historyContext = currentMsgs.slice(-10).map(m => `${m.role==='me'?'用户':'角色'}: ${m.content}`).join("\n");
+let historyContext = currentMsgs.map(m => `${m.role==='me'?'用户':'角色'}: ${m.content}`).join("\n");
+
+    // 【安全防护】防止历史记录过长导致 API 报错（超过模型Token限制）
+    // 这里保留最近的 15000 个字符（约 7000-8000 汉字），这通常足够覆盖几百条对话了，远超原来的 10 条
+    if (historyContext.length > 15000) {
+        historyContext = "...(省略过早记录)...\n" + historyContext.slice(-15000);
+    }
 
     const systemPrompt = `你是一个“捡手机文学”生成器。
 这种文体的特点是：极度真实、生活化、通过聊天记录展现剧情和情感（虐心、甜宠、拉扯）。
@@ -9457,7 +9812,7 @@ ${context}
                     { role: "user", content: `【前文】\n${historyContext}\n\n【本次情节指令】\n${promptText || "继续刚才的对话，深入展开"}` }
                 ],
                 temperature: 0.8,
-                max_tokens: 3500 // 允许长输出
+                max_tokens: 30000 // 允许长输出
             })
         });
 
@@ -14878,7 +15233,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-                max_tokens: 3000 // 确保足够长
+                max_tokens: 30000 // 确保足够长
             })
         });
         const json = await res.json();
@@ -17920,11 +18275,20 @@ window.deleteStudyPlan = function() {
 </div>
 <div id="forum-modal" class="modal-overlay">
     <div class="forum-container">
+        <!-- 1. 顶部栏：修改了中间部分，变成下拉切换菜单 -->
         <div class="modal-header" style="background:#fff; color:#333; border-bottom:1px solid #ddd;">
             <button class="m-btn small" onclick="closeForumApp()" style="background:transparent; color:#333; font-size:1.2rem;">🔙</button>
-            <span style="font-weight:bold;">匿名论坛</span>
+            
+            <!-- 👇【关键修改】这里变成了下拉菜单，用于切换模式 -->
+            <select id="forum-mode-select" onchange="switchForumMode(this.value)" style="border:none; font-weight:bold; font-size:1rem; background:transparent; outline:none; text-align:center; color:#333; appearance:none;">
+                <option value="normal">💬 匿名论坛 (原版)</option>
+                <option value="xhs">📕 小红书 (新版)</option>
+            </select>
+            
             <button class="m-btn small" onclick="toggleForumHistory()" style="background:transparent; color:#00d2d3;">📂 历史</button>
         </div>
+
+        <!-- 2. 旧视图：保持原样 (id="forum-scroll-area") -->
         <div id="forum-scroll-area" class="forum-scroll-area">
             <div id="forum-content-container">
                 <div style="text-align:center; margin-top:100px; color:#999;">
@@ -17933,26 +18297,39 @@ window.deleteStudyPlan = function() {
                 </div>
             </div>
         </div>
-       <div class="forum-footer-bar">
-    <!-- 修改部分开始：改为单选按钮 -->
-    <div class="forum-input-settings" style="display:flex; gap:15px; padding:5px 0; align-items:center;">
-        <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
-            <input type="radio" name="forum_role" value="npc" checked style="margin-right:4px;"> 
-            👥 路人/NPC视角
-        </label>
-        <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
-            <input type="radio" name="forum_role" value="user" style="margin-right:4px;"> 
-            👤 主角/我视角
-        </label>
-    </div>
-    <!-- 修改部分结束 -->
 
-    <div style="display:flex; gap:10px;">
-        <textarea id="forum-input" class="th-textarea" style="height:50px;" placeholder="输入标题、梗概或关键词..."></textarea>
-        <button class="m-btn primary" onclick="generateForumThread()" id="btn-forum-gen" style="background:#00d2d3; width:80px;">发帖 / 续写</button>
-    </div>
-</div>
-    </div>
+        <!-- 3. 👇【新增】新视图：仿小红书容器 (默认隐藏) -->
+        <!-- 这里的样式 flex-direction:column 和 overflow-y:auto 保证了页面是整体向下滑动的 -->
+        <div id="forum-xhs-view" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background:#fff; -webkit-overflow-scrolling: touch;">
+            <!-- JS 会把图片轮播和文字都塞到这里面，这样滑动时就是整体移动 -->
+            <div style="text-align:center; margin-top:100px; color:#999;">
+                <div style="font-size:3rem; opacity:0.3;">📕</div>
+                <p>切换至图文模式<br>生成带聊天截图的帖子</p>
+            </div>
+        </div>
+
+        <!-- 4. 底部输入栏 -->
+        <div class="forum-footer-bar">
+            <!-- 视角选择 (JS会读取这里的选中状态来修正视角问题) -->
+            <div class="forum-input-settings" style="display:flex; gap:15px; padding:5px 0; align-items:center;">
+                <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
+                    <input type="radio" name="forum_role" value="npc" checked style="margin-right:4px;"> 
+                    👥 路人/NPC视角
+                </label>
+                <label style="font-size:0.85rem; display:flex; align-items:center; color:#555;">
+                    <input type="radio" name="forum_role" value="user" style="margin-right:4px;"> 
+                    👤 主角/我视角
+                </label>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <textarea id="forum-input" class="th-textarea" style="height:50px;" placeholder="输入标题、梗概或关键词..."></textarea>
+                <!-- 👇【关键修改】点击事件改为 handleForumGenerate()，由 JS 决定调用哪个生成器 -->
+                <button class="m-btn primary" onclick="handleForumGenerate()" id="btn-forum-gen" style="background:#00d2d3; width:80px;">生成</button>
+            </div>
+        </div>
+    </div>    
+    <!-- 侧边历史栏 (保持不变) -->
     <div id="forum-history-panel" class="chat-settings-panel">
         <h3>📂 帖子历史</h3>
         <div style="display:flex; gap:10px; margin-bottom:15px;">
@@ -21551,7 +21928,7 @@ window.generateGalgameEndingAPI = async function() {
                 messages: [{role:"system", content:"Creative writer. Context-aware."}, {role:"user", content:prompt}],
                 temperature: 0.9,
                 // 🔥 如果你的模型支持 16k，这里可以设更大，但在普通模型下 1500-2000 token 是输出上限
-                max_tokens: 2000 
+                max_tokens: 20000 
             })
         });
         
@@ -22134,7 +22511,7 @@ window.generateGalgameEndingAPI = async function() {
                 model: model,
                 messages: [{role:"system", content:"Creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.9,
-                max_tokens: 2000 // 限制返回长度，防止超时
+                max_tokens: 20000 // 限制返回长度，防止超时
             })
         });
         
@@ -27507,7 +27884,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                max_tokens: 5000
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -30407,7 +30784,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-                max_tokens: 6000 // 🔴 增大 Token 限制
+                max_tokens: 30000 // 🔴 增大 Token 限制
             })
         });
         const json = await res.json();
@@ -30776,7 +31153,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                max_tokens: 6000
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -30803,7 +31180,7 @@ async function callRpgApi(prompt, ctx, callback) {
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.8,
-                max_tokens: 6000
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -31173,7 +31550,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                max_tokens: 6000
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -32295,6 +32672,647 @@ window.executeAdvLogic = function(logicKey) {
 }
 
 console.log("✅ 画爱心系统已加载：检测拖动距离 + 更衣室测试按钮");
+// === 1. 模式切换逻辑 ===
+let currentForumMode = 'normal'; // 'normal' or 'xhs'
+
+function switchForumMode(mode) {
+    currentForumMode = mode;
+    if (mode === 'normal') {
+        document.getElementById('forum-scroll-area').style.display = 'block';
+        document.getElementById('forum-xhs-view').style.display = 'none';
+    } else {
+        document.getElementById('forum-scroll-area').style.display = 'none';
+        document.getElementById('forum-xhs-view').style.display = 'flex';
+    }
+}
+
+// === 2. 统一生成入口 ===
+function handleForumGenerate() {
+    if (currentForumMode === 'normal') {
+        generateForumThread(); // 调用原有的论坛生成函数
+    } else {
+        generateXHSThread();   // 调用新的 XHS 生成函数
+    }
+}
+// === 3. XHS 模式生成逻辑 (修正版：传递 Line 名字) ===
+async function generateXHSThread() {
+    const inputEl = document.getElementById('forum-input');
+    const userText = inputEl.value.trim();
+    if (!userText) return alert("请输入主题！");
+
+    const btn = document.getElementById('btn-forum-gen');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "编排中...";
+
+    // 1. 视角判断
+    const roleRadio = document.querySelector('input[name="forum_role"]:checked');
+    const roleType = roleRadio ? roleRadio.value : 'npc';
+    
+    // 2. 获取上下文
+    const wb = window.getWBData ? window.getWBData() : {};
+    const context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+    // 🔥 修改点：获取 Line 设置的名字
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const lineName = chatSettings.title || "Ta"; // 默认为 Ta
+
+    // 3. 核心 Prompt (保持原样)
+    let chatInstruction = "";
+    if (roleType === 'npc') {
+        chatInstruction = `
+        - **聊天截图视角**：这是**路人(楼主)和她朋友**的微信私聊截图。
+        - **内容**：两人在疯狂讨论/转发主角CP的八卦，或者路人捡到了主角的手机拍下了证据发给朋友看。
+        - 角色定义："me" = 路人楼主(右边)，"other" = 楼主的朋友(左边)。
+        `;
+    } else {
+        chatInstruction = `
+        - **聊天截图视角**：这是**主角(楼主)和CP**的甜蜜/吵架私聊截图，作为帖子证据发出。
+        - 角色定义："me" = 主角本人(右边)，"other" = CP对象(左边)。
+        `;
+    }
+
+    const prompt = `
+你是一个小红书/论坛体生成器。
+【世界观】：${context}
+【主题】：${userText}
+【楼主身份】：${roleType === 'npc' ? '吃瓜路人' : '当事主角'}
+
+【任务要求】
+生成一个 JSON，描述一组**图片流 (slides_flow)**。
+这组图片是论坛帖子截图和微信聊天截图的**自由穿插混合**。
+
+**排版规则 (Flexible Flow)**：
+不要固定顺序！请根据剧情需要，自由安排截图顺序。
+例如：可以先放两张【聊天记录】作为开头炸裂证据，再放【论坛正文】进行分析；或者先【论坛吐槽】再上【实锤截图】。
+
+**内容详细要求**：
+1. **论坛截图 (type="forum")**：总计不少于 **20层** 回复。包含楼主的陈述和网友的辣评。
+2. **私聊截图 (type="chat")**：总计不少于 **8句** 对话。
+   ${chatInstruction}
+3. **小红书部分**：生成笔记标题、正文和底下的评论（不少于7条）。
+
+【输出格式】
+严格 JSON，不要 Markdown：
+{
+  "slides_flow": [
+    { "type": "chat", "role": "me", "content": "..." },
+    { "type": "chat", "role": "other", "content": "..." },
+    { "type": "forum", "name": "楼主", "content": "...", "is_lz": true },
+    ...
+  ],
+  "xhs_caption": { "title": "...", "text": "...", "tags": "#..." },
+  "xhs_comments": [ { "user": "A", "text": "..." }, ... ]
+}
+`;
+
+    // 4. API 调用
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                max_tokens: 30000, 
+                messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.85
+            })
+        });
+        
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        let result;
+        try {
+            result = JSON.parse(raw);
+        } catch (e) {
+            const last = raw.lastIndexOf('}');
+            if (last > -1) {
+                try { result = JSON.parse(raw.substring(0, last+1)); } catch(e2) {}
+            }
+            if (!result) throw new Error("生成格式错误，请重试");
+        }
+        
+        // 5. 获取头像资源 (用于渲染)
+        let myAvatar = '', botAvatar = '';
+        try {
+            const myRes = await idb.get('settings_heavy', 'myAvatar');
+            const botRes = await idb.get('settings_heavy', 'botAvatar');
+            if (myRes) myAvatar = myRes.data;
+            if (botRes) botAvatar = botRes.data;
+        } catch(e){}
+
+        // 6. 渲染界面 (🔥 修改点：传入 roleType 和 lineName)
+        renderXHSView(result, myAvatar, botAvatar, roleType, lineName);
+        
+        // 7. 自动保存逻辑
+        const historyItem = {
+            id: Date.now().toString(),
+            title: "📕 " + (result.xhs_caption.title || "未命名帖子"),
+            lzName: (roleType === 'npc' ? "吃瓜路人" : "主角"),
+            date: Date.now(),
+            isXHS: true,
+            data: result,
+            roleType: roleType // 保存当时使用的视角
+        };
+
+        if (typeof saveForumContent === 'function') {
+            await saveForumContent(historyItem.id, historyItem);
+        } else {
+            await idb.put('forum_data', { id: `thread_${historyItem.id}`, data: historyItem });
+        }
+
+        let historyList = [];
+        try {
+            const res = await idb.get('forum_data', 'history_list');
+            if (res) historyList = res.data;
+        } catch(e) {}
+        
+        historyList.unshift({ 
+            id: historyItem.id, 
+            title: historyItem.title, 
+            date: historyItem.date 
+        });
+        
+        if (typeof saveForumHistory === 'function') {
+            await saveForumHistory(historyList);
+        } else {
+            await idb.put('forum_data', { id: 'history_list', data: historyList });
+        }
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.disabled = false; btn.innerText = oldText;
+    }
+}
+// === 4. XHS 渲染逻辑 (修改版：Line头像与备注修正) ===
+// 参数新增：lineName (Line里的备注名)
+function renderXHSView(data, myAvatarUrl, botAvatarUrl, roleType = 'npc', lineName = "对方") {
+    const container = document.getElementById('forum-xhs-view');
+    container.innerHTML = ''; 
+
+    // --- A. 顶部图片轮播 ---
+    const sliderContainer = document.createElement('div');
+    sliderContainer.className = 'xhs-slider-container';
+    
+    // 切片逻辑 (论坛4条一页，聊天5条一页)
+    let slides = [];
+    let currentChunk = [];
+    let currentType = null;
+    const flow = data.slides_flow || [];
+    
+    flow.forEach((item) => {
+        if (item.type !== currentType) {
+            if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 4, 5);
+            currentChunk = [];
+            currentType = item.type;
+        }
+        currentChunk.push(item);
+    });
+    if (currentChunk.length > 0) pushChunksToSlides(slides, currentChunk, currentType, 4, 5);
+    
+    const totalPages = slides.length;
+    
+    slides.forEach((slideItems, pageIndex) => {
+        const slideDiv = document.createElement('div');
+        const type = slideItems[0].type;
+        slideDiv.className = `xhs-slide ${type === 'forum' ? 'forum-style' : 'chat-style'}`;
+        
+        // 头部：聊天模式显示对方名字，论坛模式显示标题
+        if (type === 'chat') {
+            let chatHeaderName = "对方";
+            
+            if (roleType === 'npc') {
+                // 路人视角：模拟路人的朋友
+                chatHeaderName = "姐妹/基友"; 
+            } else {
+                // 🔥 修改点：主角视角：直接使用传入的 Line 备注名
+                chatHeaderName = lineName || "Ta";
+            }
+            
+            slideDiv.innerHTML = `<div class="fake-chat-header">${chatHeaderName}</div>`;
+        } else {
+            slideDiv.innerHTML = `<div style="font-weight:bold; font-size:0.9rem; margin-bottom:10px; color:#333;">${data.xhs_caption.title}</div>`;
+        }
+
+        slideItems.forEach(item => {
+            if (type === 'forum') {
+                // 论坛渲染保持不变
+                const row = document.createElement('div');
+                row.className = 'forum-floor-row';
+                row.innerHTML = `
+                    <div class="forum-floor-header">
+                        <span style="font-weight:bold; color:#444;">${item.name}</span>
+                        ${item.is_lz ? '<span class="forum-lz-tag">楼主</span>' : ''}
+                    </div>
+                    <div class="forum-floor-text">${item.content}</div>
+                `;
+                slideDiv.appendChild(row);
+            } else {
+                // 🔥 聊天渲染 (头像逻辑核心修正) 🔥
+                const row = document.createElement('div');
+                const isMe = (item.role === 'me'); // me=右边, other=左边
+                row.className = `fake-msg-row ${isMe ? 'right' : 'left'}`;
+                
+                let avatarStyle = '';
+                
+                // === 逻辑判断 ===
+                if (roleType === 'npc') {
+                    // 路人视角：统一灰色，模拟路人和路人朋友
+                    avatarStyle = `background-color: #ddd;`; 
+                } else {
+                    // 🔥 修改点：主角视角，强制使用 Line 头像
+                    // 右边(我) = myAvatarUrl
+                    // 左边(他) = botAvatarUrl
+                    const url = isMe ? myAvatarUrl : botAvatarUrl;
+                    
+                    if (url) {
+                        avatarStyle = `background-image: url(${url});`;
+                    } else {
+                        // 没设置头像时的颜色兜底
+                        avatarStyle = `background-color: ${isMe ? '#a5d6a7' : '#ffcc80'};`; 
+                    }
+                }
+                
+                row.innerHTML = `
+                    <div class="fake-msg-avatar" style="${avatarStyle}"></div>
+                    <div class="fake-msg-bubble">${item.content}</div>
+                `;
+                slideDiv.appendChild(row);
+            }
+        });
+        
+        // 页码
+        const pageTag = document.createElement('div');
+        pageTag.className = 'xhs-page-tag';
+        pageTag.innerText = `${pageIndex + 1}/${totalPages}`;
+        slideDiv.appendChild(pageTag);
+        
+        sliderContainer.appendChild(slideDiv);
+    });
+    
+    container.appendChild(sliderContainer);
+
+    // --- B. 文案区 ---
+    const captionDiv = document.createElement('div');
+    captionDiv.className = 'xhs-content-body';
+    const post = data.xhs_caption || {};
+    captionDiv.innerHTML = `
+        <div class="xhs-title">${post.title || '无标题'}</div>
+        <div class="xhs-text">${(post.text || '').replace(/\n/g, '<br>')}</div>
+        <div class="xhs-tags">${post.tags || '#捡手机'}</div>
+        <div class="xhs-date">${new Date().toLocaleDateString()}</div>
+    `;
+    container.appendChild(captionDiv);
+
+    // --- C. 评论区 ---
+    const cmtArea = document.createElement('div');
+    cmtArea.className = 'xhs-comments-area';
+    const cmts = data.xhs_comments || [];
+    cmtArea.innerHTML = `<div class="xhs-cmt-count">共 ${cmts.length} 条评论</div>`;
+    
+    cmts.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'xhs-cmt-row';
+        row.innerHTML = `
+            <div class="xhs-cmt-avatar"></div>
+            <div class="xhs-cmt-content">
+                <div class="xhs-cmt-user">${c.user}</div>
+                <div class="xhs-cmt-text">${c.text}</div>
+                <div class="xhs-cmt-like">❤️ ${Math.floor(Math.random()*100)}</div>
+            </div>
+        `;
+        cmtArea.appendChild(row);
+    });
+    container.appendChild(cmtArea);
+}
+// 辅助函数：切片
+function pushChunksToSlides(slidesArray, items, type, forumLimit, chatLimit) {
+    const limit = (type === 'forum') ? forumLimit : chatLimit;
+    for (let i = 0; i < items.length; i += limit) {
+        slidesArray.push(items.slice(i, i + limit));
+    }
+}
+
+// === 5. 修改原有的 loadForum 函数 (支持读取 XHS 历史) ===
+const _origLoadForum = window.loadForum;
+window.loadForum = async function(id) {
+    const thread = await getForumContent(id);
+    if (thread && thread.isXHS) {
+        // 如果是 XHS 帖子
+        switchForumMode('xhs');
+        document.getElementById('forum-mode-select').value = 'xhs';
+        
+        // 获取头像用于渲染
+        let myAvatar = '', botAvatar = '';
+        try {
+            const myRes = await idb.get('settings_heavy', 'myAvatar');
+            const botRes = await idb.get('settings_heavy', 'botAvatar');
+            if (myRes) myAvatar = myRes.data;
+            if (botRes) botAvatar = botRes.data;
+        } catch(e){}
+        
+        renderXHSView(thread.data, myAvatar, botAvatar);
+        document.getElementById('forum-history-panel').classList.remove('open');
+    } else {
+        // 传统帖子
+        switchForumMode('normal');
+        document.getElementById('forum-mode-select').value = 'normal';
+        await _origLoadForum(id);
+    }
+}
+
+</script>
+<script>
+/**
+ * =================================================================
+ * 📕 仿小红书增强补丁 V2 (修复弹窗不显示 + 历史头像修正)
+ * =================================================================
+ */
+
+// 1. 强制覆盖生成入口：增加视觉反馈
+window.handleForumGenerate = function() {
+    // 普通论坛模式，走原逻辑
+    if (currentForumMode === 'normal') {
+        generateForumThread(); 
+        return;
+    } 
+    
+    // XHS 模式
+    const inputEl = document.getElementById('forum-input');
+    const userText = inputEl.value.trim();
+    
+    if (!userText && !currentForumId) return alert("请输入新帖标题！");
+
+    // 关键修复：检查当前是否有正在查看的帖子 ID
+    if (currentForumId) {
+        // 弹出确认框
+        if (confirm(`检测到正在查看帖子。\n\n点击【确定】= ✍️ 续写当前帖子 (根据输入内容追加)\n点击【取消】= 🆕 生成全新帖子`)) {
+            // 续写：如果没有输入内容，提示一下，但允许空输入(让AI自由发挥)
+            if(!userText) {
+                const auto = confirm("输入框为空，是否让 AI 自动构思后续剧情？");
+                if(!auto) return;
+            }
+            generateXHSThread(true); // true = 续写
+        } else {
+            // 新帖
+            if(!userText) return alert("生成新帖必须输入标题/梗概！");
+            startNewForum(); // 清理界面
+            setTimeout(() => generateXHSThread(false), 100);
+        }
+    } else {
+        // 没有ID，直接生成新帖
+        if(!userText) return alert("请输入标题/梗概！");
+        generateXHSThread(false);
+    }
+};
+
+// 2. 核心生成逻辑 (修复名字/头像传递)
+window.generateXHSThread = async function(isContinuation = false) {
+    const inputEl = document.getElementById('forum-input');
+    const userText = inputEl.value.trim();
+    const btn = document.getElementById('btn-forum-gen');
+    const oldText = btn.innerText;
+    
+    btn.disabled = true; 
+    btn.innerText = isContinuation ? "✍️ 正在续写..." : "🌱 正在种草...";
+
+    // 1. 获取视角
+    const roleRadio = document.querySelector('input[name="forum_role"]:checked');
+    let roleType = roleRadio ? roleRadio.value : 'npc';
+    let currentThreadData = null;
+
+    // 如果是续写，读取旧数据
+    if (isContinuation && currentForumId) {
+        currentThreadData = await getForumContent(currentForumId);
+        if (currentThreadData && currentThreadData.roleType) {
+            roleType = currentThreadData.roleType; // 沿用旧视角的设定
+        }
+    }
+
+    // 2. 获取名字 & 上下文
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const lineName = chatSettings.title || "Ta"; // 获取 Line 里的对方名字
+    
+    const wb = window.getWBData ? window.getWBData() : {};
+    const context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+    // 3. 构建 Prompt
+    let promptContext = "";
+    if (isContinuation && currentThreadData) {
+        // 续写：提供前文摘要
+        const prevData = currentThreadData.data;
+        const prevSlides = prevData.slides_flow || [];
+        // 只取最后3条作为上下文，防止Token爆炸
+        const lastSlides = prevSlides.slice(-3).map(s => `[${s.type}] ${s.content}`).join("\n");
+        
+        promptContext = `
+        【前文提要】：
+        标题：${prevData.xhs_caption.title}
+        最后剧情：${lastSlides}
+        
+        【本次续写指令】：${userText || "继续剧情发展，制造新的冲突或反转"}
+        请紧接上文，生成后续的截图流和新评论。
+        `;
+    } else {
+        promptContext = `【新帖主题】：${userText}`;
+    }
+
+    // 视角的 Prompt 指令
+    let chatInstruction = "";
+    if (roleType === 'npc') {
+        chatInstruction = `- **私聊截图**：这是**路人(楼主)和朋友**的八卦私聊。me=楼主, other=朋友。`;
+    } else {
+        chatInstruction = `- **私聊截图**：这是**主角(楼主)和CP(${lineName})**的私聊证据。me=主角, other=${lineName}。`;
+    }
+
+    const prompt = `
+你是一个小红书生成器。
+【世界观】：${context}
+${promptContext}
+【楼主身份】：${roleType === 'npc' ? '吃瓜路人' : '当事主角'}
+
+【输出要求】
+生成 JSON 描述一组**图片流**。
+1. **论坛/正文截图 (type="forum")**：生成 8-12 层新内容。
+2. **私聊截图 (type="chat")**：生成 4-6 句新对话。
+   ${chatInstruction}
+3. **小红书文案**：${isContinuation ? '不需要标题，仅生成 tags' : '生成标题、正文'}。
+4. **评论区**：生成 3-5 条新评论。
+
+【输出格式】
+严格 JSON，无 Markdown：
+{
+  "slides_flow": [
+    { "type": "chat", "role": "me", "content": "..." },
+    { "type": "forum", "name": "楼主/网友", "content": "...", "is_lz": true }
+  ],
+  "xhs_caption": { "title": "...", "text": "...", "tags": "#..." },
+  "xhs_comments": [ { "user": "A", "text": "..." } ]
+}
+`;
+
+    // 4. API 调用
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                max_tokens: 30000, 
+                messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.85
+            })
+        });
+        
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        let result;
+        try {
+            const last = raw.lastIndexOf('}'); if (last > -1) raw = raw.substring(0, last+1);
+            const first = raw.indexOf('{'); if (first > -1) raw = raw.substring(first);
+            result = JSON.parse(raw);
+        } catch (e) { throw new Error("JSON格式错误"); }
+        
+        // 5. 合并数据 (续写逻辑)
+        if (isContinuation && currentThreadData) {
+            if (result.slides_flow) currentThreadData.data.slides_flow = currentThreadData.data.slides_flow.concat(result.slides_flow);
+            if (result.xhs_comments) currentThreadData.data.xhs_comments = currentThreadData.data.xhs_comments.concat(result.xhs_comments);
+            if (result.xhs_caption && result.xhs_caption.tags) currentThreadData.data.xhs_caption.tags += " " + result.xhs_caption.tags;
+            result = currentThreadData.data;
+        }
+
+        // 6. 获取最新头像 (修复显示问题)
+        let myAvatar = '', botAvatar = '';
+        try {
+            const myRes = await idb.get('settings_heavy', 'myAvatar');
+            const botRes = await idb.get('settings_heavy', 'botAvatar');
+            if (myRes) myAvatar = myRes.data;
+            if (botRes) botAvatar = botRes.data;
+        } catch(e){}
+
+        // 7. 渲染与保存
+        renderXHSView(result, myAvatar, botAvatar, roleType, lineName);
+        
+        const saveId = isContinuation ? currentForumId : Date.now().toString();
+        const historyItem = {
+            id: saveId,
+            title: "📕 " + (result.xhs_caption.title || "未命名"),
+            lzName: (roleType === 'npc' ? "吃瓜路人" : "主角"),
+            date: Date.now(),
+            isXHS: true,
+            data: result,
+            roleType: roleType
+        };
+
+        if (typeof saveForumContent === 'function') {
+            await saveForumContent(saveId, historyItem);
+        } else {
+            await idb.put('forum_data', { id: `thread_${saveId}`, data: historyItem });
+        }
+
+        // 仅新帖更新列表
+        if (!isContinuation) {
+            let historyList = [];
+            try {
+                const res = await idb.get('forum_data', 'history_list');
+                if (res) historyList = res.data;
+            } catch(e) {}
+            historyList.unshift({ id: saveId, title: historyItem.title, date: historyItem.date });
+            if (typeof saveForumHistory === 'function') await saveForumHistory(historyList);
+            else await idb.put('forum_data', { id: 'history_list', data: historyList });
+            
+            currentForumId = saveId; 
+        }
+
+        // 更新按钮状态
+        updateXHSButtonState(true);
+        inputEl.value = ''; 
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.disabled = false; btn.innerText = isContinuation ? "📝 续写 / 新建" : "生成";
+    }
+};
+
+// 3. 修复历史记录加载 (强制使用当前头像和名字)
+const _oldLoadForumFix = window.loadForum;
+window.loadForum = async function(id) {
+    const thread = await getForumContent(id);
+    if (thread && thread.isXHS) {
+        // 切换模式
+        switchForumMode('xhs');
+        document.getElementById('forum-mode-select').value = 'xhs';
+        
+        // 🔥 强制读取当前的 Line 设置 (名字 + 头像)
+        // 这样即使历史记录是旧的，打开时也会套用现在的新头像
+        let myAvatar = '', botAvatar = '';
+        try {
+            const myRes = await idb.get('settings_heavy', 'myAvatar');
+            const botRes = await idb.get('settings_heavy', 'botAvatar');
+            if (myRes) myAvatar = myRes.data;
+            if (botRes) botAvatar = botRes.data;
+        } catch(e){}
+
+        const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+        const lineName = chatSettings.title || "Ta"; 
+
+        // 渲染
+        renderXHSView(thread.data, myAvatar, botAvatar, thread.roleType || 'npc', lineName);
+        document.getElementById('forum-history-panel').classList.remove('open');
+        
+        // 更新 ID 和 按钮状态
+        currentForumId = id;
+        updateXHSButtonState(true);
+        
+    } else {
+        // 普通帖子
+        switchForumMode('normal');
+        document.getElementById('forum-mode-select').value = 'normal';
+        currentForumId = id;
+        if (typeof renderForumContent === 'function') await renderForumContent();
+        document.getElementById('forum-history-panel').classList.remove('open');
+    }
+}
+
+// 4. 辅助：开始新帖时重置 ID
+const _oldStartNew = window.startNewForum;
+window.startNewForum = function() {
+    _oldStartNew(); // 执行原逻辑(清空界面)
+    currentForumId = null; // 关键：清空 ID
+    updateXHSButtonState(false);
+}
+
+// 5. 辅助：更新按钮文字
+function updateXHSButtonState(hasActiveThread) {
+    const btn = document.getElementById('btn-forum-gen');
+    if (hasActiveThread) {
+        btn.innerText = "📝 续写 / 新建";
+        btn.style.background = "#e17055"; // 换个颜色提示
+    } else {
+        btn.innerText = "生成";
+        btn.style.background = "#00d2d3";
+    }
+}
+
+console.log("✅ 小红书续写 V2 & 历史修复补丁 已加载");
 </script>
 
 </html> 
