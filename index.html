@@ -33074,8 +33074,7 @@ window.handleForumGenerate = function() {
         generateXHSThread(false);
     }
 };
-
-// 2. 核心生成逻辑 (修复名字/头像传递)
+// === 3. XHS 模式生成逻辑 (修复版：强制读取输入 + 灵活视角) ===
 window.generateXHSThread = async function(isContinuation = false) {
     const inputEl = document.getElementById('forum-input');
     const userText = inputEl.value.trim();
@@ -33083,101 +33082,99 @@ window.generateXHSThread = async function(isContinuation = false) {
     const oldText = btn.innerText;
     
     btn.disabled = true; 
-    btn.innerText = isContinuation ? "✍️ 正在续写..." : "🌱 正在种草...";
+    btn.innerText = isContinuation ? "✍️ 正在续写..." : "🧠 理解剧情中...";
 
-    // 1. 获取视角
+    // 1. 获取基础配置
     const roleRadio = document.querySelector('input[name="forum_role"]:checked');
     let roleType = roleRadio ? roleRadio.value : 'npc';
     let currentThreadData = null;
 
-    // 如果是续写，读取旧数据
+    // 续写逻辑
     if (isContinuation && currentForumId) {
         currentThreadData = await getForumContent(currentForumId);
         if (currentThreadData && currentThreadData.roleType) {
-            roleType = currentThreadData.roleType; // 沿用旧视角的设定
+            roleType = currentThreadData.roleType; 
         }
     }
 
     // 2. 获取名字 & 上下文
     const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
-    const lineName = chatSettings.title || "Ta"; // 获取 Line 里的对方名字
+    const lineName = chatSettings.title || "Ta"; // 对方的名字
+    const myName = "我"; // 你的名字
     
     const wb = window.getWBData ? window.getWBData() : {};
     const context = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
-    // 3. 构建 Prompt
-    let promptContext = "";
+    // 3. 构建 Prompt 上下文
+    let promptTask = "";
     if (isContinuation && currentThreadData) {
-        // 续写：提供前文摘要
         const prevData = currentThreadData.data;
-        const prevSlides = prevData.slides_flow || [];
-        // 只取最后3条作为上下文，防止Token爆炸
-        const lastSlides = prevSlides.slice(-3).map(s => `[${s.type}] ${s.content}`).join("\n");
-        
-        promptContext = `
-        【前文提要】：
-        标题：${prevData.xhs_caption.title}
-        最后剧情：${lastSlides}
-        
-        【本次续写指令】：${userText || "继续剧情发展，制造新的冲突或反转"}
-        请紧接上文，生成后续的截图流和新评论。
-        `;
+        const prevSlides = (prevData.slides_flow || []).slice(-3).map(s => `[${s.type}] ${s.content}`).join("\n");
+        promptTask = `【续写模式】：前文标题是《${prevData.xhs_caption.title}》。最后剧情是：\n${prevSlides}\n\n请根据用户的新指令续写。`;
     } else {
-        promptContext = `【新帖主题】：${userText}`;
+        promptTask = `【新帖模式】：这是一个全新的帖子。`;
     }
 
-    // 视角的 Prompt 指令
-    let chatInstruction = "";
+    // 4. 视角指令 (核心修复)
+    let perspectiveInstruction = "";
     if (roleType === 'npc') {
-        chatInstruction = `- **私聊截图**：这是**路人(楼主)和朋友**的八卦私聊。me=楼主, other=朋友。`;
+        perspectiveInstruction = `
+        - **楼主身份**：吃瓜路人 (NPC)。
+        - **聊天截图**：是【楼主】和【朋友】的私聊，讨论主角CP的八卦。
+        - **内容方向**：旁观者视角，震惊、嗑到了、或者质疑。`;
     } else {
-        chatInstruction = `- **私聊截图**：这是**主角(楼主)和CP(${lineName})**的私聊证据。me=主角, other=${lineName}。`;
+        // user 模式：不再强制是我，而是根据输入决定
+        perspectiveInstruction = `
+        - **楼主身份**：【当事主角之一】。
+        - **智能判断**：请分析用户的输入内容 "${userText}"。
+          - 如果用户写"他发帖..." -> **楼主是角色(${lineName})**，在吐槽/表白玩家。
+          - 如果用户写"我发帖..." -> **楼主是玩家(我)**，在吐槽/表白角色。
+        - **聊天截图**：是【主角】和【CP对象】的私聊记录。
+        - **注意**：私聊截图的 \`role="me"\` 代表拿着手机截图的人(楼主)，\`role="other"\` 代表对话的另一方。`;
     }
 
-        const prompt = `
-你是一个高热度的小红书/论坛体生成器。
+    // 5. 🔥 最终 Prompt (输入内容放最后)
+    const prompt = `
+你是一个擅长制造爆点的小红书/论坛体生成器。
 【世界观】：${context}
-${promptContext}
-【楼主身份】：${roleType === 'npc' ? '吃瓜路人' : '当事主角'}
 
-【任务核心：生成一个超长、跌宕起伏的“吃瓜贴”图片流】
+【任务目标】
+生成一个 JSON 对象，描述一组**图片流 (slides_flow)**。
+必须包含：标题、文案、评论、以及核心的**聊天截图与论坛正文穿插**。
 
-请生成一个 JSON 对象，其中的 \`slides_flow\` 数组代表用户滑动的图片顺序。
-**排版必须极其讲究节奏感，严禁流水账！**
+【排版规则 (强制)】
+1. **总量**：总图片数不少于 8 张（内容要长）。
+2. **穿插**：必须是 [论坛吐槽] -> [放聊天截图实锤] -> [网友反应] -> [再放截图] 的节奏。
+3. **数量**：论坛回复不少于 25 条，聊天截图至少 2 组。
 
-【🔥 强制排版规则 (必须严格遵守)】：
-1. **总量控制**：生成的图片流 (slides) 经切分后，总页数**必须不少于 8 页**。这意味着你需要生成大量的内容。
-2. **穿插叙事 (重点)**：
-   - **绝对禁止**把所有聊天记录放在一起！
-   - \`type="chat"\` 的区块至少要在数组中出现 **2次以上**，且中间必须隔着 \`type="forum"\` 的内容。
+${perspectiveInstruction}
 
-【内容数量要求】：
-1. **论坛回复 (type="forum")**：总计**不少于 25 条**。包含楼主的陈述、杠精质疑、路人吃瓜、粉丝洗地等。
-2. **私聊截图 (type="chat")**：总计**不少于 2 组**（每组 3-6 句对话）。
-   ${chatInstruction}
-3. **小红书部分**：生成极具吸引力的标题、正文和底下的评论（不少于7条）。
+【⚠️ 最高优先级指令 (用户输入) ⚠️】
+用户的具体剧情要求如下：
+"${userText}"
+
+**请完全忽略世界观中与此冲突的部分，严格按照上面的用户输入来编写剧情！**
+如果用户指定了具体的梗、台词或事件，必须在生成的内容中体现出来。
 
 【输出格式】
-严格 JSON，不要 Markdown，不要代码块符号：
+严格 JSON，不要 Markdown：
 {
   "slides_flow": [
-    { "type": "forum", "name": "楼主", "content": "家人们谁懂啊！今天在..." },
-    { "type": "forum", "name": "路人A", "content": "无图言屌？" },
-    { "type": "chat", "role": "me", "content": "你看他对我说的话..." }, 
+    { "type": "forum", "name": "楼主", "content": "..." },
+    { "type": "chat", "role": "me", "content": "..." },
     { "type": "chat", "role": "other", "content": "..." },
-    { "type": "forum", "name": "楼主", "content": "刚发完上面那句，他又发疯了，看图..." },
-    { "type": "chat", "role": "other", "content": "..." },
-    { "type": "forum", "name": "网友B", "content": "卧槽，这男的绝了..." },
-    ... (请继续生成直到满足数量要求)
+    ...
   ],
   "xhs_caption": { "title": "标题...", "text": "文案...", "tags": "#..." },
   "xhs_comments": [ { "user": "A", "text": "..." } ]
 }
 `;
-    // 4. API 调用
+
+    // 6. API 调用
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
     if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
 
     try {
@@ -33186,6 +33183,7 @@ ${promptContext}
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: model,
+                // 增大 Token 确保长文不断
                 max_tokens: 30000, 
                 messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
                 temperature: 0.85
@@ -33197,21 +33195,20 @@ ${promptContext}
 
         let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
         let result;
-        try {
-            const last = raw.lastIndexOf('}'); if (last > -1) raw = raw.substring(0, last+1);
-            const first = raw.indexOf('{'); if (first > -1) raw = raw.substring(first);
-            result = JSON.parse(raw);
-        } catch (e) { throw new Error("JSON格式错误"); }
         
-        // 5. 合并数据 (续写逻辑)
-        if (isContinuation && currentThreadData) {
-            if (result.slides_flow) currentThreadData.data.slides_flow = currentThreadData.data.slides_flow.concat(result.slides_flow);
-            if (result.xhs_comments) currentThreadData.data.xhs_comments = currentThreadData.data.xhs_comments.concat(result.xhs_comments);
-            if (result.xhs_caption && result.xhs_caption.tags) currentThreadData.data.xhs_caption.tags += " " + result.xhs_caption.tags;
-            result = currentThreadData.data;
+        // 容错解析
+        try {
+            result = JSON.parse(raw);
+        } catch (e) {
+            // 尝试修复截断
+            const last = raw.lastIndexOf('}');
+            if (last > -1) {
+                try { result = JSON.parse(raw.substring(0, last+1)); } catch(e2) {}
+            }
+            if (!result) throw new Error("生成格式错误，请重试或减少内容要求");
         }
-
-        // 6. 获取最新头像 (修复显示问题)
+        
+        // 7. 获取头像
         let myAvatar = '', botAvatar = '';
         try {
             const myRes = await idb.get('settings_heavy', 'myAvatar');
@@ -33220,7 +33217,7 @@ ${promptContext}
             if (botRes) botAvatar = botRes.data;
         } catch(e){}
 
-        // 7. 渲染与保存
+        // 8. 渲染与保存
         renderXHSView(result, myAvatar, botAvatar, roleType, lineName);
         
         const saveId = isContinuation ? currentForumId : Date.now().toString();
@@ -33234,13 +33231,9 @@ ${promptContext}
             roleType: roleType
         };
 
-        if (typeof saveForumContent === 'function') {
-            await saveForumContent(saveId, historyItem);
-        } else {
-            await idb.put('forum_data', { id: `thread_${saveId}`, data: historyItem });
-        }
+        if (typeof saveForumContent === 'function') await saveForumContent(saveId, historyItem);
+        else await idb.put('forum_data', { id: `thread_${saveId}`, data: historyItem });
 
-        // 仅新帖更新列表
         if (!isContinuation) {
             let historyList = [];
             try {
@@ -33248,13 +33241,13 @@ ${promptContext}
                 if (res) historyList = res.data;
             } catch(e) {}
             historyList.unshift({ id: saveId, title: historyItem.title, date: historyItem.date });
+            
             if (typeof saveForumHistory === 'function') await saveForumHistory(historyList);
             else await idb.put('forum_data', { id: 'history_list', data: historyList });
             
             currentForumId = saveId; 
         }
 
-        // 更新按钮状态
         updateXHSButtonState(true);
         inputEl.value = ''; 
 
@@ -33265,7 +33258,6 @@ ${promptContext}
         btn.disabled = false; btn.innerText = isContinuation ? "📝 续写 / 新建" : "生成";
     }
 };
-
 // 3. 修复历史记录加载 (强制使用当前头像和名字)
 const _oldLoadForumFix = window.loadForum;
 window.loadForum = async function(id) {
