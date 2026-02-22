@@ -33134,32 +33134,46 @@ window.generateXHSThread = async function(isContinuation = false) {
         chatInstruction = `- **私聊截图**：这是**主角(楼主)和CP(${lineName})**的私聊证据。me=主角, other=${lineName}。`;
     }
 
-    const prompt = `
-你是一个小红书生成器。
+        const prompt = `
+你是一个高热度的小红书/论坛体生成器。
 【世界观】：${context}
 ${promptContext}
 【楼主身份】：${roleType === 'npc' ? '吃瓜路人' : '当事主角'}
 
-【输出要求】
-生成 JSON 描述一组**图片流**。
-1. **论坛/正文截图 (type="forum")**：生成 8-12 层新内容。
-2. **私聊截图 (type="chat")**：生成 4-6 句新对话。
+【任务核心：生成一个超长、跌宕起伏的“吃瓜贴”图片流】
+
+请生成一个 JSON 对象，其中的 \`slides_flow\` 数组代表用户滑动的图片顺序。
+**排版必须极其讲究节奏感，严禁流水账！**
+
+【🔥 强制排版规则 (必须严格遵守)】：
+1. **总量控制**：生成的图片流 (slides) 经切分后，总页数**必须不少于 8 页**。这意味着你需要生成大量的内容。
+2. **穿插叙事 (重点)**：
+   - **绝对禁止**把所有聊天记录放在一起！
+   - \`type="chat"\` 的区块至少要在数组中出现 **2次以上**，且中间必须隔着 \`type="forum"\` 的内容。
+
+【内容数量要求】：
+1. **论坛回复 (type="forum")**：总计**不少于 25 条**。包含楼主的陈述、杠精质疑、路人吃瓜、粉丝洗地等。
+2. **私聊截图 (type="chat")**：总计**不少于 2 组**（每组 3-6 句对话）。
    ${chatInstruction}
-3. **小红书文案**：${isContinuation ? '不需要标题，仅生成 tags' : '生成标题、正文'}。
-4. **评论区**：生成 3-5 条新评论。
+3. **小红书部分**：生成极具吸引力的标题、正文和底下的评论（不少于7条）。
 
 【输出格式】
-严格 JSON，无 Markdown：
+严格 JSON，不要 Markdown，不要代码块符号：
 {
   "slides_flow": [
-    { "type": "chat", "role": "me", "content": "..." },
-    { "type": "forum", "name": "楼主/网友", "content": "...", "is_lz": true }
+    { "type": "forum", "name": "楼主", "content": "家人们谁懂啊！今天在..." },
+    { "type": "forum", "name": "路人A", "content": "无图言屌？" },
+    { "type": "chat", "role": "me", "content": "你看他对我说的话..." }, 
+    { "type": "chat", "role": "other", "content": "..." },
+    { "type": "forum", "name": "楼主", "content": "刚发完上面那句，他又发疯了，看图..." },
+    { "type": "chat", "role": "other", "content": "..." },
+    { "type": "forum", "name": "网友B", "content": "卧槽，这男的绝了..." },
+    ... (请继续生成直到满足数量要求)
   ],
-  "xhs_caption": { "title": "...", "text": "...", "tags": "#..." },
+  "xhs_caption": { "title": "标题...", "text": "文案...", "tags": "#..." },
   "xhs_comments": [ { "user": "A", "text": "..." } ]
 }
 `;
-
     // 4. API 调用
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
