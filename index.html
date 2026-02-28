@@ -9035,7 +9035,8 @@ async function renderForumHistoryList() {
             <div style="font-weight:bold; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
             <div style="font-size:0.8rem; color:#888; margin-top:5px;">${new Date(item.date).toLocaleDateString()}</div>
             <div style="display:flex; justify-content:flex-end; margin-top:5px;">
-                <button class="m-btn small" onclick="event.stopPropagation(); deleteForumThread(${index})" style="background:#ff6b6b; color:white;">删除</button>
+               <button class="m-btn small" onclick="event.stopPropagation(); exportForumTXT(${index})" style="background:#0984e3; color:white; margin-right:5px;">导出TXT</button>
+<button class="m-btn small" onclick="event.stopPropagation(); deleteForumThread(${index})" style="background:#ff6b6b; color:white;">删除</button>
             </div>
         `;
         div.onclick = () => loadForum(item.id);
@@ -9916,9 +9917,10 @@ async function togglePickupHistory() {
             div.innerHTML = `
                 <div style="font-weight:bold;">${item.title}</div>
                 <div style="font-size:0.8rem; color:#888;">${new Date(item.date).toLocaleString()}</div>
-                <div style="text-align:right;">
-                    <button class="m-btn small" onclick="event.stopPropagation(); deletePickup(${index})" style="background:#ff6b6b; color:white;">删除</button>
-                </div>
+             <div style="text-align:right; display:flex; justify-content:flex-end; gap:5px;">
+    <button class="m-btn small" onclick="event.stopPropagation(); exportPickupTXT(${index})" style="background:#0984e3; color:white;">导出TXT</button>
+    <button class="m-btn small" onclick="event.stopPropagation(); deletePickup(${index})" style="background:#ff6b6b; color:white;">删除</button>
+</div>
             `;
             div.onclick = () => loadPickup(item.id);
             container.appendChild(div);
@@ -20347,38 +20349,44 @@ ${cardsDesc}
         }
     }
 }
-// === 🍬 平行世界扭蛋机 核心逻辑 ===
+// === 🍬 平行世界扭蛋机 核心逻辑 (续写增强版) ===
 
 let gashaponDeck = [];
 let gashaponFlipped = [];
 let currentScenario = "";
-let pendingStoryResult = null; // 暂存刚生成还没打开的故事
+let pendingStoryResult = null; // 暂存当前正在阅读的故事对象
+let isGashaponContinue = false; // 标记当前是否处于“续写”状态
 
 // 1. 初始化 & 数据管理 (无限存储)
-// 确保 BIG_MEMORY 初始化
 if (!window.BIG_MEMORY.gashapon_history) window.BIG_MEMORY.gashapon_history = [];
 
-function getGashaponHistory() { return window.BIG_MEMORY.gashapon_history || []; }
-function saveGashaponHistory(data) {
-    const list = getGashaponHistory();
-    list.unshift(data);
+window.getGashaponHistory = function() { return window.BIG_MEMORY.gashapon_history || []; }
+window.saveGashaponHistory = function(data) {
+    const list = window.getGashaponHistory();
+    // 检查是否已经存在 (通过 ID)
+    const existingIdx = list.findIndex(i => i.id === data.id);
+    if(existingIdx > -1) {
+        list[existingIdx] = data; // 更新续写
+    } else {
+        list.unshift(data); // 新增
+    }
     saveToBigDB('gashapon_history', list);
 }
 
 // 2. 打开 APP
-function openGashaponApp() {
+window.openGashaponApp = function() {
     document.getElementById('gashapon-app-modal').style.display = 'flex';
     renderGashaponHistory();
 }
 
-function toggleGashaponHistory() {
+window.toggleGashaponHistory = function() {
     const list = document.getElementById('gashapon-history-list');
     list.classList.toggle('show');
 }
 
 // 3. 历史记录渲染 & 删除
-function renderGashaponHistory() {
-    const list = getGashaponHistory();
+window.renderGashaponHistory = function() {
+    const list = window.getGashaponHistory();
     const container = document.getElementById('gashapon-history-list');
     container.innerHTML = '';
     
@@ -20391,65 +20399,178 @@ function renderGashaponHistory() {
         const div = document.createElement('div');
         div.className = 'morandi-card';
         div.style.marginBottom = '10px'; div.style.padding = '15px';
+        
+        // 兼容新旧数据结构获取预览文本
+        let previewText = "";
+        if (item.segments && item.segments.length > 0) previewText = item.segments[0].text;
+        else previewText = item.story || "";
+
         div.innerHTML = `
-            <div style="font-size:0.8rem; color:#888; display:flex; justify-content:space-between;">
-                <span>${new Date(item.date).toLocaleDateString()}</span>
-                <span onclick="deleteGashaponItem(${index})" style="color:red; cursor:pointer;">删除</span>
-            </div>
+          <div style="font-size:0.8rem; color:#888; display:flex; justify-content:space-between;">
+    <span>${new Date(item.date).toLocaleDateString()}</span>
+    <div>
+        <span onclick="event.stopPropagation(); exportGashaponTXT(${index})" style="color:#0984e3; cursor:pointer; margin-right:10px; font-weight:bold;">导出TXT</span>
+        <span onclick="event.stopPropagation(); deleteGashaponItem(${index})" style="color:red; cursor:pointer;">删除</span>
+    </div>
+</div>
             <div style="font-weight:bold; color:#c2185b; margin:5px 0;">🌍 设定: ${item.scenario || '随机世界'}</div>
-            <div style="font-size:0.85rem; color:#555; max-height:60px; overflow:hidden;">${item.story.substring(0, 50)}...</div>
-            <button class="m-btn small" onclick="reviewGashaponStory(${index})" style="width:100%; margin-top:5px; background:#f8bbd0; color:#880e4f;">再次阅读</button>
+            <div style="font-size:0.85rem; color:#555; max-height:60px; overflow:hidden;">${previewText.substring(0, 50)}...</div>
+            <button class="m-btn small" onclick="reviewGashaponStory(${index})" style="width:100%; margin-top:5px; background:#f8bbd0; color:#880e4f;">打开阅读 / 续写</button>
         `;
         container.appendChild(div);
     });
 }
 
-function deleteGashaponItem(index) {
+window.deleteGashaponItem = function(index) {
     if(!confirm("确定要丢弃这个平行世界的记忆吗？")) return;
-    const list = getGashaponHistory();
+    const list = window.getGashaponHistory();
     list.splice(index, 1);
     saveToBigDB('gashapon_history', list);
-    renderGashaponHistory();
+    window.renderGashaponHistory();
 }
 
-function reviewGashaponStory(index) {
-    const list = getGashaponHistory();
+window.reviewGashaponStory = function(index) {
+    const list = window.getGashaponHistory();
     const item = list[index];
-    showStoryPaper(item.story, item.date);
+    showStoryPaper(item); // 传入整个对象
 }
 
-// 4. 流程开始：点击机器 -> 弹出输入框
-function triggerGashaponStart() {
+// 4. 纸条渲染机制 (支持分段与删除)
+window.showStoryPaper = function(item) {
+    pendingStoryResult = item;
+    
+    // 兼容旧数据：如果没有 segments 数组，自动升级数据结构
+    if (!pendingStoryResult.segments) {
+        pendingStoryResult.segments = [{
+            text: pendingStoryResult.story || "",
+            cards: pendingStoryResult.cards || "未知牌意"
+        }];
+        pendingStoryResult.id = pendingStoryResult.id || Date.now().toString(); // 确保有ID
+    }
+
+    const modal = document.getElementById('gashapon-capsule-modal');
+    modal.style.display = 'flex'; 
+    document.getElementById('big-capsule').style.display = 'none'; 
+    
+    const paper = document.getElementById('gashapon-story-paper');
+    paper.style.display = 'flex';
+    
+    document.getElementById('sp-date').innerText = new Date(pendingStoryResult.date).toLocaleDateString().toUpperCase();
+    
+    const contentEl = document.getElementById('gashapon-story-content');
+    contentEl.innerHTML = '';
+
+    // 循环渲染每一段剧情
+    pendingStoryResult.segments.forEach((seg, idx) => {
+        const div = document.createElement('div');
+        div.style.position = 'relative';
+        div.style.marginBottom = '25px';
+        div.style.paddingBottom = '15px';
+        // 除最后一段外加分割线
+        if (idx < pendingStoryResult.segments.length - 1) {
+            div.style.borderBottom = '1px dashed rgba(233, 30, 99, 0.3)';
+        }
+
+        let html = `<div style="font-size:0.75rem; color:#e91e63; margin-bottom:8px; font-weight:bold;">🔮 牌意能量: ${seg.cards}</div>`;
+        html += `<div style="text-align:justify; line-height:1.8;">${seg.text.replace(/\n/g, '<br>')}</div>`;
+
+        // 允许删除续写的段落 (保留最开始的第一段)
+        if (idx > 0) {
+            html += `<div style="position:absolute; top:0; right:0; color:#ff4757; cursor:pointer; font-size:0.8rem; background:rgba(255, 71, 87, 0.1); padding:2px 8px; border-radius:4px;" onclick="deleteGashaponSegment(${idx})">🗑️ 撤销此段</div>`;
+        }
+
+        div.innerHTML = html;
+        contentEl.appendChild(div);
+    });
+
+    // 自动滚动到底部
+    setTimeout(() => { contentEl.scrollTop = contentEl.scrollHeight; }, 100);
+}
+
+// 5. 单独删除某段续写
+window.deleteGashaponSegment = function(idx) {
+    if(!confirm("确定要删除这段续写剧情吗？")) return;
+    
+    // 从数组中移除
+    pendingStoryResult.segments.splice(idx, 1);
+    
+    // 保存更新
+    window.saveGashaponHistory(pendingStoryResult);
+    
+    // 重新渲染纸条
+    window.showStoryPaper(pendingStoryResult);
+}
+
+window.closeGashaponResult = function() {
+    document.getElementById('gashapon-capsule-modal').style.display = 'none';
+    document.getElementById('gashapon-app-modal').style.display = 'flex';
+}
+
+window.cancelGashaponDraw = function() {
+    document.getElementById('gashapon-card-table-modal').style.display = 'none';
+    if (isGashaponContinue) {
+        // 如果是续写中途取消，恢复显示纸条弹窗
+        isGashaponContinue = false;
+        document.getElementById('gashapon-capsule-modal').style.display = 'flex';
+    }
+}
+
+// 6. 流程开始：扭蛋动画 -> 输入框
+window.triggerGashaponStart = function() {
     const machine = document.querySelector('.gashapon-machine');
     machine.classList.add('shaking');
     
     setTimeout(() => {
         machine.classList.remove('shaking');
-        // 显示输入弹窗
         document.getElementById('gashapon-input-modal').style.display = 'flex';
-        document.getElementById('gashapon-scenario').value = ''; // 清空
+        document.getElementById('gashapon-scenario').value = ''; 
     }, 600);
 }
-
-// 5. 进入牌桌 (复制游戏机逻辑)
-function enterGashaponTable() {
+// 7. 进入牌桌 (新建模式)
+window.enterGashaponTable = function() {
     currentScenario = document.getElementById('gashapon-scenario').value.trim();
     document.getElementById('gashapon-input-modal').style.display = 'none';
+    isGashaponContinue = false; // 标记为新建
     
-    // 初始化牌桌
+    // 修复：使用 innerHTML 保留 span 标签，防止报错卡死
+    document.querySelector('#gashapon-card-table-modal .card-table-ui div').innerHTML = 
+        '抽取命运卡牌，编织世界线... (<span id="gashapon-flipped-count">0</span>)';
+        
+    _initGashaponCardTable();
+}
+
+// 8. 进入牌桌 (续写模式)
+window.startGashaponContinueDraw = function() {
+    isGashaponContinue = true; // 标记为续写
+    document.getElementById('gashapon-capsule-modal').style.display = 'none'; // 暂时隐藏纸条界面
+    
+    // 修复：使用 innerHTML 保留 span 标签，防止报错卡死
+    document.querySelector('#gashapon-card-table-modal .card-table-ui div').innerHTML = 
+        '抽取命运卡牌，探索后续发展... (<span id="gashapon-flipped-count">0</span>)';
+        
+    _initGashaponCardTable();
+}
+function _initGashaponCardTable() {
     const modal = document.getElementById('gashapon-card-table-modal');
     const area = document.getElementById('gashapon-card-area');
+    const desk = document.getElementById('gashapon-card-table-desk');
+    
+    // 应用皮肤
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
     area.innerHTML = '';
     gashaponDeck = [];
     gashaponFlipped = [];
     document.getElementById('gashapon-flipped-count').innerText = '0';
 
-    // 生成114张牌
     for(let i=0; i<=77; i++) gashaponDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
     for(let i=1; i<=36; i++) gashaponDeck.push({ type:'lenormand', id:i, isReversed:false });
     gashaponDeck.sort(()=>Math.random()-0.5);
 
-    // 布局计算
     const deskW = window.innerWidth;
     const cardWidth=60, cardHeight=90, gap=10;
     let cols = Math.floor((deskW-20)/(cardWidth+gap)); if(cols<4) cols=4;
@@ -20474,7 +20595,6 @@ function enterGashaponTable() {
             } else {
                 el.classList.add('flipped');
                 gashaponFlipped.push(card);
-                // 加载图片
                 const dbName = card.type==='tarot'?'tarot_deck':'lenormand_deck';
                 const item = await idb.get(dbName, card.id);
                 if(item && item.data) front.style.backgroundImage = `url(${item.data})`;
@@ -20486,41 +20606,63 @@ function enterGashaponTable() {
         };
         area.appendChild(el);
     });
-    
-    // 应用皮肤 (复用塔罗桌布)
-    idb.get('settings_heavy', 'tarot_table').then(res => {
-        if(res && res.data) document.getElementById('gashapon-card-table-desk').style.backgroundImage = `url(${res.data})`;
-    });
-
     modal.style.display = 'flex';
 }
-
-// 6. 生成故事 API (柔软细腻文风)
-async function finishGashaponDrawing() {
+// 9. 核心 AI 生成逻辑 (智能分支：开篇 vs 续写)
+window.finishGashaponDrawing = async function() {
     if(gashaponFlipped.length === 0) return alert("请至少翻一张牌，为那个世界注入命运能量。");
     
-    // UI 状态
     const btn = document.querySelector('#gashapon-card-table-modal .primary');
     const oldText = btn.innerText;
-    btn.innerText = "正在穿越时空..."; btn.disabled = true;
+    // 根据状态显示不同文案
+    btn.innerText = isGashaponContinue ? "正在编织后续..." : "正在穿越时空..."; 
+    btn.disabled = true;
 
-    // 准备 Prompt
-    const wb = getWBData();
-const globalCtx = (wb['占卜向全局'] || [])
-.filter(i=>i.enabled).map(i=>i.content).join("\n");
+    // 准备基础上下文
+    const wb = window.getWBData ? window.getWBData() : {};
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
     const cardsDesc = gashaponFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
     
-    // 缓存读取
     if(!apiKey) {
         try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){}
     }
     if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请先配置 API Key"); }
 
-    const prompt = `
+    let prompt = "";
+
+    // 🔥 核心分支判定
+    if (isGashaponContinue) {
+        // === 续写模式 Prompt ===
+        // 提取前文内容
+        const previousStory = pendingStoryResult.segments.map(s => s.text).join("\n\n");
+        
+        prompt = `
+你是一位擅长写“柔软、细腻、唯美”风格小说的作家。
+请为用户【续写】这个平行世界的故事。
+
+【世界设定/角色基调】：${globalCtx}
+【平行世界原设定】：${pendingStoryResult.scenario}
+
+【前情提要 (不要重复写这段，顺着往下写)】：
+${previousStory}
+
+【本次命运卡牌（剧情走向指引）】：${cardsDesc}
+
+【写作要求】：
+1. 承接前情提要，继续往下发展剧情。
+2. **必须根据【命运卡牌】的牌意（能量流动）来决定接下来的故事情节**。不要直接说出牌名。
+3. 保持细腻感性的文风。
+4. 字数：不少于300字。
+
+请直接输出续写正文即可，不要标题，不要 Markdown。
+`;
+    } else {
+        // === 新建模式 (完全还原你原版的开篇提示词) ===
+        prompt = `
 你是一位擅长写“柔软、细腻、唯美”风格小说的作家。
 请为用户生成一个平行世界的小故事。
 
@@ -20532,18 +20674,19 @@ const globalCtx = (wb['占卜向全局'] || [])
 【写作要求】
 1. **文风**：极度柔软、细腻、感性。多描写光影、气味、触感和微小的心理活动。
 2. **内容**：
-   - 必须包含具体的**世界背景**（简单的氛围描写）必须根据牌意生成。
+   - 必须包含具体的**世界背景**故事，世界背景必须根据牌意生成。（将牌意作为大纲融入故事，不要出现明显牌意和名字）
    - 明确双方的**新身份**（基于用户设定（不基于世界书内容只基于用户输入）或牌意）。
    - 描写一件**具体发生的互动事件**。
 3. **字数**：不少于 300 字。
 4. **禁止**：不要像写大纲，要写成正文片段。不要直接出现“抽到了XX牌”这种出戏的话，把牌意融入剧情。
 5.在最下面写上牌和牌意。以及世界背景简介，双方新身份简介。
-
+6.chat（角色）使用第三人称（有限：即看不到user心声，只能看见对方说的话喝表情等外显信息）视角。user使用第二人称（即：你）。
 请直接输出故事正文，不需要标题，不需要 Markdown 代码块。
 `;
+    }
 
     try {
-        const res = await fetch(`${apiUrl}/chat/completions`, {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
@@ -20553,23 +20696,36 @@ const globalCtx = (wb['占卜向全局'] || [])
             })
         });
         const json = await res.json();
-        const story = json.choices[0].message.content.trim();
+        if (json.error) throw new Error(json.error.message);
         
-        // 暂存结果
-        pendingStoryResult = {
-            date: Date.now(),
-            scenario: currentScenario || "Unknown World",
-            cards: cardsDesc,
-            story: story
-        };
+        const storyText = json.choices[0].message.content.trim();
         
-        // 保存到历史
-        saveGashaponHistory(pendingStoryResult);
-        renderGashaponHistory();
-
-        // 关闭牌桌，显示巨大扭蛋
+        // 关闭牌桌
         document.getElementById('gashapon-card-table-modal').style.display = 'none';
-        showBigCapsule();
+
+        if (isGashaponContinue) {
+            // 续写：追加数据
+            pendingStoryResult.segments.push({ text: storyText, cards: cardsDesc });
+            window.saveGashaponHistory(pendingStoryResult); // 自动保存修改
+            
+            // 直接重新渲染当前纸条
+            window.showStoryPaper(pendingStoryResult);
+            isGashaponContinue = false; // 重置状态
+            
+        } else {
+            // 新建：初始化新数据结构
+            pendingStoryResult = {
+                id: Date.now().toString(),
+                date: Date.now(),
+                scenario: currentScenario || "Unknown World",
+                segments: [{ text: storyText, cards: cardsDesc }] // 升级为数组格式
+            };
+            window.saveGashaponHistory(pendingStoryResult);
+            window.renderGashaponHistory();
+            
+            // 首次生成：展示扭蛋炸开动画
+            window.showBigCapsule();
+        }
 
     } catch(e) {
         alert("时空隧道连接失败: " + e.message);
@@ -20577,47 +20733,27 @@ const globalCtx = (wb['占卜向全局'] || [])
         btn.innerText = oldText; btn.disabled = false;
     }
 }
-
-// 7. 显示大扭蛋 -> 点击打开 -> 显示纸条
-function showBigCapsule() {
+// 10. 打开巨大扭蛋动画
+window.showBigCapsule = function() {
     const modal = document.getElementById('gashapon-capsule-modal');
     const capsule = document.getElementById('big-capsule');
     const paper = document.getElementById('gashapon-story-paper');
     
-    // 重置状态
     modal.style.display = 'flex';
     capsule.classList.remove('open');
     capsule.style.display = 'block';
     paper.style.display = 'none';
 }
 
-function openBigCapsule() {
+window.openBigCapsule = function() {
     const capsule = document.getElementById('big-capsule');
-    capsule.classList.add('open'); // 触发炸开动画
+    capsule.classList.add('open'); 
     
-    // 延迟显示纸条
     setTimeout(() => {
-        capsule.style.display = 'none'; // 彻底隐藏胶囊
-        showStoryPaper(pendingStoryResult.story, pendingStoryResult.date);
+        capsule.style.display = 'none'; 
+        // 传递当前暂存的结果去渲染
+        window.showStoryPaper(pendingStoryResult);
     }, 400);
-}
-
-function showStoryPaper(text, date) {
-    const modal = document.getElementById('gashapon-capsule-modal');
-    modal.style.display = 'flex'; // 确保显示（如果是从历史记录进来的）
-    document.getElementById('big-capsule').style.display = 'none'; // 确保胶囊不挡路
-    
-    const paper = document.getElementById('gashapon-story-paper');
-    paper.style.display = 'flex';
-    
-    document.getElementById('sp-date').innerText = new Date(date).toLocaleDateString().toUpperCase();
-    document.getElementById('gashapon-story-content').innerHTML = text.replace(/\n/g, '<br>');
-}
-
-function closeGashaponResult() {
-    document.getElementById('gashapon-capsule-modal').style.display = 'none';
-    // 回到主APP界面
-    document.getElementById('gashapon-app-modal').style.display = 'flex';
 }
 // 将 gashapon_history 添加到大容量存储迁移列表
 if (typeof loadAllBigData === 'function') {
@@ -25961,7 +26097,7 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
             <button class="m-btn primary" onclick="finishGashaponDrawing()" style="background:#ec407a; border:1px solid #ff80ab; box-shadow:0 0 15px rgba(236, 64, 122, 0.4);">
                 🔮 生成平行故事
             </button>
-            <button class="m-btn secondary" onclick="document.getElementById('gashapon-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:white;">取消</button>
+           <button class="m-btn secondary" onclick="cancelGashaponDraw()" style="background:rgba(255,255,255,0.2); color:white;">取消</button>
         </div>
     </div>
 </div>
@@ -25981,8 +26117,9 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
             <span class="sp-tag">PARALLEL WORLD</span>
         </div>
         <div class="sp-content" id="gashapon-story-content"></div>
-        <div class="sp-footer">
-            <button class="m-btn small" onclick="closeGashaponResult()">收藏并关闭</button>
+                <div class="sp-footer">
+            <button class="m-btn primary" onclick="startGashaponContinueDraw()" style="background:#ec407a; border:none; margin-bottom:10px; width:100%;">✍️ 抽取命运牌 · 续写本篇</button>
+            <button class="m-btn small" onclick="closeGashaponResult()" style="width:100%;">收藏并退出</button>
         </div>
     </div>
 </div>
@@ -33772,6 +33909,143 @@ function parseMarkdownTable(md) {
     
     return html;
 }
+// ==================== 💾 新增：通用 TXT 导出与格式化引擎 (全平台终极修复版) ====================
+window.downloadTXT = async function(filename, text) {
+    const blob = new Blob(['\uFEFF' + text], { type: "text/plain;charset=utf-8" });
+    const file = new File([blob], filename + ".txt", { type: "text/plain" });
+
+    // 方案 1：尝试原生分享 (唤起安卓/iOS系统底部分享菜单，发给微信或存本地)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: filename,
+                text: '导出的TXT文本'
+            });
+            return; // 成功分享则退出
+        } catch (e) {
+            console.log("分享面板被取消或环境受限");
+        }
+    }
+
+    // 方案 2：传统下载 (普通浏览器使用)
+    try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename + ".txt";
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch(e) {}
+
+    // 方案 3：全平台移动端终极兜底 (安卓/iOS 统统防卡死)
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        setTimeout(() => {
+            // 延迟0.8秒，如果没有任何下载反应，弹窗让用户手动复制
+            if(confirm("如果您在 App 内没有看到下载提示，是否显示纯文本以便手动复制？")) {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;";
+                overlay.innerHTML = `
+                    <div style="background:#fff; width:100%; max-width:600px; height:85%; border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
+                        <div style="padding:15px; background:#f5f5f5; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; font-size:0.9rem;">${filename}.txt</span>
+                            <button onclick="this.parentElement.parentElement.parentElement.remove()" style="border:none; background:#ff6b6b; color:#fff; padding:5px 15px; border-radius:4px;">关闭</button>
+                        </div>
+                        <textarea id="fallback-txt-area" style="flex:1; width:100%; border:none; padding:15px; font-size:0.9rem; line-height:1.6; resize:none; outline:none;" readonly>${text}</textarea>
+                        <div style="padding:10px; text-align:center; background:#eee;">
+                            <button onclick="document.getElementById('fallback-txt-area').select(); document.execCommand('copy'); alert('✅ 已全文复制！去备忘录粘贴即可。');" style="padding:12px 20px; background:#0984e3; color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold; width:90%;">📋 一键复制全部文本</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+        }, 800);
+    }
+};
+window.exportForumTXT = async function(index) {
+    const list = await getForumHistory();
+    const item = list[index];
+    if(!item) return alert("找不到记录");
+    
+    const thread = await getForumContent(item.id);
+    if(!thread) return alert("内容为空");
+
+    let text = `========== 论坛体 / 小红书 ==========\n`;
+    text += `标题：${thread.title}\n`;
+    text += `日期：${new Date(item.date).toLocaleString()}\n`;
+    text += `------------------------------------\n\n`;
+
+    if (thread.isXHS) {
+        // 小红书模式导出
+        const flow = thread.data.slides_flow || [];
+        flow.forEach(f => {
+            if (f.type === 'chat') {
+                text += `[聊天记录] ${f.role === 'me' ? '右边(我)' : '左边(Ta)'}：${f.content}\n`;
+            } else {
+                text += `[论坛楼层] ${f.name} ${f.is_lz ? '(楼主)' : ''}：${f.content}\n`;
+            }
+        });
+        text += `\n【正文文案】\n${thread.data.xhs_caption.text}\n`;
+    } else {
+        // 普通论坛模式导出
+        thread.posts.forEach((p, i) => {
+            const isLz = (p.name === thread.lzName || i === 0) ? "(楼主)" : "";
+            text += `${i+1}楼 | ${p.name} ${isLz}：\n${p.content}\n\n`;
+        });
+    }
+
+    downloadTXT(thread.title.replace(/[\/\\:\*\?"<>\|📕]/g, "").substring(0, 15), text);
+};
+window.exportPickupTXT = async function(index) {
+    const list = await getPickupHistory();
+    const item = list[index];
+    if(!item) return alert("找不到记录");
+    
+    const msgs = await getPickupContent(item.id);
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const targetName = chatSettings.title || "Ta";
+
+    let text = `========== 捡手机文学 ==========\n`;
+    text += `设定/标题：${item.title}\n`;
+    text += `日期：${new Date(item.date).toLocaleString()}\n`;
+    text += `------------------------------------\n\n`;
+
+    msgs.forEach(msg => {
+        const name = msg.role === 'me' ? "我" : targetName;
+        text += `【${name}】：${msg.content}\n\n`;
+    });
+
+    downloadTXT(item.title.replace(/[\/\\:\*\?"<>\|]/g, "").substring(0, 15), text);
+};
+window.exportGashaponTXT = function(index) {
+    const list = window.getGashaponHistory();
+    const item = list[index];
+    if(!item) return alert("找不到记录");
+
+    let text = `========== 平行世界扭蛋机 ==========\n`;
+    text += `世界设定：${item.scenario || '随机世界'}\n`;
+    text += `抽取日期：${new Date(item.date).toLocaleString()}\n`;
+    text += `------------------------------------\n\n`;
+
+    if (item.segments && item.segments.length > 0) {
+        item.segments.forEach((seg, idx) => {
+            text += `[ 第 ${idx + 1} 幕 ]\n`;
+            text += `🔮 命运牌意：${seg.cards}\n`;
+            text += `📖 剧情发展：\n${seg.text}\n\n`;
+            text += `------------------------------------\n\n`;
+        });
+    } else {
+        // 兼容极早期未分段的老数据
+        text += `🔮 命运牌意：${item.cards || '未知'}\n`;
+        text += `📖 剧情发展：\n${item.story || ''}\n`;
+    }
+
+    downloadTXT("平行世界_" + (item.scenario || "随机").replace(/[\/\\:\*\?"<>\|]/g, "").substring(0, 10), text);
+};
 </script>
 
 </html> 
