@@ -34047,5 +34047,87 @@ window.exportGashaponTXT = function(index) {
     downloadTXT("平行世界_" + (item.scenario || "随机").replace(/[\/\\:\*\?"<>\|]/g, "").substring(0, 10), text);
 };
 </script>
+<!-- ================= 🚑 iOS 存档防丢终极护盾 ================= -->
+<script>
+(function() {
+    console.log("🛡️ 正在安装 iOS 存档防丢盾...");
 
+    // 1. 拦截数据库写入：开机前 4 秒内，严禁任何人覆盖文游 (adv_data) 的存档！
+    // 抵消掉原代码中 1000ms 强制覆盖的致命 BUG
+    let isBooting = true;
+    setTimeout(() => { 
+        isBooting = false; 
+        console.log("🛡️ 开机保护期结束，解除存档限制。");
+    }, 4000); 
+
+    // 劫持底层数据库的保存操作
+    if (typeof idb !== 'undefined' && idb.put) {
+        const _origIdbPut = idb.put;
+        idb.put = function(storeName, data) {
+            // 如果在刚开机时，且试图保存/覆盖文游数据，直接拦截不执行！
+            if (isBooting && storeName === 'universal_store' && data && data.id === 'adv_data') {
+                console.warn("🛡️ 成功拦截了一次非法的开机存档覆盖操作，保护了你的文游数据！");
+                return Promise.resolve(); // 假装保存成功，实际不写库
+            }
+            // 其他情况（或保护期过后）正常放行
+            return _origIdbPut.apply(this, arguments);
+        };
+    }
+
+    // 2. 修复数据安全获取逻辑，只补全内存，绝对不写库
+    window.getAdvData = function() {
+        if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+        let data = window.BIG_MEMORY.adv_data;
+        
+        // 如果数据被之前的 BUG 破坏成了数组，修复为对象
+        if (!data || Array.isArray(data)) data = {};
+
+        // 安全补全属性 (只在内存中补全)
+        if (typeof data.money !== 'number') data.money = 100;
+        if (typeof data.cleanliness !== 'number') data.cleanliness = 100;
+        if (typeof data.affection !== 'number') data.affection = 0;
+        if (!data.name) data.name = "玩家";
+        if (!data.charName) data.charName = "Ta";
+        if (!data.attributes) data.attributes = { learning: 0, art: 0, talent: 0, fitness: 0 };
+        if (!Array.isArray(data.inventory)) data.inventory = [];
+        if (!data.avatars) data.avatars = { user: "", char: "" };
+
+        window.BIG_MEMORY.adv_data = data;
+        return data;
+    };
+
+    // 3. 拦截进入文游的点击，防止手速过快导致白屏
+    const _origOpenAdv = window.openTextAdventure;
+    window.openTextAdventure = function() {
+        if (isBooting) {
+            alert("⏳ 记忆数据正在从深层空间抽取中...\n(为了保护您的存档，请等 3 秒后再点)");
+            return;
+        }
+        _origOpenAdv();
+    };
+
+    // 4. 彻底切断原闭包中危险函数的联系
+    window.updateAdvUI = function() {
+        const data = window.getAdvData();
+        
+        const avatarEl = document.getElementById('adv-user-avatar');
+        if(avatarEl) {
+            if (typeof ADV_CACHE !== 'undefined' && ADV_CACHE.lineUserAvatar) {
+                avatarEl.style.backgroundImage = `url(${ADV_CACHE.lineUserAvatar})`;
+            } else {
+                avatarEl.style.backgroundColor = '#ccc';
+            }
+        }
+        
+        const nameEl = document.getElementById('adv-user-name');
+        const cleanEl = document.getElementById('adv-stat-clean');
+        const moneyEl = document.getElementById('adv-stat-money');
+
+        if(nameEl) nameEl.innerText = data.name;
+        if(cleanEl) cleanEl.innerText = Math.floor(data.cleanliness || 0);
+        if(moneyEl) moneyEl.innerText = Math.floor(data.money || 0);
+    };
+
+})();
+</script>
 </html> 
