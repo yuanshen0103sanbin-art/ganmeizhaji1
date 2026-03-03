@@ -4314,7 +4314,48 @@ canvas {
     margin-bottom: 8px; 
     line-height: 1.3;
 }
-
+/* ================= 元宵游戏专用样式 ================= */
+.witch-mode-switch {
+    display: flex; gap: 10px; margin-bottom: 15px;
+}
+.ty-input-list {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
+}
+.ty-flavor-btn {
+    padding: 8px 15px; border-radius: 20px; border: 1px solid #6c5ce7; 
+    background: transparent; color: #a29bfe; cursor: pointer; transition: 0.2s;
+}
+.ty-flavor-btn.active { background: #6c5ce7; color: white; font-weight: bold; }
+.ty-bowl {
+    background: radial-gradient(circle, #fdfbf7 0%, #dcdde1 100%);
+    border: 5px solid #a29bfe; border-radius: 50%;
+    
+    /* 强制固定碗的大小，防止变形 */
+    width: 280px; 
+    height: 280px; 
+    margin: 20px auto;
+    box-sizing: border-box;
+    
+    position: relative; 
+    /* 核心修改：使用 Grid 网格布局强制 3列 4行 */
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    grid-template-rows: repeat(4, 1fr);
+    align-items: center; 
+    justify-items: center; 
+    gap: 5px; 
+    padding: 30px;
+    
+    box-shadow: inset 0 -10px 20px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.5);
+}
+.tangyuan-btn {
+    width: 45px; height: 45px; border-radius: 50%; background: #fff;
+    box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1), 2px 5px 5px rgba(0,0,0,0.2);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; transition: 0.2s;
+}
+.tangyuan-btn:active { transform: scale(0.9); }
+.tangyuan-btn.eaten { background: #eee; box-shadow: none; opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -13612,15 +13653,98 @@ window.addEventListener('load', function() {
 let witchDeck = [];
 let witchFlipped = [];
 let witchGameState = {
-    myTrap: -1, // 用户选的陷阱索引
-    charTrap: -1, // 角色选的陷阱索引 (API生成)
-    charPunishment: "", // 角色给用户的惩罚 (API生成)
-    charMoves: [], // 角色吃饼干的优先级顺序 (API生成)
-    reactions: {}, // 各种情况的反应文案 (API生成)
-    eatenCookies: [], // 已经被吃掉的饼干索引
-    isMyTurn: true,
-    isPlaying: false,
-    history: []
+    gameMode: 'cookie', // 'cookie' 或 'tangyuan'
+    // --- 饼干模式状态 ---
+    myTrap: -1, charTrap: -1, charPunishment: "",
+    charMoves: [], reactions: {}, stories: null,
+    eatenCookies: [], 
+    // --- 元宵模式状态 ---
+    tyUserPunishments: [], tyCharPunishments: [], tyCharReactions: [], tyCharGuesses: [],
+    tyList: [], // 存放12个元宵的口味
+    tyUserRound: 0, // 用户执行到第几个惩罚 (0-5)
+    tyCharRound: 0, // 角色执行到第几个惩罚 (0-5)
+    tySelectedFlavor: "", // 用户当前选中的猜测口味
+    // --- 通用状态 ---
+    isMyTurn: true, isPlaying: false, history: []
+};
+
+// 新增：模式切换函数
+window.setWitchMode = function(mode) {
+    if(witchGameState.isPlaying) return alert("游戏进行中，请先重置/结束当前游戏！");
+    witchGameState.gameMode = mode;
+    
+    // UI 按钮切换
+    document.getElementById('btn-mode-cookie').style.background = mode==='cookie' ? '#6c5ce7' : '#30336b';
+    document.getElementById('btn-mode-cookie').style.color = mode==='cookie' ? '#fff' : '#ccc';
+    document.getElementById('btn-mode-tangyuan').style.background = mode==='tangyuan' ? '#ff7675' : '#30336b';
+    document.getElementById('btn-mode-tangyuan').style.color = mode==='tangyuan' ? '#fff' : '#ccc';
+    
+    // 面板切换
+    document.getElementById('setup-cookie').style.display = mode==='cookie' ? 'block' : 'none';
+    document.getElementById('setup-tangyuan').style.display = mode==='tangyuan' ? 'block' : 'none';
+    document.getElementById('witch-board-container').style.display = mode==='cookie' ? 'grid' : 'none';
+    document.getElementById('witch-tangyuan-container').style.display = 'none'; // 游戏开始才显示碗
+    
+    initWitchBoard('new');
+};
+
+// 覆盖修改 initWitchBoard 函数，增加对元宵碗的初始化
+const _origInitWitch = window.initWitchBoard;
+window.initWitchBoard = function(mode = 'new', data = null) {
+    // 处理状态重置 (保留原逻辑)
+    if(mode === 'new') {
+        witchGameState.myTrap = -1; witchGameState.eatenCookies = [];
+        witchGameState.tyUserRound = 0; witchGameState.tyCharRound = 0;
+        witchGameState.tySelectedFlavor = ""; witchGameState.isPlaying = false;
+        document.getElementById('witch-log-panel').style.display = 'none';
+        document.getElementById('witch-setup-panel').style.display = 'block';
+        document.getElementById('btn-witch-start').style.display = 'block';
+        if(witchGameState.gameMode === 'tangyuan') {
+            document.getElementById('witch-tangyuan-container').style.display = 'none';
+        }
+    }
+    
+    // 如果是饼干模式，走原来的逻辑
+    if(witchGameState.gameMode === 'cookie') {
+        _origInitWitch(mode, data);
+        return;
+    }
+    
+    // === 以下是元宵模式的恢复/初始化逻辑 ===
+    if (mode === 'replay' || mode === 'retry') {
+        witchGameState = JSON.parse(JSON.stringify(data));
+        document.getElementById('witch-setup-panel').style.display = 'none';
+        document.getElementById('btn-witch-start').style.display = 'none';
+        document.getElementById('witch-log-panel').style.display = 'block';
+        document.getElementById('witch-tangyuan-container').style.display = 'block';
+        
+        if(mode === 'retry') {
+            witchGameState.eatenCookies = [];
+            witchGameState.tyUserRound = 0; witchGameState.tyCharRound = 0;
+            witchGameState.isPlaying = true; witchGameState.isMyTurn = true;
+            document.getElementById('witch-game-log').innerHTML = "--- 重新开始吃元宵 ---";
+        } else {
+            witchGameState.isPlaying = false;
+        }
+    }
+    
+    // 生成 12 个元宵的 DOM
+    const bowl = document.getElementById('ty-bowl-area');
+    bowl.innerHTML = '';
+    for(let i=0; i<12; i++) {
+        const btn = document.createElement('div');
+        btn.className = 'tangyuan-btn';
+        btn.id = `ty-${i}`;
+        
+        if(witchGameState.eatenCookies.includes(i)) {
+            btn.classList.add('eaten');
+            btn.innerText = witchGameState.tyList[i] === '芝麻' ? '⚫' : (witchGameState.tyList[i] === '肉馅' ? '🥩' : (witchGameState.tyList[i] === '紫薯' ? '🍠' : '🌼'));
+        } else {
+            btn.innerText = '🍡';
+            if(witchGameState.isPlaying) btn.onclick = () => handleTangyuanClick(i);
+        }
+        bowl.appendChild(btn);
+    }
 };
 
 // 1. 无限存储初始化
@@ -13764,33 +13888,43 @@ window.handleCookieClick = function(index) {
         processTurn(index, 'user');
     }
 };
-
-// 5. 启动抽牌
 window.startWitchDraw = function() {
-    if (witchGameState.myTrap === -1) return alert("请先选择一个饼干作为你的陷阱！");
-    const punish = document.getElementById('witch-user-punishment').value;
-    if (!punish) return alert("请填写给Ta的惩罚内容！");
+    // 校验逻辑
+    if(witchGameState.gameMode === 'cookie') {
+        if (witchGameState.myTrap === -1) return alert("请先选择一个饼干作为你的陷阱！");
+        if (!document.getElementById('witch-user-punishment').value) return alert("请填写给Ta的惩罚内容！");
+    } else {
+        const inputs = document.querySelectorAll('#ty-punishment-list input');
+        witchGameState.tyUserPunishments = [];
+        for(let input of inputs) {
+            if(!input.value.trim()) return alert("请填写完整的 6 个惩罚！");
+            witchGameState.tyUserPunishments.push(input.value.trim());
+        }
+    }
 
     const modal = document.getElementById('witch-card-table-modal');
     const area = document.getElementById('witch-card-area');
-    
-    // 应用美化
-    if(typeof idb !== 'undefined') {
-        idb.get('settings_heavy', 'tarot_table').then(res => {
-            if(res && res.data) document.getElementById('witch-card-table-desk').style.backgroundImage = `url(${res.data})`;
-        });
+    if(typeof idb !== 'undefined') idb.get('settings_heavy', 'tarot_table').then(res => { if(res && res.data) document.getElementById('witch-card-table-desk').style.backgroundImage = `url(${res.data})`; });
+
+    // === 动态修改牌桌文字 ===
+    const uiText = modal.querySelector('.card-table-ui div');
+    const uiBtn = modal.querySelector('.card-table-ui .primary');
+    if (witchGameState.gameMode === 'cookie') {
+        uiText.innerHTML = `抽取命运牌，决定Ta的策略与陷阱... (<span id="witch-flipped-count">0</span>)`;
+        uiBtn.innerText = "🍪 生成饼干剧本";
+    } else {
+        uiText.innerHTML = `抽取命运牌，决定Ta的惩罚与预判... (<span id="witch-flipped-count">0</span>)`;
+        uiBtn.innerText = "🥣 开始煮元宵";
     }
 
     area.innerHTML = '';
     witchDeck = []; witchFlipped = [];
     document.getElementById('witch-flipped-count').innerText = '0';
 
-    // 114张牌库
     for(let i=0; i<=77; i++) witchDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
     for(let i=1; i<=36; i++) witchDeck.push({ type:'lenormand', id:i, isReversed:false });
     witchDeck.sort(()=>Math.random()-0.5);
 
-    // 布局
     const deskW = window.innerWidth;
     const cols = 4; const cardW=60, cardH=90, gap=10;
     const startX = (deskW - (cols*(cardW+gap)))/2;
@@ -13799,76 +13933,63 @@ window.startWitchDraw = function() {
         const el = document.createElement('div');
         el.className = 'playing-card';
         const col = i % cols, row = Math.floor(i/cols);
-        el.style.left = (startX + col*(cardW+gap)) + 'px';
-        el.style.top = (60 + row*(cardH+gap)) + 'px';
-        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
-        
-        const front = document.createElement('div');
-        front.className = 'playing-card-front';
-        el.appendChild(front);
+        el.style.left = (startX + col*(cardW+gap)) + 'px'; el.style.top = (60 + row*(cardH+gap)) + 'px'; el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        const front = document.createElement('div'); front.className = 'playing-card-front'; el.appendChild(front);
         
         el.onclick = async () => {
             if(el.classList.contains('flipped')) {
-                el.classList.remove('flipped');
-                witchFlipped = witchFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+                el.classList.remove('flipped'); witchFlipped = witchFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
             } else {
-                el.classList.add('flipped');
-                witchFlipped.push(card);
+                el.classList.add('flipped'); witchFlipped.push(card);
                 const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
-                idb.get(db, card.id).then(res=>{ 
-                    if(res && res.data) front.style.backgroundImage=`url(${res.data})`;
-                    else { front.style.background="#fff"; front.innerText=card.id; }
-                });
-                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
-                else front.style.transform = "rotateY(180deg)";
+                idb.get(db, card.id).then(res=>{ if(res && res.data) front.style.backgroundImage=`url(${res.data})`; else { front.style.background="#fff"; front.innerText=card.id; } });
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)"; else front.style.transform = "rotateY(180deg)";
             }
             document.getElementById('witch-flipped-count').innerText = witchFlipped.length;
         };
         area.appendChild(el);
     });
-
     modal.style.display = 'flex';
 };
-// === 🧙‍♀️ 女巫 APP：生成剧本 (修改版：多语音 + 强牌意) ===
 window.finishWitchDraw = async function() {
     if(witchFlipped.length === 0) return alert("请至少抽一张牌！");
 
     const btn = document.querySelector('#witch-card-table-modal .primary');
     const oldText = btn.innerText;
-    btn.disabled = true; btn.innerText = "🔮 正在编织惩罚剧本...";
+    btn.disabled = true; btn.innerText = "🔮 正在交织命运...";
 
-    // 数据准备
     const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
-    const globalCtx = (wb['占卜向全局'] || [])
-.filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const userPunish = document.getElementById('witch-user-punishment').value;
-    const userTrapIdx = witchGameState.myTrap;
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
 
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-    
     if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
     if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
 
-    // 🔥🔥🔥 核心修改：提示词 (Prompt) 更新 🔥🔥🔥
-    const prompt = `
+    let prompt = "";
+    
+    // ================= 原版高质量 19 块饼干 Prompt =================
+    if (witchGameState.gameMode === 'cookie') {
+        const userPunish = document.getElementById('witch-user-punishment').value;
+        const userTrapIdx = witchGameState.myTrap;
+        prompt = `
 你是一个擅长写“惩罚游戏”剧情的小说家。
-【游戏规则】：用户(我)和角色(Ta)玩吃饼干，吃到陷阱的人接受惩罚。
+【游戏规则】：用户(我)和角色(Ta)玩吃饼干，桌上共有 19 块饼干。吃到陷阱的人接受惩罚。
 【世界观】：${globalCtx}
 【命运牌 (决定惩罚的尺度和氛围)】：${cardsDesc}
 【用户设定的惩罚 (如果角色输了)】：${userPunish}
-【用户陷阱位置】：#${userTrapIdx} (0-19)
+【用户陷阱位置】：#${userTrapIdx} (0-18)
 
 【⚡️ 核心原则】：
 **所有生成的内容（陷阱选择、反应台词、故事走向）必须严格遵守抽到的【命运牌】的牌意（牌面的能量波动）。**
-例如：牌意是“欺骗/隐瞒”，角色可能会假装没事；牌意是“冲动/热情”，角色可能会挑衅。
+例如：牌面的能量流动是“欺骗/隐瞒”，角色可能会假装没事；牌面的能量流动是“冲动/热情”，角色可能会挑衅。
 
 【任务要求】
 请生成以下内容：
-1. **角色的陷阱**：(0-19，不能是 #${userTrapIdx})。
-2. **行动逻辑**：角色吃饼干的顺序数组。
+1. **角色的陷阱**：(0-18，不能是 #${userTrapIdx})。
+2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字）。
 3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意（有的紧张，有的得意，有的平淡）。
 4. **两篇长篇小故事**：
    - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚。**字数不少于 300 字**。
@@ -13888,53 +14009,74 @@ window.finishWitchDraw = async function() {
   }
 }
 `;
+    } 
+    // ================= 元宵模式 Prompt =================
+    else {
+        const userPuns = JSON.stringify(witchGameState.tyUserPunishments);
+        prompt = `
+你现在正在和用户玩“吃元宵”猜口味游戏。
+【世界观/角色】：${globalCtx}
+【命运牌】：${cardsDesc}
+【用户提出的6个惩罚】：${userPuns}
+
+【任务要求】：
+1. 角色需要提出 **6个对用户的惩罚**（从轻微到过分，结合牌意）。
+2. 角色需要预判 6 次口味，从这四个里选：["芝麻", "肉馅", "紫薯"]。
+3. 针对用户提出的 6 个惩罚，写出角色如果受到该惩罚时的 **详细反应剧情**（结合牌意，每条至少30字）。
+
+【输出格式】严格 JSON 格式：
+{
+  "char_punishments": ["角色的惩罚1", "角色的惩罚2", "角色的惩罚3", "角色的惩罚4", "角色的惩罚5", "角色的惩罚6"],
+  "char_guesses": ["口味", "口味", "口味", "口味", "口味", "口味"],
+  "char_reactions": ["对应用户惩罚1的反应剧情...", "对应用户惩罚2的反应剧情...", "...", "...", "...", "..."]
+}`;
+    }
 
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model: model,
-                messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}],
-                temperature: 0.85 
-            })
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
         });
         const json = await res.json();
         let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
         const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
         if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
-        
         const result = JSON.parse(raw);
 
-        // 应用数据
-        witchGameState.charTrap = result.char_trap_index;
-        witchGameState.charMoves = result.char_move_priority;
-        
-        // 兼容性处理：如果 AI 没返回数组，强制转为数组
-        if (!Array.isArray(result.reactions.safe)) {
-            result.reactions.safe = [result.reactions.safe];
+        if(witchGameState.gameMode === 'cookie') {
+            witchGameState.charTrap = result.char_trap_index;
+            witchGameState.charMoves = result.char_move_priority.filter(n => n >= 0 && n <= 18);
+            if (!Array.isArray(result.reactions.safe)) result.reactions.safe = [result.reactions.safe];
+            witchGameState.reactions = result.reactions;
+            witchGameState.stories = { user_lose: result.user_lose_story, char_lose: result.char_lose_story };
+            
+            document.getElementById('witch-board-container').style.display = 'grid';
+            document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
+            addWitchLog(`🎮 游戏开始！共 19 块饼干...`);
+        } else {
+            witchGameState.tyCharPunishments = result.char_punishments;
+            witchGameState.tyCharGuesses = result.char_guesses;
+            witchGameState.tyCharReactions = result.char_reactions;
+            
+            const pool = ['芝麻', '肉馅',  '紫薯'];
+            witchGameState.tyList = [];
+            for(let i=0; i<12; i++) witchGameState.tyList.push(pool[Math.floor(Math.random()*3)]);
+            
+            document.getElementById('witch-tangyuan-container').style.display = 'block';
+            initWitchBoard('new_ty_board'); 
         }
-        witchGameState.reactions = result.reactions;
-        
-        witchGameState.stories = {
-            user_lose: result.user_lose_story,
-            char_lose: result.char_lose_story
-        };
 
         witchGameState.isPlaying = true;
         witchGameState.isMyTurn = true;
         
-        // 界面切换
         document.getElementById('witch-card-table-modal').style.display = 'none';
         document.getElementById('witch-setup-panel').style.display = 'none';
         document.getElementById('btn-witch-start').style.display = 'none';
         document.getElementById('witch-log-panel').style.display = 'block';
         
-        document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
-        
-        addWitchLog(`🎮 游戏开始！命运牌意已注入...`);
-        addWitchLog(`🔮 若你输了，将触发一段长篇惩罚剧情...`);
-        document.getElementById('witch-reaction-text').innerText = "请先吃一块饼干...";
+        const emojiEl = document.getElementById('witch-reaction-emoji');
+        if(emojiEl) emojiEl.innerText = '🎮';
+        document.getElementById('witch-reaction-text').innerText = witchGameState.gameMode === 'cookie' ? "请先吃一块饼干..." : "请先选择口味，再点击元宵...";
 
     } catch(e) {
         console.error(e);
@@ -14120,62 +14262,86 @@ function renderWitchHistory() {
         container.appendChild(div);
     });
 }
-
-// === 新增：重玩功能 ===
-window.retryWitchGame = function(index) {
-    const list = getWitchData();
-    const item = list[index];
-    if(!item || !item.state) return alert("存档损坏");
-    
-    // 切换到游戏界面
-    switchWitchView('game');
-    
-    // 以 'retry' 模式初始化，传入历史状态
-    initWitchBoard('retry', item.state);
-    
-    alert("已加载该局设定！\n陷阱位置不变，你可以尝试避开陷阱赢得比赛！");
-}
-
-// === 修改：阅读历史结局 (使用新弹窗) ===
 window.readWitchStory = function(index) {
-    const list = getWitchData();
+    const list = window.getWitchData();
     const item = list[index];
-    if(!item || !item.state || !item.state.stories) return alert("该记录数据不完整");
+    if(!item || !item.state) return alert("该记录数据不完整");
 
     const state = item.state;
-    // 判断是谁赢了 (简单的逻辑：看谁吃到了陷阱)
-    const userLost = state.eatenCookies.includes(state.charTrap);
+
+    // A. 饼干模式 (使用原版的深色魔法卷轴弹窗 `witch-story-modal`)
+    if (state.gameMode === 'cookie' || !state.gameMode) {
+        const userLost = state.eatenCookies.includes(state.charTrap);
+        let title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
+        let content = userLost ? (state.stories?.user_lose || "无内容") : (state.stories?.char_lose || "无内容");
+        
+        const modal = document.getElementById('witch-story-modal');
+        document.getElementById('ws-title').innerText = title;
+        document.getElementById('ws-content').innerText = content.replace(/\n/g, '\n\n');
+        document.getElementById('ws-date').innerText = item.date;
+        modal.style.display = 'flex';
+    } 
+    // B. 元宵模式 (使用明亮的便签弹窗 `sticky-note-modal`)
+    else {
+        let title = "🥣 元宵游戏：惩罚与反应";
+        let content = "【你的惩罚要求 👉 Ta的反应】\n";
+        for(let i=0; i<6; i++) {
+            content += `Q${i+1}: ${state.tyUserPunishments[i] || '空'}\n`;
+            content += `👉 ${state.tyCharReactions[i] || '未触发'}\n\n`;
+        }
+        content += "--------------------\n【Ta给你的惩罚列表】\n";
+        for(let i=0; i<6; i++) {
+            content += `${i+1}. ${state.tyCharPunishments[i] || '空'}\n`;
+        }
+        
+        document.getElementById('note-detail-title').innerText = title;
+        document.getElementById('note-detail-content').innerText = content.replace(/\n/g, '\n');
+        document.getElementById('note-detail-date').innerText = item.date;
+        document.getElementById('sticky-note-modal').style.display = 'flex';
+    }
+};
+window.readWitchStory = function(index) {
+    const list = window.getWitchData();
+    const item = list[index];
+    if(!item || !item.state) return alert("该记录数据不完整");
+
+    const state = item.state;
+    let title = "";
+    let content = "";
+
+    // 饼干模式 (深色弹窗)
+    if (state.gameMode === 'cookie' || !state.gameMode) {
+        const userLost = state.eatenCookies.includes(state.charTrap);
+        title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
+        content = "无内容";
+        if(state.stories) {
+            content = userLost ? state.stories.user_lose : state.stories.char_lose;
+        }
+    } 
+    // 元宵模式 (同样使用女巫的魔法卷轴深色弹窗)
+    else {
+        title = "🥣 元宵宴会：惩罚记录";
+        content = "【你的惩罚要求 👉 Ta的反应】\n";
+        
+        for(let i=0; i<6; i++) {
+            content += `Q${i+1}: ${state.tyUserPunishments[i] || '空'}\n`;
+            content += `👉 ${state.tyCharReactions[i] || '未触发'}\n\n`;
+        }
+        content += "--------------------\n【Ta给你的惩罚列表】\n";
+        for(let i=0; i<6; i++) {
+            content += `${i+1}. ${state.tyCharPunishments[i] || '空'}\n`;
+        }
+    }
     
-    let title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
-    // 如果没有分出胜负(比如中途退出的)，默认显示用户输了的故事(或者都显示)
-    let content = userLost ? state.stories.user_lose : state.stories.char_lose;
-    if (!content) content = "（当时未分出胜负，无结局记录）";
-    
+    // 统一调用女巫原版的黑色卷轴弹窗
     const modal = document.getElementById('witch-story-modal');
     document.getElementById('ws-title').innerText = title;
-    document.getElementById('ws-content').innerText = content.replace(/\n/g, '\n\n');
+    document.getElementById('ws-content').innerHTML = content.replace(/\n/g, '<br>');
     document.getElementById('ws-date').innerText = item.date;
     
+    // 确保层级极高，不会被挡在后面
+    modal.style.zIndex = "30000";
     modal.style.display = 'flex';
-};
-
-// 新增：直接阅读历史结局故事
-window.readWitchStory = function(index) {
-    const list = window.BIG_MEMORY.witch_data || [];
-    const item = list[index];
-    if(!item || !item.state || !item.state.stories) return alert("该记录数据不完整");
-
-    // 判断是谁赢了
-    const state = item.state;
-    const userLost = state.eatenCookies.includes(state.charTrap);
-    
-    let title = userLost ? "💀 历史回顾：你接受惩罚" : "🏆 历史回顾：Ta接受惩罚";
-    let content = userLost ? state.stories.user_lose : state.stories.char_lose;
-    
-    document.getElementById('note-detail-title').innerText = title;
-    document.getElementById('note-detail-content').innerText = content.replace(/\n/g, '\n\n');
-    document.getElementById('note-detail-date').innerText = item.date;
-    document.getElementById('sticky-note-modal').style.display = 'flex';
 };
 
 function deleteWitchHistory(index) {
@@ -14358,14 +14524,14 @@ window.retryWitchGame = function(index) {
     alert("🔄 已读取旧局设定！\n\n- 你的陷阱位置不变\n- Ta的陷阱位置不变\n- 惩罚剧本不变\n\n请尝试避开陷阱获胜吧！");
 };
 
-// 3. 渲染历史记录列表 (修复样式和按钮)
 window.renderWitchHistory = function() {
-    const list = getWitchData(); // 确保从无限存储读取
+    const list = window.getWitchData();
     const container = document.getElementById('witch-history-list');
+    if(!container) return;
     container.innerHTML = '';
     
     if (list.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无存档<br>请在游戏中点击 [保存]</div>';
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无存档</div>';
         return;
     }
 
@@ -14373,29 +14539,32 @@ window.renderWitchHistory = function() {
         const div = document.createElement('div');
         div.className = 'morandi-card';
         div.style.marginBottom = '10px'; div.style.padding = '15px';
-        div.style.background = '#2d3436'; // 深色背景配合女巫主题
-        div.style.border = '1px solid #6c5ce7';
-        div.style.color = '#dfe6e9';
+        div.style.background = '#2d3436'; div.style.border = '1px solid #6c5ce7'; div.style.color = '#dfe6e9';
         
-        let statusColor = "#a29bfe";
-        if (item.winner === 'User') statusColor = "#00b894"; // 赢了绿色
-        if (item.winner === 'Char') statusColor = "#ff7675"; // 输了红色
+        const isTangyuan = item.state && item.state.gameMode === 'tangyuan';
+        let statusText = "";
+        let subText = "";
+        
+        if (isTangyuan) {
+            statusText = `🥣 吃元宵 (执行惩罚: 你 ${item.state.tyUserRound}次 / Ta ${item.state.tyCharRound}次)`;
+            subText = "双方交替品尝与惩罚";
+        } else {
+            // 饼干模式原版显示
+            statusText = item.winner === 'User' ? '💀 饼干: 你输了' : (item.winner === 'Char' ? '🏆 饼干: 你赢了' : '💾 饼干: 存档点');
+            subText = `惩罚: ${item.userPunish.substring(0, 15)}...`;
+        }
 
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#b2bec3; margin-bottom:5px;">
                 <span>${item.date}</span>
                 <span style="color:#ff7675; cursor:pointer;" onclick="deleteWitchHistory(${index})">🗑️ 删除</span>
             </div>
-            <div style="font-weight:bold; margin:5px 0; color:${statusColor}; font-size:1rem;">
-                ${item.winner === 'User' ? '💀 你输了' : (item.winner === 'Char' ? '🏆 你赢了' : '💾 存档点')}
-            </div>
-            <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">
-                惩罚: ${item.userPunish.substring(0, 15)}...
-            </div>
+            <div style="font-weight:bold; margin:5px 0; color:#a29bfe; font-size:1rem;">${statusText}</div>
+            <div style="font-size:0.85rem; color:#b2bec3; margin-bottom:10px;">${subText}</div>
             
             <div style="display:flex; gap:10px;">
-                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white; border:none;">🔄 重新玩这局</button>
-                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#a29bfe; color:#2d3436; border:none;">📖 仅看结局</button>
+                <button class="m-btn small" onclick="retryWitchGame(${index})" style="flex:1; background:#6c5ce7; color:white; border:none;">🔄 重玩</button>
+                <button class="m-btn small" onclick="readWitchStory(${index})" style="flex:1; background:#a29bfe; color:#2d3436; border:none;">📖 结局/记录</button>
             </div>
         `;
         container.appendChild(div);
@@ -23087,47 +23256,79 @@ window.generateGalgameEndingAPI = async function() {
         </div>
 
         <!-- A. 游戏设置/进行区 -->
-        <div id="witch-game-view">
+                <div id="witch-game-view">
+            <!-- 模式切换 -->
+            <div class="witch-mode-switch">
+                <button class="m-btn small" id="btn-mode-cookie" onclick="setWitchMode('cookie')" style="flex:1; background:#6c5ce7; color:white;">🍪 女巫饼干</button>
+                <button class="m-btn small" id="btn-mode-tangyuan" onclick="setWitchMode('tangyuan')" style="flex:1; background:#30336b; color:#ccc;">🥣 吃元宵</button>
+            </div>
+
             <!-- 1. 准备阶段 -->
             <div id="witch-setup-panel">
-                <div class="morandi-card" style="background:rgba(255,255,255,0.1); border:1px solid #6c5ce7; color:#fff; padding:15px;">
-                    <h3 style="color:#a29bfe; margin-bottom:10px;">🍬 烘焙准备</h3>
-                    <p style="font-size:0.8rem; color:#ccc;">1. 点击下方饼干，选择一块藏入你的“惩罚” (作为陷阱)。<br>2. 填写如果Ta输了，要接受什么惩罚。</p>
-                    
+                <!-- 饼干模式设置 -->
+                <div id="setup-cookie" class="morandi-card" style="background:rgba(255,255,255,0.1); border:1px solid #6c5ce7; color:#fff; padding:15px;">
+                    <h3 style="color:#a29bfe; margin-bottom:10px;">🍬 烘焙准备 (饼干模式)</h3>
+                    <p style="font-size:0.8rem; color:#ccc;">点击下方饼干，藏入你的陷阱。<br>并填写Ta输了要接受的惩罚。</p>
                     <div class="input-group" style="margin-top:15px;">
                         <label style="color:#a29bfe;">😈 如果Ta输了，惩罚是：</label>
-                        <input type="text" id="witch-user-punishment" placeholder="例如：喊我三声主人 / 爆照一张..." style="background:rgba(0,0,0,0.3); border:1px solid #6c5ce7; color:white;">
+                        <input type="text" id="witch-user-punishment" placeholder="例如：喊我三声主人..." style="background:rgba(0,0,0,0.3); border:1px solid #6c5ce7; color:white;">
                     </div>
-                    
                     <div style="margin-top:10px; font-size:0.9rem; color:#ff7675;">
                         当前选定陷阱：<span id="witch-trap-display">未选择</span>
                     </div>
                 </div>
+
+                <!-- 元宵模式设置 (新增) -->
+                <div id="setup-tangyuan" class="morandi-card" style="display:none; background:rgba(255,255,255,0.1); border:1px solid #ff7675; color:#fff; padding:15px;">
+                    <h3 style="color:#ff7675; margin-bottom:10px;">🥣 元宵宴会 (回合制)</h3>
+                    <p style="font-size:0.8rem; color:#ccc;">请按顺序写下 6 个你想对 Ta 做的惩罚/要求。AI 将生成 Ta 的 6 个惩罚和反应。</p>
+                    <div class="ty-input-list" id="ty-punishment-list">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 1..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 2..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 3..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 4..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 5..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                        <input type="text" class="editor-textarea" placeholder="惩罚 6..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
+                    </div>
+                </div>
             </div>
 
-            <!-- 2. 饼干棋盘 (通用) -->
-            <div id="witch-board-container" style="margin-top:20px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
-                <!-- JS 生成 20 个饼干 -->
+            <!-- 2. 游戏棋盘区 -->
+            <!-- 饼干棋盘 -->
+            <div id="witch-board-container" style="margin-top:20px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;"></div>
+            
+            <!-- 元宵棋盘 (新增) -->
+            <div id="witch-tangyuan-container" style="display:none; margin-top:20px;">
+                <div style="text-align:center; color:#fff; margin-bottom:10px;">
+                    <span style="color:#ff7675; font-weight:bold;">你的回合：</span>请先猜口味，再吃元宵！
+                </div>
+                <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;" id="ty-flavor-selectors">
+                    <button class="ty-flavor-btn" onclick="selectTyFlavor('芝麻')">芝麻</button>
+                    <button class="ty-flavor-btn" onclick="selectTyFlavor('肉馅')">肉馅</button>
+                    <button class="ty-flavor-btn" onclick="selectTyFlavor('紫薯')">紫薯</button>
+                </div>
+                <div class="ty-bowl" id="ty-bowl-area">
+                    <!-- JS 生成 12 个元宵 -->
+                </div>
             </div>
 
             <!-- 3. 底部控制按钮 -->
             <button id="btn-witch-start" class="m-btn primary" onclick="startWitchDraw()" style="width:100%; margin-top:20px; background:#6c5ce7; display:block;">🔮 抽牌注入灵魂 (开始)</button>
             
-            <!-- 4. 游戏日志与反馈 (游戏开始后显示) -->
+            <!-- 4. 游戏日志与反馈 -->
             <div id="witch-log-panel" style="display:none; margin-top:20px;">
                 <div class="morandi-card" style="background:rgba(0,0,0,0.5); border:1px solid #a29bfe; color:#fff;">
                     <h4 style="color:#fdcb6e; margin-bottom:10px;">📜 对局记录</h4>
                     <div id="witch-game-log" style="height:150px; overflow-y:auto; font-size:0.85rem; line-height:1.6;"></div>
                 </div>
                 <div class="morandi-card" style="margin-top:10px; background:#fff; color:#333; padding:10px; display:flex; align-items:center;">
-                    <div style="font-size:2rem; margin-right:10px;">🗣️</div>
+                    <div style="font-size:2rem; margin-right:10px;" id="witch-reaction-emoji">🗣️</div>
                     <div id="witch-reaction-text" style="font-size:0.9rem;">等待开局...</div>
                 </div>
-       <!-- 新增：按钮组，包含保存和重置 -->
-<div style="display:flex; gap:10px; margin-top:10px;">
-    <button class="m-btn small" onclick="manualSaveWitchGame()" style="flex:1; background:#a29bfe; color:white; border:none;">💾 保存本局设定</button>
-    <button class="m-btn small" onclick="resetWitchGame()" style="flex:1; background:#ff7675; color:white; border:none;">🏳️ 结束 / 重置</button>
-</div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="m-btn small" onclick="manualSaveWitchGame()" style="flex:1; background:#a29bfe; color:white; border:none;">💾 保存本局设定</button>
+                    <button class="m-btn small" onclick="resetWitchGame()" style="flex:1; background:#ff7675; color:white; border:none;">🏳️ 结束 / 重置</button>
+                </div>
             </div>
         </div>
 
@@ -29568,6 +29769,11 @@ html.night-mode {
     flex-shrink: 0 !important;       /* 禁止底部区域被压缩 */
     margin-top: auto !important;     /* 确保沉底 */
 }
+#witch-game-log {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 5px rgba(0,0,0,0.5) !important;
+    font-weight: bold;
+}
 </style>
 <script>
 if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
@@ -30626,83 +30832,115 @@ async function runSystemOptimization() {
 // ============================================================
 // 🧙‍♀️ 女巫 APP 修改补丁：将饼干数量改为 19 块
 // ============================================================
-
-// 1. 修改棋盘初始化逻辑 (生成 19 个饼干)
+// === 🧙‍♀️ 强制覆盖：统一初始化棋盘逻辑 (兼容 19块饼干 和 12个元宵) ===
 window.initWitchBoard = function(mode = 'new', data = null) {
-    const grid = document.getElementById('witch-board-container');
-    if(!grid) return;
-    grid.innerHTML = '';
-    
-    // --- 模式 A: 新游戏 ---
-    if (mode === 'new') {
-        witchGameState = {
-            myTrap: -1, charTrap: -1, charPunishment: "",
-            charMoves: [], reactions: {}, stories: null,
-            eatenCookies: [], isMyTurn: true, isPlaying: false, history: []
-        };
+    // 1. 状态重置与 UI 切换
+    if (mode === 'new' || mode === 'new_ty_board') {
+        if (mode === 'new') {
+            witchGameState = {
+                gameMode: witchGameState.gameMode || 'cookie', // 保持当前模式
+                myTrap: -1, charTrap: -1, charPunishment: "",
+                charMoves: [], reactions: {}, stories: null,
+                eatenCookies: [], 
+                tyUserPunishments: [], tyCharPunishments: [], tyCharReactions: [], tyCharGuesses: [],
+                tyList: [], tyUserRound: 0, tyCharRound: 0, tySelectedFlavor: "",
+                isMyTurn: true, isPlaying: false, history: []
+            };
+        }
+        
         document.getElementById('witch-setup-panel').style.display = 'block';
         document.getElementById('btn-witch-start').style.display = 'block';
         document.getElementById('witch-log-panel').style.display = 'none';
         
-        const punishInput = document.getElementById('witch-user-punishment');
-        if(punishInput) punishInput.value = "";
-        const trapDisplay = document.getElementById('witch-trap-display');
-        if(trapDisplay) trapDisplay.innerText = "未选择";
+        if (witchGameState.gameMode === 'cookie') {
+            const punishInput = document.getElementById('witch-user-punishment');
+            if(punishInput) punishInput.value = "";
+            const trapDisplay = document.getElementById('witch-trap-display');
+            if(trapDisplay) trapDisplay.innerText = "未选择";
+        }
     }
-    // --- 模式 B: 历史回放 ---
     else if (mode === 'replay') {
         witchGameState = JSON.parse(JSON.stringify(data));
-        witchGameState.isPlaying = false;
-        
+        witchGameState.isPlaying = false; // 锁定不可操作
         document.getElementById('witch-setup-panel').style.display = 'none';
         document.getElementById('btn-witch-start').style.display = 'none';
         document.getElementById('witch-log-panel').style.display = 'block';
-        document.getElementById('witch-reaction-text').innerText = "📚 历史回放模式";
+        document.getElementById('witch-reaction-text').innerText = "📚 历史回放模式 (仅供查看)";
     }
-    // --- 模式 C: 重新挑战 ---
     else if (mode === 'retry') {
         witchGameState = JSON.parse(JSON.stringify(data));
-        witchGameState.eatenCookies = []; 
-        witchGameState.isPlaying = true;
-        witchGameState.isMyTurn = true;
-        
+        witchGameState.eatenCookies = []; // 清空吃掉的
+        witchGameState.tyUserRound = 0;
+        witchGameState.tyCharRound = 0;
+        witchGameState.isPlaying = true;  // 激活
+        witchGameState.isMyTurn = true;   // 轮到你
         document.getElementById('witch-setup-panel').style.display = 'none';
         document.getElementById('btn-witch-start').style.display = 'none';
         document.getElementById('witch-log-panel').style.display = 'block';
         document.getElementById('witch-reaction-text').innerText = "🔄 重新挑战：请开始...";
+        document.getElementById('witch-game-log').innerHTML = "<div style='color:#a29bfe; text-align:center;'>--- 🔄 命运重启 ---</div>";
     }
 
-    // 🔥🔥🔥 修改点：循环次数改为 19 🔥🔥🔥
-    for (let i = 0; i < 19; i++) {
-        const btn = document.createElement('div');
-        btn.className = 'cookie-btn';
-        btn.id = `cookie-${i}`;
-        
-        if (mode === 'replay') {
-            if (witchGameState.eatenCookies.includes(i)) {
-                btn.classList.add('eaten');
-                btn.innerText = '';
-                if (i === witchGameState.myTrap) { btn.innerText = '😈'; btn.style.background = '#00cec9'; }
-                if (i === witchGameState.charTrap) { btn.innerText = '💀'; btn.style.background = '#d63031'; }
+    // 2. 根据模式生成具体内容
+    if (witchGameState.gameMode === 'cookie') {
+        // --- 生成 19 个饼干 ---
+        const grid = document.getElementById('witch-board-container');
+        if(!grid) return;
+        grid.innerHTML = '';
+        for (let i = 0; i < 19; i++) {
+            const btn = document.createElement('div');
+            btn.className = 'cookie-btn';
+            btn.id = `cookie-${i}`;
+            
+            if (mode === 'replay') {
+                if (witchGameState.eatenCookies.includes(i)) {
+                    btn.classList.add('eaten');
+                    btn.innerText = '';
+                    if (i === witchGameState.myTrap) { btn.innerText = '😈'; btn.style.background = '#00cec9'; }
+                    if (i === witchGameState.charTrap) { btn.innerText = '💀'; btn.style.background = '#d63031'; }
+                } else { btn.innerText = '🐻'; }
+            } 
+            else if (mode === 'retry') {
+                btn.innerText = '🐻';
+                btn.onclick = () => handleCookieClick(i);
+                if (i === witchGameState.myTrap) btn.style.border = "2px solid #00cec9"; 
             } else {
                 btn.innerText = '🐻';
+                btn.onclick = () => handleCookieClick(i);
             }
-        } 
-        else if (mode === 'retry') {
-            btn.innerText = '🐻';
-            btn.onclick = () => handleCookieClick(i);
-            if (i === witchGameState.myTrap) btn.style.border = "2px solid #00cec9"; 
+            grid.appendChild(btn);
         }
-        else {
-            btn.innerText = '🐻';
-            btn.onclick = () => handleCookieClick(i);
+    } else {
+        // --- 生成 12 个元宵 ---
+        const bowl = document.getElementById('ty-bowl-area');
+        if(!bowl) return;
+        bowl.innerHTML = '';
+        for(let i=0; i<12; i++) {
+            const btn = document.createElement('div');
+            btn.className = 'tangyuan-btn';
+            btn.id = `ty-${i}`;
+            
+            if(witchGameState.eatenCookies.includes(i)) {
+                btn.classList.add('eaten');
+                // 已经吃掉的显示馅料
+                let flavorEmoji = '⚪';
+                if(witchGameState.tyList[i] === '芝麻') flavorEmoji = '⚫';
+                if(witchGameState.tyList[i] === '肉馅') flavorEmoji = '🥩';
+                if(witchGameState.tyList[i] === '紫薯') flavorEmoji = '🍠';
+                btn.innerText = flavorEmoji;
+            } else {
+                btn.innerText = '🍡'; // 没吃的显示汤圆
+                // 只要是在进行中，就允许点击
+                if(witchGameState.isPlaying || mode === 'new_ty_board') {
+                    btn.onclick = () => handleTangyuanClick(i);
+                }
+            }
+            bowl.appendChild(btn);
         }
-        grid.appendChild(btn);
     }
 };
-
 // ============================================================
-// 🧙‍♀️ 女巫 APP 修复：保留原版高质量 Prompt (19块饼干版)
+// 🧙‍♀️ 女巫 APP 终极修复：19块原版饼干 与 12颗元宵 完美共存版
 // ============================================================
 
 window.finishWitchDraw = async function() {
@@ -30710,15 +30948,15 @@ window.finishWitchDraw = async function() {
 
     const btn = document.querySelector('#witch-card-table-modal .primary');
     const oldText = btn.innerText;
-    btn.disabled = true; btn.innerText = "🔮 正在编织 19 块饼干的命运...";
+    btn.disabled = true; 
+    // 根据模式显示不同的等待文字
+    btn.innerText = witchGameState.gameMode === 'cookie' ? "🔮 正在编织 19 块饼干的命运..." : "🔮 正在煮 12 颗元宵...";
 
     // 准备数据
     const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
     const wb = window.BIG_MEMORY.world_book || {};
     const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
-    const userPunish = document.getElementById('witch-user-punishment').value;
-    const userTrapIdx = witchGameState.myTrap;
-
+    
     let apiKey = document.getElementById('api-key').value;
     let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
     let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
@@ -30726,8 +30964,13 @@ window.finishWitchDraw = async function() {
     if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
     if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
 
-    // 🔥🔥🔥 核心修改：使用原版详细 Prompt，仅修改数字范围 (0-18) 🔥🔥🔥
-    const prompt = `
+    let prompt = "";
+
+    // ================= 模式A：死亡饼干 (19块原版) =================
+    if (witchGameState.gameMode === 'cookie') {
+        const userPunish = document.getElementById('witch-user-punishment').value;
+        const userTrapIdx = witchGameState.myTrap;
+        prompt = `
 你是一个擅长写“惩罚游戏”剧情的小说家。
 【游戏规则】：用户(我)和角色(Ta)玩吃饼干，桌上共有 19 块饼干。吃到陷阱的人接受惩罚。
 【世界观】：${globalCtx}
@@ -30743,25 +30986,48 @@ window.finishWitchDraw = async function() {
 请生成以下内容：
 1. **角色的陷阱**：(0-18，不能是 #${userTrapIdx})。
 2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字）。
-3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意（有的紧张，有的得意，有的平淡）。
+3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意。
 4. **两篇长篇小故事**：
-   - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚。**字数不少于 300 字**。
+   - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚（还有详细的惩罚内容）。**字数不少于 300 字**。
    - **Story B (角色输)**：用户获胜。描写角色吃到陷阱后的反应。**字数不少于 300 字**。
 
 【输出格式】
 严格 JSON：
 {
   "char_trap_index": 5,
-  "char_move_priority": [0, 1, 2, ...],
+  "char_move_priority": [0, 1, 2, 3],
   "user_lose_story": "长篇故事：用户输了被惩罚...",
   "char_lose_story": "长篇故事：角色输了接受惩罚...",
   "reactions": { 
-      "safe": ["台词1", "台词2", "台词3", "台词4", "台词5", ...], 
+      "safe": ["台词1", "台词2", "台词3"], 
       "win": "哈，你输了！", 
       "lose": "唔...被发现了..." 
   }
 }
 `;
+    } 
+    // ================= 模式B：吃元宵 (回合制盲盒) =================
+    else {
+        const userPuns = JSON.stringify(witchGameState.tyUserPunishments);
+        prompt = `
+你现在正在和用户玩“吃元宵”猜口味游戏。
+【世界观/角色】：${globalCtx}
+【命运牌】：${cardsDesc}
+【用户提出的6个惩罚】：${userPuns}
+
+【任务要求】：
+1. 角色需要提出 **6个对用户的惩罚**（从轻微到过分，结合牌意）。
+2. 角色需要预判 6 次口味，从这三个里选：["芝麻", "肉馅", "紫薯"]。
+3. 针对用户提出的 6 个惩罚，写出角色如果受到该惩罚时的 **详细反应剧情**（结合牌意，每条至少30字）。
+
+【输出格式】严格 JSON 格式：
+{
+  "char_punishments": ["角色的惩罚1", "角色的惩罚2", "角色的惩罚3", "角色的惩罚4", "角色的惩罚5", "角色的惩罚6"],
+  "char_guesses": ["口味", "口味", "口味", "口味", "口味", "口味"],
+  "char_reactions": ["对应用户惩罚1的反应剧情...", "对应用户惩罚2的反应剧情...", "...", "...", "...", "..."]
+}
+`;
+    }
 
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
@@ -30780,32 +31046,52 @@ window.finishWitchDraw = async function() {
         
         const result = JSON.parse(raw);
 
-        witchGameState.charTrap = result.char_trap_index;
-        // 过滤掉越界的数字 (只保留 0-18)
-        witchGameState.charMoves = result.char_move_priority.filter(n => n >= 0 && n <= 18);
-        
-        if (!Array.isArray(result.reactions.safe)) result.reactions.safe = [result.reactions.safe];
-        witchGameState.reactions = result.reactions;
-        
-        witchGameState.stories = {
-            user_lose: result.user_lose_story,
-            char_lose: result.char_lose_story
-        };
+        // --- 应用生成的数据并判断渲染模式 ---
+        if (witchGameState.gameMode === 'cookie') {
+            witchGameState.charTrap = result.char_trap_index;
+            witchGameState.charMoves = result.char_move_priority.filter(n => n >= 0 && n <= 18);
+            if (!Array.isArray(result.reactions.safe)) result.reactions.safe = [result.reactions.safe];
+            witchGameState.reactions = result.reactions;
+            witchGameState.stories = {
+                user_lose: result.user_lose_story,
+                char_lose: result.char_lose_story
+            };
+            
+            // UI 控制：显示饼干，隐藏元宵
+            document.getElementById('witch-board-container').style.display = 'grid';
+            document.getElementById('witch-tangyuan-container').style.display = 'none';
+            document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
+            
+            addWitchLog(`🎮 游戏开始！共 19 块饼干...`);
+            addWitchLog(`🔮 命运牌意已注入，若你输了将触发长篇剧情...`);
+            document.getElementById('witch-reaction-text').innerText = "请先吃一块饼干...";
+            
+        } else {
+            witchGameState.tyCharPunishments = result.char_punishments;
+            witchGameState.tyCharGuesses = result.char_guesses;
+            witchGameState.tyCharReactions = result.char_reactions;
+            
+            const pool = ['芝麻', '肉馅', '紫薯'];
+            witchGameState.tyList = [];
+            for(let i=0; i<12; i++) witchGameState.tyList.push(pool[Math.floor(Math.random()*3)]);
+            
+            // UI 控制：显示元宵，隐藏饼干
+            document.getElementById('witch-board-container').style.display = 'none';
+            document.getElementById('witch-tangyuan-container').style.display = 'block';
+            initWitchBoard('new_ty_board'); 
+            
+            addWitchLog(`🥣 宴会开始！请在上方选择你要猜测的口味，然后点击碗里的元宵。`);
+            document.getElementById('witch-reaction-text').innerText = "请先选中上方口味，再点击元宵...";
+        }
 
         witchGameState.isPlaying = true;
         witchGameState.isMyTurn = true;
         
-        // 界面切换
+        // 统一切换面板显示
         document.getElementById('witch-card-table-modal').style.display = 'none';
         document.getElementById('witch-setup-panel').style.display = 'none';
         document.getElementById('btn-witch-start').style.display = 'none';
         document.getElementById('witch-log-panel').style.display = 'block';
-        
-        document.querySelectorAll('.cookie-btn').forEach(b => b.classList.remove('selected'));
-        
-        addWitchLog(`🎮 游戏开始！共 19 块饼干...`);
-        addWitchLog(`🔮 命运牌意已注入，若你输了将触发长篇剧情...`);
-        document.getElementById('witch-reaction-text').innerText = "请先吃一块饼干...";
 
     } catch(e) {
         console.error(e);
@@ -34129,5 +34415,316 @@ window.exportGashaponTXT = function(index) {
     };
 
 })();
+// ============================================================
+// 🥣 女巫 APP：元宵模式核心回合互动逻辑
+// ============================================================
+
+// === 动态生成惩罚确认小弹窗 ===
+window.showTyPunishModal = function(title, content, color, callback) {
+    let modal = document.getElementById('witch-ty-punish-modal');
+    if(!modal) {
+        modal = document.createElement('div');
+        modal.id = 'witch-ty-punish-modal';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'background:rgba(0,0,0,0.85); z-index:30000; display:none; align-items:center; justify-content:center;';
+                modal.innerHTML = `
+            <div class="morandi-card" style="width:85%; max-width:400px; background:#fff; color:#6c5ce7; position:relative; border:3px solid #6c5ce7; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+                <h3 id="wtp-title" style="margin-top:0; text-align:center; padding-bottom:10px; border-bottom:1px dashed #ccc;"></h3>
+                <div id="wtp-content" style="margin:15px 0; font-size:1.05rem; line-height:1.6; text-align:justify; white-space:pre-wrap; font-weight:bold; text-shadow: 0 1px 1px rgba(108, 92, 231, 0.1);"></div>
+                <button id="wtp-btn" class="m-btn primary" style="width:100%; height:45px; border:none; color:#fff; font-size:1.1rem;">点此继续游戏</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('wtp-title').innerText = title;
+    document.getElementById('wtp-title').style.color = color;
+    modal.querySelector('.morandi-card').style.borderColor = color;
+    document.getElementById('wtp-content').innerHTML = content;
+    document.getElementById('wtp-btn').style.background = color;
+    
+    document.getElementById('wtp-btn').onclick = () => {
+        modal.style.display = 'none';
+        if(callback) callback();
+    };
+    modal.style.display = 'flex';
+};
+
+window.selectTyFlavor = function(flavor) {
+    if(!witchGameState.isPlaying) return;
+    witchGameState.tySelectedFlavor = flavor;
+    const btns = document.querySelectorAll('.ty-flavor-btn');
+    btns.forEach(b => {
+        if(b.innerText === flavor) b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    document.getElementById('witch-reaction-text').innerText = `已选定猜测：【${flavor}】，请点击碗里的元宵...`;
+};
+
+window.handleTangyuanClick = function(index) {
+    if(!witchGameState.isPlaying) return;
+    if(!witchGameState.isMyTurn) return alert("现在是Ta的回合，请稍等！");
+    if(witchGameState.eatenCookies.includes(index)) return;
+    if(!witchGameState.tySelectedFlavor) return alert("请先在上方选择你要猜测的口味！");
+
+    const actualFlavor = witchGameState.tyList[index];
+    witchGameState.eatenCookies.push(index);
+    
+    const btn = document.getElementById(`ty-${index}`);
+    btn.classList.add('eaten');
+    let flavorEmoji = '⚪';
+    if(actualFlavor === '芝麻') flavorEmoji = '⚫';
+    if(actualFlavor === '肉馅') flavorEmoji = '🥩';
+    if(actualFlavor === '紫薯') flavorEmoji = '🍠';
+    btn.innerText = flavorEmoji;
+
+    if (witchGameState.tySelectedFlavor === actualFlavor) {
+        const pIndex = Math.min(witchGameState.tyCharRound, 5);
+        const punishment = witchGameState.tyUserPunishments[pIndex];
+        const reaction = witchGameState.tyCharReactions[pIndex];
+        
+        addWitchLog(`👤 你吃了一颗 [${actualFlavor}]。猜对了！`);
+        document.getElementById('witch-reaction-text').innerText = "你猜中了！正在执行惩罚...";
+
+        // 弹窗惩罚，用户必须点击才继续
+        showTyPunishModal(
+            "🎯 你猜中了口味！",
+            `【惩罚要求】：${punishment}\n\n【Ta的反应】：\n“${reaction}”`,
+            "#00cec9", // 绿色主题
+            () => {
+                witchGameState.tyCharRound++;
+                proceedTyTurn('char');
+            }
+        );
+    } else {
+        addWitchLog(`👤 你吃了一颗 [${actualFlavor}]，但你猜的是 [${witchGameState.tySelectedFlavor}]。猜错了！`);
+        document.getElementById('witch-reaction-text').innerText = "哎呀，猜错了...轮到 Ta 选了。";
+        proceedTyTurn('char');
+    }
+};
+
+window.charTyTurn = function() {
+    if(!witchGameState.isPlaying) return;
+    let available = [];
+    for(let i=0; i<12; i++) { if(!witchGameState.eatenCookies.includes(i)) available.push(i); }
+    if(available.length === 0) return endGameTy();
+
+    const pickIndex = available[Math.floor(Math.random() * available.length)];
+    const actualFlavor = witchGameState.tyList[pickIndex];
+    
+    const pIndex = Math.min(witchGameState.tyUserRound, 5);
+    let charGuess = "芝麻"; 
+    if(witchGameState.tyCharGuesses && witchGameState.tyCharGuesses[pIndex]) {
+        charGuess = witchGameState.tyCharGuesses[pIndex];
+        if(charGuess === '桂花') charGuess = '芝麻'; // 兼容旧缓存
+    } else {
+        const pool = ['芝麻', '肉馅', '紫薯'];
+        charGuess = pool[Math.floor(Math.random()*3)];
+    }
+
+    witchGameState.eatenCookies.push(pickIndex);
+    const btn = document.getElementById(`ty-${pickIndex}`);
+    btn.classList.add('eaten');
+    let flavorEmoji = '⚪';
+    if(actualFlavor === '芝麻') flavorEmoji = '⚫';
+    if(actualFlavor === '肉馅') flavorEmoji = '🥩';
+    if(actualFlavor === '紫薯') flavorEmoji = '🍠';
+    btn.innerText = flavorEmoji;
+
+    if (charGuess === actualFlavor) {
+        let charPunish = witchGameState.tyCharPunishments[pIndex] || "无";
+        addWitchLog(`🧙‍♀️ Ta吃了一颗 [${actualFlavor}]。Ta猜对了！`);
+        document.getElementById('witch-reaction-text').innerText = "Ta 猜中了！你将接受惩罚...";
+
+        // 弹窗惩罚，用户必须点击才继续
+        showTyPunishModal(
+            "⚠️ Ta 猜中啦！",
+            `Ta得意地对你说：愿赌服输，去执行吧！\n\n【Ta给你的惩罚】：\n“${charPunish}”`,
+            "#d63031", // 红色主题
+            () => {
+                witchGameState.tyUserRound++;
+                proceedTyTurn('user');
+            }
+        );
+    } else {
+        addWitchLog(`🧙‍♀️ Ta吃了一颗 [${actualFlavor}]，但Ta猜的是 [${charGuess}]。猜错了！`);
+        document.getElementById('witch-reaction-text').innerText = "Ta 猜错了，现在轮到你了！请选择你要猜的口味。";
+        proceedTyTurn('user');
+    }
+};
+
+function proceedTyTurn(nextTurn) {
+    if(witchGameState.eatenCookies.length >= 12) {
+        return setTimeout(() => endGameTy(), 500);
+    }
+    if (nextTurn === 'char') {
+        witchGameState.isMyTurn = false;
+        witchGameState.tySelectedFlavor = "";
+        document.querySelectorAll('.ty-flavor-btn').forEach(b => b.classList.remove('active'));
+        setTimeout(() => charTyTurn(), 1200); // 留出一点反应时间
+    } else {
+        witchGameState.isMyTurn = true;
+    }
+}
+
+window.endGameTy = function() {
+    witchGameState.isPlaying = false;
+    document.getElementById('witch-reaction-text').innerText = "🏁 12 颗元宵全部吃完，宴会结束！";
+    addWitchLog("========== 宴会结束 ==========");
+    
+    setTimeout(() => {
+        alert(`🎉 游戏结束！\n\n【最终战况】\n你接受了 ${witchGameState.tyUserRound} 次惩罚\nTa接受了 ${witchGameState.tyCharRound} 次惩罚。\n\n已为您存档！`);
+        if(typeof manualSaveWitchGame === 'function') manualSaveWitchGame();
+    }, 500);
+};
+
+// 4. 吃元宵游戏结算
+window.endGameTy = function() {
+    witchGameState.isPlaying = false;
+    document.getElementById('witch-reaction-text').innerText = "🏁 12 颗元宵全部吃完，宴会结束！";
+    addWitchLog("========== 宴会结束 ==========");
+    
+    // 结算弹窗
+    alert(`🎉 游戏结束！\n\n【最终战况】\n你接受了 ${witchGameState.tyUserRound} 次惩罚\nTa接受了 ${witchGameState.tyCharRound} 次惩罚。\n\n历史记录已保存，可前往 [历史对局] 中查看惩罚详情。`);
+    
+    // 自动保存
+    if(typeof saveWitchHistory === 'function') saveWitchHistory();
+};
 </script>
+<!-- ================== 新年限时公告代码 START ================== -->
+<script>
+(function() {
+    // 延迟执行，等待系统核心框架加载完毕
+    setTimeout(function() {
+        // --- 1. 时间控制：4号及以后不再显示 ---
+        var now = new Date();
+        var date = now.getDate(); // 获取几号
+        if (date >= 4) return;
+
+        // --- 2. 唯一性控制：本地已读过则不显示 ---
+        var storageKey = "ganmei_newyear_2026_read"; 
+        try {
+            if (localStorage.getItem(storageKey)) return;
+        } catch(e) {
+            console.warn("读取状态失败，正常放行");
+        }
+
+        // --- 3. 样式定义 ---
+        // z-index 加大到 999999，确保在所有小手机界面最顶层
+        var overlayStyle = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:flex; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s;";
+        var cardStyle = "background:#fff; width:85%; max-width:450px; padding:25px; border-radius:16px; box-shadow:0 0 30px rgba(0,0,0,0.5); font-family:sans-serif; position:relative; max-height:80vh; overflow-y:auto;";
+        var btnStyle = "margin-top:20px; width:100%; padding:12px; border:none; background:#ff7675; color:white; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer; transition:0.2s;";
+
+        // --- 第一步：显示祝福公告 ---
+        function showGreeting() {
+            var div = document.createElement('div');
+            div.id = "gm-step1";
+            div.style.cssText = overlayStyle;
+            div.innerHTML = `
+                <div style="${cardStyle} border: 2px solid #ff7675;">
+                    <h3 style="color:#d63031; margin-top:0; text-align:center;">🧧 节日快乐！</h3>
+                    <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                        <p>很感谢大家喜欢甘梅小手机也愿意玩甘梅小手机，各位小甘梅元宵快乐！</p>
+                        <p>承蒙大家的喜欢总会想是不是还有哪里没做到位没有做好，看着大家的喜欢也更有动力去更新了。今天还是想说很感谢各位小甘梅的喜欢，也希望小甘梅们元宵快乐！事事顺心万事如意。</p>
+                        <p style="background:#fff0f6; padding:10px; border-radius:8px;">这个红包是每次看到大家的喜欢我也想大家开心些所以想为大家更加做些什么的想法，也麻烦小甘梅们请不要推荐甘梅炸机谢谢大家（因为可能导致会有一些小甘梅收不到糖果），请一直以来照顾我的各位们吃口元宵快乐糖。</p>
+                    </div>
+                    <button class="gm-btn-ok-class" style="${btnStyle}">确定</button>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            // 点击确定后 (精准绑定当前弹窗内的按钮)
+            var okBtn = div.querySelector('.gm-btn-ok-class');
+            okBtn.onclick = function() {
+                // 【核心修复】加入 try-catch 防止内存满导致报错卡死
+                try {
+                    localStorage.setItem(storageKey, "true");
+                } catch(e) {
+                    console.log("内存已满，跳过写入缓存，直接进入下一步");
+                }
+                div.remove();
+                showWarning();
+            };
+        }
+
+        // --- 第二步：显示保密提示 (强制8秒) ---
+        function showWarning() {
+            var div = document.createElement('div');
+            div.style.cssText = overlayStyle;
+            div.innerHTML = `
+                <div style="${cardStyle}">
+                    <h3 style="color:#e17055; margin-top:0; text-align:center;">🤫 悄悄话</h3>
+                    <div style="font-size:0.95rem; line-height:1.6; color:#333; text-align:justify;">
+                        <p style="font-weight:bold;">请大家因此不要宣传甘梅炸机，也请大家保密这部分内容因为只是祝福的想法想感谢大家而不是想要被推广之类的，很感谢大家喜欢甘梅炸机。</p>
+                        <p style="font-size:0.85rem; color:#666; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                            （我也不希望除了小甘梅们的人领到糖果而且可能会让一部分小甘梅没法领到糖果，因为大家的喜欢，我才有创作的动力，如果发现异常行为会马上删除这个口令和公告）
+                        </p>
+                    </div>
+                    <button class="gm-btn-wait-class" style="${btnStyle}; background:#b2bec3; cursor:not-allowed;" disabled>
+                        请认真阅读 (8s)
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            var timeLeft = 8;
+            var btn = div.querySelector('.gm-btn-wait-class');
+            var timer = setInterval(function() {
+                timeLeft--;
+                btn.innerText = "请认真阅读 (" + timeLeft + "s)";
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = "我明白了";
+                    btn.style.background = "#e17055";
+                    btn.style.cursor = "pointer";
+                }
+            }, 1000);
+
+            btn.onclick = function() {
+                div.remove();
+                showImage();
+            };
+        }
+
+        // --- 第三步：显示图片 (10秒自动关闭) ---
+        function showImage() {
+            var div = document.createElement('div');
+            div.style.cssText = overlayStyle + "background:rgba(0,0,0,0.95);";
+            div.innerHTML = `
+                <img src="https://i.postimg.cc/FK0LwYBp/IMG-3014.png" 
+                     style="max-width:95%; max-height:80vh; border-radius:8px; box-shadow:0 0 20px rgba(255,255,255,0.2); object-fit:contain; pointer-events:none;">
+                <div style="color:white; margin-top:20px; font-weight:bold; font-size:1.1rem; pointer-events:none;">
+                    图片将在 <span id="img-timer" style="color:#ff7675;">10</span> 秒后自动关闭
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            var timeLeft = 10;
+            var timerSpan = div.querySelector('#img-timer');
+            var timer = setInterval(function() {
+                timeLeft--;
+                if(timerSpan) timerSpan.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    div.remove(); 
+                }
+            }, 1000);
+            
+            div.onclick = function() {
+                clearInterval(timer);
+                div.remove();
+            }
+        }
+
+        // 判断body是否存在，存在则运行
+        if (document.body) {
+            showGreeting();
+        } else {
+            window.addEventListener('DOMContentLoaded', showGreeting);
+        }
+        
+    }, 600); // 延迟600毫秒，等页面所有的组件初始化完再遮罩
+})();
+</script>
+<!-- ================== 新年限时公告代码 END ================== -->
 </html> 
