@@ -31820,49 +31820,56 @@ function toggleNightMode(checkbox) {
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('touchend', endDrag);
 })();
-// ==================== 🛡️ 后台保活系统 ====================
-// 生成一段极短的无声音频 (Base64格式，无需外部文件)
+// ==================== 🛡️ 后台保活系统 (苹果iOS终极破解版) ====================
 const silentAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-silentAudio.loop = true; // 循环播放
+silentAudio.loop = true; 
+silentAudio.setAttribute('playsinline', 'true'); // 关键1：禁止iOS全屏拦截
+silentAudio.setAttribute('webkit-playsinline', 'true');
 
-// 🚀 新增补丁：全局音频解锁器（用户一碰屏幕就自动获取音频播放权限）
-const unlockAudio = function() {
-    silentAudio.play().then(() => {
-        // 如果当前开关没开，获取权限后立刻暂停；如果开关是开的，就让它继续播
-        if(localStorage.getItem('keep_alive_enabled') !== 'true') {
-            silentAudio.pause();
+// 1. 破解苹果 Bug：拦截真实的物理点击事件来播放，而不是等失去手势的 onchange
+document.addEventListener('click', function(e) {
+    const toggleLabel = e.target.closest('label.switch');
+    if (toggleLabel) {
+        const checkbox = toggleLabel.querySelector('#keep-alive-toggle');
+        if (checkbox) {
+            // 点击时状态即将反转，判断它将要变成什么样
+            const willBeChecked = !checkbox.checked; 
+            if (willBeChecked) {
+                // 在物理 click 事件里直接调用 play，100% 绕过苹果限制
+                silentAudio.play().catch(err => console.log("静音播放拦截:", err));
+            } else {
+                silentAudio.pause();
+            }
         }
-        // 权限获取成功，移除监听
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-    }).catch(e => {
-        // 忽略静默失败
-    });
+    }
+}, true); // true 代表在事件捕获阶段优先执行
+
+// 2. 全局静默解锁器（应对重新加载页面后的自动恢复）
+const forceUnlock = () => {
+    silentAudio.play().then(() => {
+        // 如果目前不是开启保活的状态，就马上暂停；如果是开启的，就让它继续播
+        if(localStorage.getItem('keep_alive_enabled') !== 'true') {
+            silentAudio.pause(); 
+        }
+        // 解锁成功后，撤销屏幕触摸监听，避免消耗性能
+        ['touchstart', 'click'].forEach(evt => document.removeEventListener(evt, forceUnlock, true));
+    }).catch(e => {});
 };
-// 绑定在整个文档上，用户进网页随便摸一下屏幕就被静默解锁了
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('touchstart', unlockAudio, { once: true });
-function toggleKeepAlive(checkbox) {
+['touchstart', 'click'].forEach(evt => document.addEventListener(evt, forceUnlock, true));
+
+// 3. 原本的开关函数（现在只负责控制 UI 颜色和存档，不再负责播放音频）
+window.toggleKeepAlive = function(checkbox) {
     const slider = document.getElementById('keep-alive-slider');
     if (checkbox.checked) {
         checkbox.nextElementSibling.style.backgroundColor = "#f1c40f";
         slider.style.transform = "translateX(26px)";
-        
-        silentAudio.play().then(() => {
-            localStorage.setItem('keep_alive_enabled', 'true');
-        }).catch(e => {
-            alert("⚠️ 开启失败：浏览器限制自动播放。请先在屏幕上随便点一下，再开启开关。");
-            checkbox.checked = false;
-            checkbox.nextElementSibling.style.backgroundColor = "#ccc";
-            slider.style.transform = "translateX(0)";
-        });
+        localStorage.setItem('keep_alive_enabled', 'true');
     } else {
         checkbox.nextElementSibling.style.backgroundColor = "#ccc";
         slider.style.transform = "translateX(0)";
-        silentAudio.pause();
         localStorage.setItem('keep_alive_enabled', 'false');
     }
-}
+};
 </script>
 <script>
 (function() {
