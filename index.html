@@ -31825,6 +31825,23 @@ function toggleNightMode(checkbox) {
 const silentAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
 silentAudio.loop = true; // 循环播放
 
+// 🚀 新增补丁：全局音频解锁器（用户一碰屏幕就自动获取音频播放权限）
+const unlockAudio = function() {
+    silentAudio.play().then(() => {
+        // 如果当前开关没开，获取权限后立刻暂停；如果开关是开的，就让它继续播
+        if(localStorage.getItem('keep_alive_enabled') !== 'true') {
+            silentAudio.pause();
+        }
+        // 权限获取成功，移除监听
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    }).catch(e => {
+        // 忽略静默失败
+    });
+};
+// 绑定在整个文档上，用户进网页随便摸一下屏幕就被静默解锁了
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { once: true });
 function toggleKeepAlive(checkbox) {
     const slider = document.getElementById('keep-alive-slider');
     if (checkbox.checked) {
