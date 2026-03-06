@@ -34752,5 +34752,46 @@ document.addEventListener('click', function(e) {
 
 })();
 </script>
+<!-- ================= 🟢 聊天收藏夹空白修复补丁 ================= -->
+<script>
+(function() {
+    console.log("🛠️ 正在加载聊天收藏夹修复补丁...");
+
+    // 1. 将收藏夹加入到系统的“必须加载”白名单中
+    if (typeof REQUIRED_KEYS !== 'undefined') {
+        if (!REQUIRED_KEYS.includes('chat_collections')) {
+            REQUIRED_KEYS.push('chat_collections');
+        }
+    }
+
+    // 2. 劫持系统的全量加载引擎，强制读取收藏夹数据
+    if (typeof window.loadAllBigData === 'function') {
+        const _originalLoadForCollections = window.loadAllBigData;
+        window.loadAllBigData = async function() {
+            // 先让系统加载原来的数据
+            await _originalLoadForCollections();
+            
+            // 额外强制去数据库里把“收藏夹”挖出来
+            try {
+                if (typeof idb !== 'undefined') {
+                    let res = await idb.get('universal_store', 'chat_collections');
+                    if (res && res.data) {
+                        window.BIG_MEMORY.chat_collections = res.data;
+                        console.log("✅ 聊天收藏夹数据已成功恢复！");
+                    } else {
+                        // 如果连数据库里都没有，才初始化为空
+                        if (!window.BIG_MEMORY.chat_collections) {
+                            window.BIG_MEMORY.chat_collections = [];
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error("读取收藏夹出错:", e);
+            }
+        };
+    }
+})();
+</script>
+<!-- ================= 修复补丁结束 ================= -->
 
 </html> 
