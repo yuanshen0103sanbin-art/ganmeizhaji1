@@ -34660,118 +34660,96 @@ document.addEventListener('click', function(e) {
         }
     }
 }, true); // true 代表在捕获阶段拦截
-// ==================== 🛡️ 终极后台保活与唤醒系统 (无感解锁苹果限制版) ====================
+// ==================== 🛡️ 终极后台保活与唤醒系统 (外链音频版) ====================
 
 (function initAdvancedKeepAlive() {
-    // 1. 创建真实的 DOM Audio 标签
     let audioEl = document.getElementById('sys-keep-alive-audio');
     if (!audioEl) {
         audioEl = document.createElement('audio');
         audioEl.id = 'sys-keep-alive-audio';
-        audioEl.loop = true;
-        audioEl.playsInline = true;
+        audioEl.loop = true; // 开启无限循环播放
+        audioEl.playsInline = true; // iOS 必须：禁止全屏播放
         audioEl.setAttribute('webkit-playsinline', 'true');
-        // 一段极小的静音 MP3
-        audioEl.src = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIwDY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAATEFN//MUZAYAAAGkAAAAAAAAA0gAAAAATEFN//MUZAgAAAGkAAAAAAAAA0gAAAAATEFN";
+        audioEl.preload = "auto"; // 关键优化：提前加载好音频，防止循环缝隙掉线
+        
+        // 👇 这里换成了你提供的专属静音 MP3 链接 👇
+        audioEl.src = "https://audio.fukit.cn/autoupload/f/FuBX9T_jQ0Gc616lEnVI3QLbiZwttTMDrYzlZicCFekXXCK0EeRkfAkZ77sTS8YJ/20260306/caWi/%E9%9D%99%E9%9F%B3.mp3";
+        
         document.body.appendChild(audioEl);
     }
 
-    // 2. 强制霸占 iOS 控制中心
-    function setupMediaSession() {
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: '系统后台保活运行中...',
-                artist: 'RetroOS 引擎',
-                album: '切到微信不会断联',
-                artwork: [
-                    { src: 'https://i.postimg.cc/hv146kF5/IMG-1855.png', sizes: '512x512', type: 'image/png' }
-                ]
-            });
-            navigator.mediaSession.setActionHandler('pause', () => { audioEl.play(); });
-            navigator.mediaSession.setActionHandler('play', () => { audioEl.play(); });
-        }
-    }
-
-    // 3. 【破除苹果拦截的核心】：全局静默解锁
-    // 只要你在屏幕上点任何一个地方，立刻偷偷获取音频播放权限，不让你感知到
-    let audioUnlocked = false;
+    // 全局静默解锁（苹果要求必须有用户点击才能播放音频）
     const unlockAudio = () => {
-        if(audioUnlocked) return;
-        audioEl.play().then(() => {
-            audioUnlocked = true;
-            // 如果开关没开，我们立刻暂停；如果开了，就继续放并上控制中心
-            if (localStorage.getItem('keep_alive_enabled') !== 'true') {
-                audioEl.pause();
-            } else {
-                setupMediaSession();
-            }
-        }).catch(e => {});
-        // 获取到权限后，销毁这个监听器，不占用性能
+        if(localStorage.getItem('keep_alive_enabled') === 'true' && audioEl.paused) {
+            audioEl.play().catch(e=>{});
+        }
         document.removeEventListener('touchstart', unlockAudio, true);
         document.removeEventListener('click', unlockAudio, true);
     };
-    // 在系统最外层捕获你的点击，只要你摸了屏幕就解锁
     document.addEventListener('touchstart', unlockAudio, true);
     document.addEventListener('click', unlockAudio, true);
 
-    // 4. UI 状态切换函数
+    // UI 切换与播放控制
     window.toggleKeepAlive = function(checkbox) {
         const slider = document.getElementById('keep-alive-slider');
+        const textLabel = checkbox.parentElement.parentElement.querySelector('span');
+
         if (checkbox.checked) {
-            checkbox.nextElementSibling.style.backgroundColor = "#f1c40f";
-            slider.style.transform = "translateX(26px)";
-            localStorage.setItem('keep_alive_enabled', 'true');
-            
-            // 播放并注入控制中心 (此时由于你之前摸过屏幕，权限已经拿到了)
+            // 点击开启时，直接播放外链音频
             audioEl.play().then(() => {
-                setupMediaSession();
+                checkbox.nextElementSibling.style.backgroundColor = "#06c755"; 
+                slider.style.transform = "translateX(26px)";
+                localStorage.setItem('keep_alive_enabled', 'true');
+                
+                // 变绿提示，给你安全感
+                if(textLabel) {
+                    textLabel.innerHTML = "🛡️ 后台保活 <span style='color:#06c755; font-weight:bold;'>(⚡ 音频运行中)</span>";
+                }
+                
                 if(typeof NotificationManager !== 'undefined') {
-                    NotificationManager.showToast("保活已开启", "已注入iOS控制中心，切聊天软件不断联", "🛡️");
+                    NotificationManager.showToast("保活音频已启动", "正在后台循环播放静音文件", "🎧");
                 }
             }).catch(e => {
-                // 极小概率兜底：如果你手速极快，页面刚刷新连屏幕都没摸直接点到了开关
-                if(typeof NotificationManager !== 'undefined') {
-                    NotificationManager.showToast("系统准备中", "权限自动申请中，此时点击屏幕空白处即可生效", "⏳");
-                }
+                alert("⚠️ 播放被苹果拦截！\n请关掉这个弹窗，在屏幕空白处随便点一下，然后再打开开关。");
+                checkbox.checked = false;
             });
         } else {
+            // 点击关闭时，暂停播放并重置
             checkbox.nextElementSibling.style.backgroundColor = "#ccc";
             slider.style.transform = "translateX(0)";
             localStorage.setItem('keep_alive_enabled', 'false');
+            if(textLabel) textLabel.innerHTML = "🛡️ 后台保活 (防断联)";
+            
             audioEl.pause();
+            audioEl.currentTime = 0; // 重置进度
         }
     };
 
-    // 5. 独家特供：切回页面时的“刷短视频断网”自动重试机制
+    // 页面切出切回的恢复机制 (防小红书/抖音抢占)
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible') {
             const isEnabled = localStorage.getItem('keep_alive_enabled') === 'true';
-            
             if (isEnabled) {
-                audioEl.play().then(setupMediaSession).catch(e=>{});
-                
-                // 解锁一直转圈卡死的生成按钮
-                const activeBtns = document.querySelectorAll('button:disabled');
-                let isGenerating = false;
-                
-                activeBtns.forEach(btn => {
-                    const text = btn.innerText;
-                    // 如果发现有按钮卡在这些字眼上，说明苹果系统刚刚强行切断了你的连接
-                    if (text.includes('正在') || text.includes('⏳') || text.includes('生成中') || text.includes('编排')) {
-                        isGenerating = true;
-                        btn.disabled = false;
-                        btn.innerText = "⚠️ 被短视频APP中断，点此重试";
-                        btn.style.background = "#ff7675"; // 变成醒目的红色
-                        btn.style.color = "#fff";
-                    }
-                });
-                
-                if (isGenerating && typeof NotificationManager !== 'undefined') {
-                    NotificationManager.showToast("请求已被苹果中断", "系统检测到音频被其他APP抢占，请点击红色按钮重试", "⚠️");
-                }
+                // 如果切回来发现暂停了（被短视频抢占了声音），自动尝试重新播放
+                if(audioEl.paused) audioEl.play().catch(e=>{});
             }
         }
     });
+
+    // 页面初次加载时恢复 UI 状态
+    setTimeout(() => {
+        if(localStorage.getItem('keep_alive_enabled') === 'true') {
+            const toggle = document.getElementById('keep-alive-toggle');
+            if(toggle) {
+                toggle.checked = true;
+                toggle.nextElementSibling.style.backgroundColor = "#06c755";
+                document.getElementById('keep-alive-slider').style.transform = "translateX(26px)";
+                const textLabel = toggle.parentElement.parentElement.querySelector('span');
+                if(textLabel) textLabel.innerHTML = "🛡️ 后台保活 <span style='color:#06c755; font-weight:bold;'>(⚡ 音频运行中)</span>";
+            }
+        }
+    }, 1000);
+
 })();
 </script>
 
