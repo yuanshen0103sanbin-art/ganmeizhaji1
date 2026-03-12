@@ -4727,10 +4727,11 @@ canvas {
         <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importFullRestore(this)">
     </div>
 </div>
-<!-- 在 settings-modal 的 modal-body 里找个地方插入 -->
 <div class="morandi-card" style="border:1px dashed #ff9a9e; margin-top:10px;">
-    <h4 style="color:#ff9a9e; margin:0 0 5px 0;"></h4>
-    <button class="m-btn small" onclick="testRandomSms()" style="width:100%;">📩 立即触发随机短信</button>
+    <div style="display:flex; gap:10px;">
+        <button class="m-btn small" onclick="testRandomSms()" style="flex:1;">📩 立即触发短信</button>
+        <button class="m-btn small" onclick="openSmsHistory()" style="flex:1; background:#ffeaa7; color:#d35400;">📜 历史记录</button>
+    </div>
 </div>
 <div class="morandi-card" style="border:1px solid #ff7675;">
     <h3 style="color:#d63031;">🧹 内存救援 (无需重传)</h3>
@@ -16965,13 +16966,13 @@ async function finishSmsDraw() {
 【此时此刻的命运牌】：${cardsDesc}
 
 【任务】
-请根据**牌意**（这是最重要的依据），推测角色现在在做什么，以及想对用户说什么。根据牌面能量流动，不要死记硬背的牌意。灵活变通。
+请根据**牌意**（这是最重要的依据。），（牌意为牌面的能量流动、牌意、牌面、直觉、牌的正逆位和牌的顺序）推测角色现在在做什么，以及角色认为用户现在在做什么，以及角色现在想对用户说什么。根据牌面能量流动，不要死记硬背的牌意。灵活变通。
 
 【输出格式】
 严格 JSON：
 {
-  "doing": "简短描述他正在做什么（例如：正在开会偷懒 / 正在看着窗外发呆）",
-  "message": "短信正文（口语化，符合人设，30字左右）"
+  "doing": "简短描述他正在做什么（例如：正在开会偷懒 / 正在看着窗外发呆）（判断角色目前在不在用户身边以及他认为用户现在在做什么（明确的角色行为和猜测的用户行为）",
+  "message": "短信正文（角色目前想对用户说的话）（口语化，符合人设，30字左右）"
 }
 `;
 
@@ -16991,6 +16992,21 @@ async function finishSmsDraw() {
         if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
         
         const result = JSON.parse(raw);
+        // --- 👇 新增：自动保存短信到历史记录 👇 ---
+        if (!window.BIG_MEMORY.sms_history) window.BIG_MEMORY.sms_history = [];
+        window.BIG_MEMORY.sms_history.unshift({
+            date: Date.now(),
+            doing: result.doing,
+            message: result.message,
+            cards: cardsDesc
+        });
+        // 限制最多保存 100 条，防止卡顿
+        if (window.BIG_MEMORY.sms_history.length > 100) window.BIG_MEMORY.sms_history.pop();
+        // 写入无限存储数据库
+        if (typeof window.saveToBigDB === 'function') {
+            window.saveToBigDB('sms_history', window.BIG_MEMORY.sms_history);
+        }
+        // --- 👆 新增结束 👆 ---
         
         // 显示结果
         document.getElementById('sms-res-action').innerText = result.doing;
@@ -23829,6 +23845,16 @@ window.generateGalgameEndingAPI = async function() {
         </div>
     </div>
 </div>
+<!-- 💌 新增：随机短信历史记录弹窗 -->
+<div id="sms-history-modal" class="modal-overlay" style="background:#f5f6fa; z-index: 30000; display:none;">
+    <div class="modal-header" style="background:linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color:#d63031; border-bottom:1px solid #ff758c;">
+        <span style="font-weight:bold;">💌 短信往来记录</span>
+        <button class="close-btn" onclick="document.getElementById('sms-history-modal').style.display='none'" style="color:#d63031;">×</button>
+    </div>
+    <div class="modal-body" style="padding:15px;">
+        <div id="sms-history-list" style="display:flex; flex-direction:column; gap:15px; padding-bottom:50px;"></div>
+    </div>
+</div>
 <!-- ================= 🧩 记忆拼图 APP 主界面 ================= -->
 <div id="puzzle-app-modal" class="modal-overlay" style="background:#f0f8ff; z-index:9999; display:none;">
     <div class="modal-header" style="background:#fff; color:#2c3e50; border-bottom:1px solid #dfe6e9;">
@@ -30364,7 +30390,7 @@ const REQUIRED_KEYS = [
     'pet_data', 'lofter_data', 'pain_data', 'gashapon_history', 
     'shadow_data', 'rpg_data', 'moving_data', 'teaching_data', 
     'companion_data', 'summary_data', 'galgame_data', 'scent_data', 
-    'puzzle_data', 'work_data', 'witch_data', 'gacha_data', 'tacit_data',
+    'puzzle_data', 'work_data', 'witch_data', 'gacha_data', 'tacit_data',  'sms_history', 
     'adv_data' // 👈🔥 必须要有这一项，文游数据才能被导出！
 ];
 
@@ -34968,6 +34994,65 @@ document.addEventListener('click', function(e) {
     
     console.log("✅ Line 流畅补丁已生效！现在不管聊几千条都不会卡了。");
 })();
+// ==================== 💌 随机短信历史功能逻辑 ====================
+
+// 1. 打开历史弹窗
+window.openSmsHistory = function() {
+    document.getElementById('sms-history-modal').style.display = 'flex';
+    window.renderSmsHistory();
+};
+
+// 2. 渲染历史列表
+window.renderSmsHistory = function() {
+    const list = window.BIG_MEMORY.sms_history || [];
+    const container = document.getElementById('sms-history-list');
+    container.innerHTML = '';
+
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; padding:30px;">暂无短信记录<br><span style="font-size:0.8rem;">(收到新的短信后会自动保存在这里)</span></div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'morandi-card';
+        div.style.background = '#fff';
+        div.style.padding = '15px';
+        
+        const dateStr = new Date(item.date).toLocaleString();
+        
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#888; border-bottom:1px dashed #eee; padding-bottom:5px; margin-bottom:10px;">
+                <span>${dateStr}</span>
+                <span style="color:#ff7675; cursor:pointer;" onclick="deleteSmsHistory(${index})">🗑️ 删除</span>
+            </div>
+            <div style="font-size:0.85rem; color:#666; margin-bottom:8px;">
+                <strong>👀 Ta当时在：</strong>${item.doing}
+            </div>
+            <div style="font-size:0.95rem; color:#333; line-height:1.5; background:#fff0f6; padding:10px; border-radius:8px; border-left: 3px solid #ff9a9e;">
+                <strong>💬 </strong>${item.message}
+            </div>
+            <div style="font-size:0.75rem; color:#a29bfe; margin-top:10px; text-align:right;">
+                🔮 牌意: ${item.cards}
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+// 3. 删除指定历史记录
+window.deleteSmsHistory = function(index) {
+    if(!confirm("确定要删除这条短信记录吗？")) return;
+    
+    window.BIG_MEMORY.sms_history.splice(index, 1);
+    
+    // 保存更新后的数据
+    if (typeof window.saveToBigDB === 'function') {
+        window.saveToBigDB('sms_history', window.BIG_MEMORY.sms_history);
+    }
+    
+    // 刷新界面
+    window.renderSmsHistory();
+};
 </script>
-<!-- ================= 🚀 Line 聊天极限流畅补丁 END ================= -->
 </html> 
