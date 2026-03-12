@@ -1053,7 +1053,6 @@ canvas {
     overflow-y: hidden; 
     display: block;
     margin-top: 10px;
-    flex: 1;
 }
 #reply-content-display {
     white-space: pre-wrap; 
@@ -7694,7 +7693,9 @@ function initTarotDeckData() {
         const cardId = (tarotState.mode === 'tarot') ? i : (i + 1);
         tarotState.deck.push({ 
             id: cardId, 
-            visualRot: 0 
+            visualRot: 0,
+            // 👇 新增这一行：在牌发到桌面上时，就已经固定了它是正位还是逆位
+            isReversed: (tarotState.mode === 'tarot') ? (Math.random() < 0.3) : false 
         });
     }
     updatePickedUI();
@@ -7731,14 +7732,16 @@ function renderTarotCards() {
         inner.appendChild(front);
         el.appendChild(inner);
        
-        el.onclick = () => pickTarotCard(el, card.id, front);
+        el.onclick = () => pickTarotCard(el, card, front);
         
         container.appendChild(el);
     });
     
     updatePickedUI();
 }
-async function pickTarotCard(el, id, frontEl) {
+// 注意括号里的参数变成了 card
+async function pickTarotCard(el, card, frontEl) {
+    const id = card.id; // 从卡牌数据中提取 ID
     const existingIndex = tarotState.picked.findIndex(c => c.id === id);
 
     if (existingIndex !== -1) {
@@ -7751,7 +7754,9 @@ async function pickTarotCard(el, id, frontEl) {
         }, 600);
     } else {
         el.classList.add('picked');
-        const isReversed = (tarotState.mode === 'tarot') ? (Math.random() < 0.3) : false;
+        
+        // 👇 核心修复：不再使用 Math.random() 现场算，而是读取发牌时固定的状态
+        const isReversed = card.isReversed;
         
         tarotState.picked.push({ id: id, isReversed: isReversed });
       
@@ -8158,23 +8163,21 @@ function getAstroSymbol(text) {
     const key = text.split(' ')[0]; 
     return ASTRO_SYMBOLS[key] || "?";
 }
-// === 1. 修复信件输入时狂跳通知 ===
 function handleLetterInput(el) {
+    // 1. 先把高度重置为 auto，让它收缩到应有的位置
     el.style.height = 'auto'; 
-    el.style.height = (el.scrollHeight + 5) + 'px'; 
+    // 2. 然后再赋予实际内容的滚动高度，完美实现随字数撑长
+    el.style.height = el.scrollHeight + 'px'; 
     
     if (!currentLetterId) return;
     
     const content = el.value;
-    const letters = window.getLetters(); // 使用无限存储的获取方式
+    const letters = window.getLetters(); 
     const idx = letters.findIndex(x => x.id === currentLetterId);
     
     if (idx !== -1) {
         letters[idx].content = content;
-        window.saveLetters(letters); // 使用无限存储的保存方式
-        
-        // ❌ 【删除】原来这里有一段 NotificationManager.send 的代码，删掉它！
-        // 因为用户正在打字，不应该发通知。
+        window.saveLetters(letters); 
     }
 }
 async function renderVisualDice(diceData) {
@@ -14880,7 +14883,72 @@ window.saveDivinationResult = function() {
     alert("✅ 已保存到灵视档案");
     loadTarotHistory();
 };
+window.loadTarotHistory = function() {
+    const list = document.getElementById('tarot-history-list'); 
+    list.innerHTML = '';
+    const history = window.BIG_MEMORY.tarot_history || [];
+    
+    if(history.length === 0) { 
+        list.innerHTML = "<div style='padding:10px;text-align:center'>暂无记录</div>"; 
+        return; 
+    }
+    
+    history.forEach((h, i) => {
+        const div = document.createElement('div'); 
+        div.className = 'morandi-card'; 
+        div.style.padding = '10px';
+        
+        // 构建基础框架
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <span style="font-size:0.8rem; color:#888;">${new Date(h.date).toLocaleDateString()}</span>
+                <span style="color:#ff7675; cursor:pointer; font-size:0.8rem;" onclick="deleteTarotHistory(${i})">🗑️ 删除</span>
+            </div>
+            <div style="font-weight:bold; margin-bottom:10px; color:#2c3e50;">Q: ${h.question}</div>
+            
+            <!-- 卡牌图片容器 -->
+            <div id="history-cards-mini-${i}" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                <div style="font-size:0.75rem; color:#666;">🎴 ${h.cardsText}</div>
+            </div>
+            
+            <div style="text-align:right;">
+                <button class="m-btn small" onclick="viewHistoryDetail_BigDB(${i})" style="background:#a29bfe; color:white; border:none; width:100%;">重新观察</button>
+            </div>
+        `;
+        list.appendChild(div);
 
+        // 如果包含抽牌数据，且不是易学（易学是纯文字），则渲染微缩图片
+        if (h.picked && h.picked.length > 0 && !h.cardsText.includes('[易学]')) {
+            const cardsContainer = document.getElementById(`history-cards-mini-${i}`);
+            cardsContainer.innerHTML = ''; // 清空备用文字
+            
+            h.picked.forEach(async card => {
+                const cardDiv = document.createElement('div');
+                // 微缩卡牌样式
+                cardDiv.style.cssText = "width:32px; height:48px; background-size:cover; background-position:center; border-radius:3px; border:1px solid #ccc; background-color:#eee; box-shadow:0 1px 3px rgba(0,0,0,0.1);";
+                
+                if (card.isReversed) {
+                    cardDiv.style.transform = "rotate(180deg)";
+                }
+                cardsContainer.appendChild(cardDiv);
+
+                const dbName = (card.type === 'tarot') ? 'tarot_deck' : 'lenormand_deck';
+                try {
+                    const item = await idb.get(dbName, card.id);
+                    if (item && item.data) {
+                        cardDiv.style.backgroundImage = `url(${item.data})`;
+                    } else {
+                        cardDiv.innerText = card.id;
+                        cardDiv.style.fontSize = "10px";
+                        cardDiv.style.display = "flex";
+                        cardDiv.style.alignItems = "center";
+                        cardDiv.style.justifyContent = "center";
+                    }
+                } catch(e) {}
+            });
+        }
+    });
+};
 window.loadTarotHistory = function() {
     const list = document.getElementById('tarot-history-list'); list.innerHTML = '';
     const history = window.BIG_MEMORY.tarot_history || [];
@@ -18862,6 +18930,7 @@ window.deleteStudyPlan = function() {
             <option value="user_sleep">💤 夜袭：你对Ta...</option>
 <option value="chunwan">🧧 假如一起上春晚</option>
 <option value="side_piece">💔 假如 Ta 是小三</option>
+<option value="animal">🐾 假如你变成了小动物</option>
         </select>
         <div style="display:flex; gap:10px;">
             <button class="m-btn small" onclick="toggleDreamHistory()" style="background:transparent; color:#6a1b9a;">📜 历史</button>
@@ -32427,6 +32496,12 @@ window.updateDreamUI = function() {
         btnText = "💔 抽取上位剧本";
         hint = "默念“如果他是小三...”并抽牌";
     }
+    else if (mode === 'animal') {
+        title = "毛茸茸的意外...<br>如果你突然变成了小动物？";
+        sub = "抽取命运牌，看看他会怎么对你（以及怎么认出你）。";
+        btnText = "🐾 抽取动物饲养日记";
+        hint = "默念“如果我变成了小动物...”并抽牌";
+    }
     // 👆👆👆 新增结束 👆👆👆
 
     descTitle.innerHTML = title;
@@ -32687,6 +32762,25 @@ else if (mode === 'meeting') {
         8. **做小三和做正宫时的区别**：(性格或对待用户的方式有什么反差？)。
         `;
     }
+    // --- 11. 变成小动物 (新增) ---
+    else if (mode === 'animal') {
+        prompt = `${baseInstruction}
+        【情境】：假设有一天，【用户(我)】突然变成了一只小动物，并且正好遇到了【角色】。
+        请根据牌意（牌面的能量流动）和角色性格进行推演。
+        
+        表格内容：
+        1. **角色认为用户会变成的小动物**：(结合用户人设或牌意，具体是什么动物？为什么觉得像？)
+        2. **角色猜测用户变成小动物的原因**：(魔法？意外？还是某种奇怪的诅咒？)
+        3. **用户变成的小动物和其它小动物的区别**：(保留了用户的什么独特神态或习惯？)
+        4. **角色怎么认出是用户的**：(是通过眼神、某个专属动作，还是奇妙的直觉？)
+        5. **角色会给已经变成小动物的用户穿什么样的小衣服**：(具体的款式、颜色，或者尊重天性不穿？)
+        6. **角色怎么和变成小动物的用户沟通**：(单方面碎碎念？教你按发声按钮？还是能奇妙地脑电波交流？)
+        7. **角色怎么照顾变成小动物的用户**：(投喂什么食物？睡在哪里？顺毛或洗澡的细节？)
+        8. **角色为了帮助用户变回来会做些什么**：(焦急地寻找魔法书/求医，还是其实私心想让你多保持几天这个样子？)
+        9. **这期间发生的有趣的事情**：(比如你掉毛、捣乱、或者他出糗等生活小插曲)
+        10. **角色对整件事的感受**：(从一开始的震惊，到中间的照顾，再到最后的整体感触)
+        `;
+    }
     try {
         const res = await fetch(`${apiUrl}/chat/completions`, {
             method: 'POST',
@@ -32710,12 +32804,12 @@ else if (mode === 'meeting') {
         document.getElementById('dream-analysis-content').innerHTML = content;
         
         // 保存逻辑 (加上模式标记 emoji)
-        const emojiMap = {
-            'partner': '🦄', 'become': '🎭', 'cosplay': '👘',
-            'char_beauty': '💋', 'user_beauty': '😋',
-            'char_sleep': '🌙', 'user_sleep': '💤' ,  'meeting': '💘'
-        };
-        
+const emojiMap = {
+    'partner': '🦄', 'become': '🎭', 'cosplay': '👘',
+    'char_beauty': '💋', 'user_beauty': '😋',
+    'char_sleep': '🌙', 'user_sleep': '💤' ,  'meeting': '💘',
+    'side_piece': '🥵', 'chunwan': '🧧', 'animal': '🐾'
+};
         currentDreamResult = {
             date: Date.now(),
             cards: `${emojiMap[mode] || '❓'} ${cardsDesc}`, 
