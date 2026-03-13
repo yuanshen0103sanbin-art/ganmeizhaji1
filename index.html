@@ -4753,9 +4753,14 @@ canvas {
            <div class="input-group"><label>API Key</label><input type="password" id="api-key" placeholder="sk-..." oninput="autoSaveApiSettings()"></div>
             
             <div class="input-group"><label>模型</label><select id="model-select" onchange="autoSaveApiSettings()"><option value="" disabled selected>请拉取...</option></select></div>
-            <div class="input-group">
-                <label style="display:flex; justify-content:space-between;"><span>温度: <span id="temp-display">0.7</span></span></label>
-                <input type="range" id="api-temp" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('temp-display').innerText = this.value; autoSaveApiSettings()">
+                      <div class="input-group">
+                <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>温度（打勾使用默认）: <span id="temp-display">0.7</span></span>
+                    <label style="display:flex; align-items:center; gap:5px; margin:0; font-size:0.8rem; font-weight:normal; color:#666;">
+                        <input type="checkbox" id="temp-default-checkbox" onchange="window.toggleTempDefault(this)" checked> 
+                    </label>
+                </label>
+                <input type="range" id="api-temp" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('temp-display').innerText = this.value; autoSaveApiSettings()" disabled style="opacity: 0.5;">
             </div>
             
             <div class="action-row" style="display:flex; gap:10px; margin-top:10px;">
@@ -5138,7 +5143,17 @@ const LENORMAND_NAMES = {
     19: "塔", 20: "花园", 21: "山", 22: "路", 23: "老鼠", 24: "心", 25: "戒指", 26: "书", 27: "信",
     28: "男人", 29: "女人", 30: "百合", 31: "太阳", 32: "月亮", 33: "钥匙", 34: "鱼", 35: "锚", 36: "十字架"
 };
-
+window.toggleTempDefault = function(checkbox) {
+    const slider = document.getElementById('api-temp');
+    if (checkbox.checked) {
+        slider.disabled = true;
+        slider.style.opacity = "0.5";
+    } else {
+        slider.disabled = false;
+        slider.style.opacity = "1";
+    }
+    if (typeof autoSaveApiSettings === 'function') autoSaveApiSettings();
+};
         // === 基础逻辑 ===
         function updateTime() {
             const now = new Date();
@@ -6322,6 +6337,11 @@ function openSettings() {
              }
              sel.value = draft.model;
         }
+        const defaultCheck = document.getElementById('temp-default-checkbox');
+        if(defaultCheck) {
+            defaultCheck.checked = draft.tempDefault !== false; // 默认为 true
+            window.toggleTempDefault(defaultCheck);
+        }
     } catch(e) { console.log("设置草稿加载失败", e); }
     if(typeof renderProfiles === 'function') {
         renderProfiles();
@@ -6332,11 +6352,13 @@ function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
 }
 function autoSaveApiSettings() {
+    const defaultCheck = document.getElementById('temp-default-checkbox');
     const data = {
         url: document.getElementById('api-url').value,
         key: document.getElementById('api-key').value,
         model: document.getElementById('model-select').value,
-        temp: document.getElementById('api-temp').value
+        temp: document.getElementById('api-temp').value,
+        tempDefault: defaultCheck ? defaultCheck.checked : true
     };
     localStorage.setItem('api_settings_draft', JSON.stringify(data));
 }
@@ -6410,6 +6432,7 @@ function saveCurrentProfile() {
     const key = document.getElementById('api-key').value.trim();
     const model = document.getElementById('model-select').value;
     const temp = document.getElementById('api-temp').value;
+    const tempDefault = document.getElementById('temp-default-checkbox').checked;
 
     if(!url || !key) return alert("❌ 请先填写 API 地址和 Key");
     const timeStr = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
@@ -6423,11 +6446,11 @@ function saveCurrentProfile() {
     
     const idx = profiles.findIndex(p => p.name === name);
     
-    if (idx !== -1) {
+        if (idx !== -1) {
         if(!confirm(`方案【${name}】已存在，要覆盖它吗？`)) return;
-        profiles[idx] = { name, url, key, model, temp };
+        profiles[idx] = { name, url, key, model, temp, tempDefault };
     } else {
-        profiles.push({ name, url, key, model, temp });
+        profiles.push({ name, url, key, model, temp, tempDefault });
     }
     
     saveProfiles(profiles);
@@ -6455,7 +6478,11 @@ function loadProfile(i) {
     document.getElementById('api-key').value = p.key || '';
     document.getElementById('api-temp').value = p.temp || 0.7;
     document.getElementById('temp-display').innerText = p.temp || 0.7;
-    
+    const defaultCheck = document.getElementById('temp-default-checkbox');
+    if(defaultCheck) {
+        defaultCheck.checked = p.tempDefault !== false;
+        window.toggleTempDefault(defaultCheck);
+    }    
     autoSaveApiSettings();
     
     const sel = document.getElementById('model-select');
@@ -18945,8 +18972,9 @@ window.deleteStudyPlan = function() {
             <option value="char_sleep">🌙 夜袭：Ta对你...</option>
             <option value="user_sleep">💤 夜袭：你对Ta...</option>
 <option value="chunwan">🧧 假如一起上春晚</option>
-<option value="side_piece">💔 假如 Ta 是小三</option>
+<option value="side_piece">🥵 假如 Ta 是小三</option>
 <option value="animal">🐾 假如你变成了小动物</option>
+<option value="ring">💍 关于你们的戒指</option>
         </select>
         <div style="display:flex; gap:10px;">
             <button class="m-btn small" onclick="toggleDreamHistory()" style="background:transparent; color:#6a1b9a;">📜 历史</button>
@@ -31928,25 +31956,48 @@ function toggleNightMode(checkbox) {
             if (headers['Authorization'] && headers['Authorization'].length > 10) hasKey = true;
             if (headers.Authorization && headers.Authorization.length > 10) hasKey = true;
             
-            if (!hasKey || !body.model) {
-                try {
-                    const saved = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
-                    if (saved.key && saved.key.startsWith('sk-')) {
-                        if (!hasKey) {
-                            headers['Authorization'] = 'Bearer ' + saved.key;
-                        }
-                        if (!url.startsWith('http')) {
-                            let savedUrl = saved.url || "https://api.openai.com/v1";
-                            if (savedUrl.endsWith('/')) savedUrl = savedUrl.slice(0, -1);
-                            url = savedUrl + "/chat/completions";
-                        }
-                        if (!body.model && saved.model) {
-                            body.model = saved.model;
-                        }
-                        options.headers = headers;
-                        options.body = JSON.stringify(body);
+            try {
+                // 读取缓存的设置
+                const saved = JSON.parse(localStorage.getItem('api_settings_draft') || '{}');
+                
+                // 1. 补全 API Key 和 URL
+                if (saved.key && saved.key.startsWith('sk-')) {
+                    if (!hasKey) {
+                        headers['Authorization'] = 'Bearer ' + saved.key;
                     }
-                } catch (e) {}
+                    if (!url.startsWith('http')) {
+                        let savedUrl = saved.url || "https://api.openai.com/v1";
+                        if (savedUrl.endsWith('/')) savedUrl = savedUrl.slice(0, -1);
+                        url = savedUrl + "/chat/completions";
+                    }
+                    if (!body.model && saved.model) {
+                        body.model = saved.model;
+                    }
+                }
+
+                              // 2. 🔥 智能温度设置 (决定是否覆盖写死的温度) 🔥
+                let isDefault = true;
+                const tempCheckbox = document.getElementById('temp-default-checkbox');
+                if (tempCheckbox) {
+                    isDefault = tempCheckbox.checked;
+                } else if (saved.tempDefault !== undefined) {
+                    isDefault = saved.tempDefault;
+                }
+
+                // 只有当没有勾选“使用默认”时，才把滑动器的值强加给全局
+                if (!isDefault) {
+                    let globalTemp = document.getElementById('api-temp') ? document.getElementById('api-temp').value : saved.temp;
+                    if (globalTemp !== undefined && globalTemp !== null) {
+                        body.temperature = parseFloat(globalTemp);
+                    }
+                }
+
+                // 重新打包请求
+                options.headers = headers;
+                options.body = JSON.stringify(body);
+                
+            } catch (e) {
+                console.error("全局API拦截器出错:", e);
             }
         }
         return originalFetch(url, options);
@@ -32528,6 +32579,12 @@ window.updateDreamUI = function() {
         btnText = "🐾 抽取动物饲养日记";
         hint = "默念“如果我变成了小动物...”并抽牌";
     }
+    else if (mode === 'ring') {
+        title = "专属的信物...<br>关于你们的戒指";
+        sub = "抽取命运牌，看看他会为你准备怎样的对戒。";
+        btnText = "💍 抽取戒指设计图";
+        hint = "默念“关于我们的戒指...”并抽牌";
+    }
     // 👆👆👆 新增结束 👆👆👆
 
     descTitle.innerHTML = title;
@@ -32792,7 +32849,7 @@ else if (mode === 'meeting') {
     else if (mode === 'animal') {
         prompt = `${baseInstruction}
         【情境】：假设有一天，【用户(我)】突然变成了一只小动物，并且正好遇到了【角色】。
-        请根据牌意（牌面的能量流动）和角色性格进行推演。
+        请根据牌意（牌面的能量流动）和角色性格进行推演。牌意最重要。
         
         表格内容：
         1. **角色认为用户会变成的小动物**：(结合用户人设或牌意，具体是什么动物？为什么觉得像？)
@@ -32805,6 +32862,26 @@ else if (mode === 'meeting') {
         8. **角色为了帮助用户变回来会做些什么**：(焦急地寻找魔法书/求医，还是其实私心想让你多保持几天这个样子？)
         9. **这期间发生的有趣的事情**：(比如你掉毛、捣乱、或者他出糗等生活小插曲)
         10. **角色对整件事的感受**：(从一开始的震惊，到中间的照顾，再到最后的整体感触)
+        `;
+    }
+    else if (mode === 'ring') {
+        prompt = `${baseInstruction}
+        【情境】：角色决定为你准备一枚特殊的戒指作为信物。
+        请严格根据牌意（牌面的能量流动）和角色性格进行推演。（牌意最重要）
+        
+        表格内容：
+        1. **角色会喜欢什么样的戒指**：整体风格描述。
+        2. **获取途径**：角色会选择自己diy、和用户一起diy，还是去购买？
+        3. **外观细节**：戒指是素圈还是有装饰的？如果有装饰，会选择什么样的宝石？
+        4. **准备动机**：角色为什么想做/买这枚戒指？
+        5. **戒指材质**：金/银/角色世界独有的矿物（请写出具体矿物名称）或其他？
+        6. **赠送时机**：角色会在什么时候把戒指给用户？
+        7. **背后的小故事**：角色在准备这枚戒指期间发生的小插曲。
+        8. **戒指的价值**：客观的金钱花费与他倾注的情感价值。
+        9. **印象深刻的事**：角色为了这枚戒指做了哪些他印象深刻的事情？
+        10. **角色对戒指的感受**：看着这枚成型的戒指时，他心里的想法。
+        11. **猜测你的喜好**：角色认为用户为什么会喜欢这个戒指？
+        12. **预想你的反应**：角色认为用户收到戒指时会有什么样的反应？
         `;
     }
     try {
@@ -32834,7 +32911,7 @@ const emojiMap = {
     'partner': '🦄', 'become': '🎭', 'cosplay': '👘',
     'char_beauty': '💋', 'user_beauty': '😋',
     'char_sleep': '🌙', 'user_sleep': '💤' ,  'meeting': '💘',
-    'side_piece': '🥵', 'chunwan': '🧧', 'animal': '🐾'
+   'side_piece': '🥵', 'chunwan': '🧧', 'animal': '🐾', 'ring': '💍'
 };
         currentDreamResult = {
             date: Date.now(),
