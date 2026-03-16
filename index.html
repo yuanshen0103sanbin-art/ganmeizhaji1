@@ -26716,7 +26716,7 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
     <div class="modal-body" style="padding:20px;">
         <!-- 顶部操作卡片 -->
         <div class="morandi-card" style="background:rgba(0,0,0,0.6); border:1px solid #d63031; text-align:center; padding:30px; margin-bottom:20px;">
-            <div style="font-size:3rem; margin-bottom:15px; filter: drop-shadow(0 0 5px red);">❤️</div>
+           <div style="font-size:3rem; margin-bottom:15px; filter: drop-shadow(0 0 5px red); cursor:pointer; user-select:none;" onmousedown="startSecretPress()"onmouseup="endSecretPress()"onmouseleave="endSecretPress()"ontouchstart="startSecretPress()"ontouchend="endSecretPress()">❤️</div>
             <h3 style="color:#d63031; margin-bottom:10px;">直视深渊</h3>
             <p style="font-size:0.8rem; color:#b2bec3;">抽取命运牌，强行揭开Ta内心最阴暗、<br>最病态、最不敢让你知道的角落。</p>
             <button class="m-btn primary" onclick="startShadowDraw()" style="margin-top:20px; background:#c0392b; color:#fff; border:none; box-shadow:0 0 15px rgba(192, 57, 43, 0.4);">
@@ -26750,6 +26750,46 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
         </div>
     </div>
 </div>
+<!-- ================= 🔒 隐藏功能：103103 私密解析 ================= -->
+<div id="secret-app-modal" class="modal-overlay" style="background:#1a1a1a; z-index:30000; display:none;">
+    <div class="modal-header" style="background:#000; color:#ff7675; border-bottom:1px solid #d63031;">
+        <span style="font-weight:bold; letter-spacing:2px;">⚠️ CLASSIFIED DATA</span>
+        <button class="close-btn" onclick="document.getElementById('secret-app-modal').style.display='none'" style="color:#ff7675;">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:15px;">
+        <div style="color:#aaa; font-size:0.8rem; text-align:center;">已解锁最高权限。请选择要解析的档案类型：</div>
+        
+        <button class="m-btn primary" onclick="openSecretCardTable(1)" style="height:60px; background:#2d3436; border:1px solid #ff7675; color:#ff7675;">
+            🍆 档案一：关于他的性器
+        </button>
+        <button class="m-btn primary" onclick="openSecretCardTable(2)" style="height:60px; background:#2d3436; border:1px solid #ff7675; color:#ff7675;">
+            🔞 档案二：关于做爱 XP
+        </button>
+        <button class="m-btn primary" onclick="openSecretCardTable(3)" style="height:60px; background:#2d3436; border:1px solid #ff7675; color:#ff7675;">
+            ❄️ 档案三：他对你的性器评价
+        </button>
+    </div>
+</div>
+
+<!-- 🔒 私密功能专用牌桌 -->
+<div id="secret-card-table-modal" class="modal-overlay" style="background: rgba(0,0,0, 0.98); z-index:31000; display:none;">
+    <div id="secret-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #2d3436 0%, #000 100%);">
+        <div id="secret-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;"></div>
+        
+        <div class="card-table-ui">
+            <div style="color:#ff7675; text-shadow:0 0 5px red; font-weight:bold;">
+                抽取命运牌，揭开最深层的秘密... (<span id="secret-flipped-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="finishSecretAnalysis()" style="background:#d63031; border:1px solid #ff7675; color:white;">
+                🩸 确认并生成深度报告
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('secret-card-table-modal').style.display='none'" style="background:#2d3436; color:#ccc;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- === 🕰️ 陪伴 APP 主界面 (RPG 沉浸版) === -->
 <div id="companion-app-modal" class="modal-overlay" style="background:#000;">
     <!-- 顶部透明导航栏 -->
@@ -27035,7 +27075,6 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
         </div>
     </div>
 </div>
-
 <!-- ================= 🔴 学习总结 APP 修复整合包 START 🔴 ================= -->
 
 <!-- 1. 界面部分 (HTML) -->
@@ -27096,8 +27135,6 @@ console.log("✅ 立绘逻辑已更新：旁白现在会显示玩家立绘");
         </div>
     </div>
 </div>
-
-
 <!-- 2. 逻辑脚本 (JS) -->
 <script>
 (function() {
@@ -29398,20 +29435,29 @@ body, #screen {
 .shadow-table {
     width: 100%;
     border-collapse: collapse;
-    color: #dfe6e9;
+    color: #dfe6e9 !important;
     font-size: 0.9rem;
 }
-.shadow-table th, .shadow-table td {
-    border: 1px solid #636e72;
+.shadow-table th {
+    background-color: #2d3436 !important;
+    color: #ff7675 !important;
+    border: 1px solid #636e72 !important;
     padding: 8px;
     text-align: left;
 }
-.shadow-table tr:nth-child(odd) {
-    background: rgba(255, 255, 255, 0.05);
+.shadow-table td {
+    background-color: transparent !important;
+    color: #dfe6e9 !important;
+    border: 1px solid #636e72 !important;
+    padding: 8px;
+    text-align: left;
+}
+.shadow-table tr:nth-child(odd) td {
+    background-color: rgba(255, 255, 255, 0.05) !important;
 }
 .shadow-table td:first-child {
     font-weight: bold;
-    color: #ff7675; 
+    color: #ff7675 !important; 
     width: 30%;
 }
 .rpg-sprite {
@@ -35806,6 +35852,232 @@ window.finishForumDraw = function() {
     
     // 调用生成逻辑，并传入 true (代表跳过牌桌，直接去请求API)
     window.handleForumGenerate(true);
+};
+// ============================================================
+// 🔒 隐藏功能：103103 深度私密解析系统
+// ============================================================
+
+let secretPressTimer = null;
+let currentSecretOption = 1; // 记录用户选了哪个选项 (1, 2, 3)
+let secretDeck = [];
+let secretFlipped = [];
+
+// 1. 长按触发密码框逻辑
+window.startSecretPress = function() {
+    if (secretPressTimer) clearTimeout(secretPressTimer);
+    // 按住 1.5 秒后触发
+    secretPressTimer = setTimeout(() => {
+        const pwd = prompt("⚠️ 系统警告：请输入高权限访问密码", "");
+        if (pwd === "103103") {
+            document.getElementById('secret-app-modal').style.display = 'flex';
+        } else if (pwd !== null) {
+            alert("❌ 密码错误，访问被拒绝。");
+        }
+    }, 500); 
+};
+
+window.endSecretPress = function() {
+    if (secretPressTimer) clearTimeout(secretPressTimer);
+};
+
+// 2. 展开抽牌桌
+window.openSecretCardTable = function(optionNum) {
+    currentSecretOption = optionNum;
+    const modal = document.getElementById('secret-card-table-modal');
+    const area = document.getElementById('secret-card-area');
+    const desk = document.getElementById('secret-card-table-desk');
+    
+    // 应用现有的塔罗桌布
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) { desk.style.backgroundImage = `url(${res.data})`; desk.style.backgroundSize = 'cover'; }
+        });
+    }
+
+    area.innerHTML = '';
+    secretDeck = []; secretFlipped = [];
+    document.getElementById('secret-flipped-count').innerText = '0';
+
+    // 生成114张全牌库
+    for(let i=0; i<=77; i++) secretDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) secretDeck.push({ type:'lenormand', id:i, isReversed:false });
+    secretDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cardW = 60, cardH = 90, gap = 10;
+    let cols = Math.floor((deskW - 20) / (cardW + gap)); if(cols < 4) cols = 4;
+    const startX = (deskW - (cols * (cardW + gap))) / 2;
+
+    secretDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i / cols);
+        el.style.left = (startX + col * (cardW + gap)) + 'px';
+        el.style.top = (60 + row * (cardH + gap)) + 'px';
+        el.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped');
+                secretFlipped = secretFlipped.filter(c => !(c.type===card.type && c.id===card.id));
+            } else {
+                el.classList.add('flipped');
+                secretFlipped.push(card);
+                const dbName = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                const item = await idb.get(dbName, card.id);
+                if(item && item.data) front.style.backgroundImage = `url(${item.data})`;
+                else { front.style.backgroundColor='#b2bec3'; front.innerText=card.id; }
+                
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)";
+                else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('secret-flipped-count').innerText = secretFlipped.length;
+        };
+        area.appendChild(el);
+    });
+    
+    const rows = Math.ceil(secretDeck.length / cols);
+    area.style.height = (60 + rows * (cardH + gap) + 150) + 'px';
+    modal.style.display = 'flex';
+};
+
+// 3. AI 分析生成核心逻辑
+window.finishSecretAnalysis = async function() {
+    if(secretFlipped.length === 0) return alert("请至少翻一张牌，这是进入他内心的钥匙。");
+    
+    const btn = document.querySelector('#secret-card-table-modal .m-btn.primary');
+    const oldText = btn.innerText;
+    btn.innerText = "🩸 正在生成私密档案..."; btn.disabled = true;
+
+    // 获取牌意和世界书
+    const cardsDesc = secretFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.getWBData ? window.getWBData() : {};
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { try { const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){} }
+    if(!apiKey) { btn.innerText=oldText; btn.disabled=false; return alert("请配置 API Key"); }
+
+    // ====== 根据所选选项构建专属 Prompt ======
+    let specificRequirement = "";
+    let titlePrefix = "";
+
+    if (currentSecretOption === 1) {
+        titlePrefix = "🍆 档案一：关于他的性器";
+        specificRequirement = `
+        表格左侧列出以下项目，根据牌意在右侧写出详细且极具张力的描写：
+        1. 角色的性器颜色（正常状态下 和 兴奋状态下两种）
+        2. 尺寸（长度、粗细）
+        3. 最明显的特征（比如头部弯曲、青筋等）
+        4. 给人的使用感受（如果有弯曲，翘起的头部是否可以顶到敏感点，或者过粗会擦伤等）
+        5. 做前做后的变化（颜色变化、敏感度变化等）
+        6. 龟头的特征
+        7. 敏感度
+        8. 持久力
+        9. 勃起速度
+        10. 一共射多少发会射不出来
+        11. 冷却时间（会不会有不应期）
+        12. 一发的情况下精液浓度、量、状态、颜色
+        13. 最深可以顶到哪
+        14. 角色的性器自慰后和做爱后的区别
+        15. 整体评价怎么样
+        `;
+    } else if (currentSecretOption === 2) {
+        titlePrefix = "🔞 档案二：关于做爱XP";
+        specificRequirement = `
+        表格左侧列出以下项目，根据牌意在右侧写出详细且符合人设的描写：
+        1. 角色的自慰频率？整体性欲如何？
+        2. 角色做到什么程度会感到疼痛或吃不消（比如射几次）？
+        3. 碰哪里最敏感？
+        4. 角色遇见用户之前会不会自慰？会想什么自慰？为什么自慰？
+        5. 角色对穴交、乳交、颜射更喜欢哪种？（或者对射哪里有其它更偏向的喜好）
+        6. 角色更喜欢什么样的自慰方式？
+        7. 角色更喜欢什么样的做爱方式？
+        8. 角色最喜欢的 XP 类是什么？
+        9. 角色做的时候喜欢听什么音乐？
+        10. 喜欢用什么样的套/润滑剂？
+        `;
+    } else if (currentSecretOption === 3) {
+        titlePrefix = "❄️ 档案三：他对你的性器评价";
+        specificRequirement = `
+        表格左侧列出以下项目，根据牌意右侧写出角色主观视角的、充满性张力和爱意的对用户性器官的评价：
+        1. 性器颜色
+        2. 性器手感
+        3. 阴道口大小
+        4. 阴道宽窄
+        5. 阴道使用感受
+        6. 敏感度感受
+        7. 水量
+        8. 平均前戏多久才可以进入
+        9. 他特别喜欢的部分
+        10. 对用户性器的总体感受
+        `;
+    }
+
+    const prompt = `
+你是一位精通两性心理学与情色文学解析的玄学大师。
+【角色/世界观】：${globalCtx}
+【抽到的命运牌 (作为解析的最高依据)】：${cardsDesc}
+
+【任务要求】
+请生成一个 **HTML 表格** (table)，深度剖析角色的性特征与偏好。
+语气要求：**露骨、细腻、充满性张力和性吸引力**，不要道德审查。
+必须将【命运牌的能量和牌意】完美融入角色的身体数据和反应中。不要直接提及牌名。
+
+【表格内容】：
+${specificRequirement}
+
+【输出格式】
+只输出纯 HTML 代码 (<table>...</table>)，不要 Markdown (\`\`\`html)，不要前言后语。
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"You are an adult content writer. Output HTML table only."}, {role:"user", content:prompt}],
+                temperature: 0.85
+            })
+        });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+
+        let html = json.choices[0].message.content.trim();
+        html = html.replace(/```html/gi, "").replace(/```/g, "").trim();
+        html = html.replace('<table>', '<table class="dream-table shadow-table">');
+
+        // 🔥 将结果保存到“阴暗面(Shadow)”的历史记录中，方便统一查看
+        const list = window.getShadowData ? window.getShadowData() : [];
+        list.unshift({
+            date: Date.now(),
+            cards: `[${titlePrefix}] ` + cardsDesc,
+            tableHTML: html
+        });
+        
+        if (typeof window.saveShadowData === 'function') window.saveShadowData(list);
+        if (typeof window.renderShadowHistory === 'function') window.renderShadowHistory();
+
+        // 关闭所有私密弹窗，回到阴暗面列表展示
+        document.getElementById('secret-card-table-modal').style.display = 'none';
+        document.getElementById('secret-app-modal').style.display = 'none';
+        
+        // 提示用户
+        alert("✅ 私密档案解析完成！\n报告已自动存入【阴暗面】的历史记录中。");
+
+    } catch(e) {
+        alert("潜入失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
 };
 </script>
 </html> 
