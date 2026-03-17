@@ -384,6 +384,47 @@ canvas {
     box-shadow: var(--glass-shadow); 
     z-index: 1000; 
 }
+/* 竖向天气小组件专用样式 (1x2 大小) 优化版 */
+.weather-glass.vertical-weather {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%); 
+    width: 75px;                 
+    height: 100px;               
+    flex-direction: column;      
+    justify-content: center;
+    align-items: center;
+    padding: 10px 5px;
+    margin-top: 0;
+    gap: 4px;                    
+}
+
+.weather-glass.vertical-weather .w-icon {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.weather-glass.vertical-weather .w-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.weather-glass.vertical-weather .w-left h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1;
+    margin: 0;
+}
+
+.weather-glass.vertical-weather .w-left p {
+    font-size: 0.65rem;
+    margin: 3px 0 0 0;
+    white-space: nowrap; 
+    opacity: 0.8;
+}
         .page-2-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px 10px; padding-top: 40px; justify-items: center; width: 100%; }
         #tv-file-input { display: none; }
         .tv-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #666; font-family: monospace; font-size: 0.8rem; text-align: center; z-index: 4; text-shadow: 0 0 5px rgba(255,255,255,0.5); font-weight: bold;}
@@ -4457,10 +4498,19 @@ canvas {
         <div id="pages-wrapper">
             <!-- Page 1 -->
             <div class="page" id="page1">
-                <div class="header-info">
-                    <div class="time-widget" id="clock">12:00</div>
-                    <div class="date-widget" id="date">JAN 24</div>
-                </div>
+           <div class="header-info" style="position: relative;">
+    <div class="time-widget" id="clock">12:00</div>
+    <div class="date-widget" id="date">JAN 24</div>
+    
+    <!-- 注意这里加了 true，并且加了 z-index 保证能被点到 -->
+    <div class="weather-glass vertical-weather" onclick="initRealWeather(true)" style="z-index: 100;">
+        <div class="w-icon" id="real-icon">⌛</div>
+        <div class="w-left">
+            <h2 id="real-temp">--°</h2>
+            <p id="real-desc">定位中...</p>
+        </div>
+    </div>
+</div>  
                 <div class="tv-container">
            <div id="tv-shell-case" class="tv-case">
                     <!-- 修改：点击电视主体进入文游 -->
@@ -4515,16 +4565,7 @@ canvas {
         </div>
     </div>
 </div>
-                </div>
-
-<div class="weather-glass" onclick="initRealWeather()">
-                    <div class="w-left">
-                        <h2 id="real-temp">--°</h2>
-                        <p id="real-desc">定位中...</p>
-                    </div>
-                    <div class="w-icon" id="real-icon">⌛</div>
-                </div>
-            </div>
+                </div>    </div>
             
             <div class="page" id="page2">
 <div class="page-2-grid">
@@ -5655,6 +5696,14 @@ async function openChatApp() {
                 botAvatar: botAvatarItem ? botAvatarItem.data : ''
             };
         }
+                // 核心转换工具
+        function dataURLtoBlob(dataurl) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+            return new Blob([u8arr], {type:mime});
+        }
+
         async function applyChatSettings() {
             const s = getChatSettings();
             const heavy = await loadHeavyResources();
@@ -5664,7 +5713,19 @@ async function openChatApp() {
 
             document.getElementById('chat-title-input').value = s.title;
             updateStatusUI(s.isOnline);
-            window.currentAvatars = { my: heavy.myAvatar, bot: heavy.botAvatar };
+
+            // --- 极致流畅与红米兼容补丁 ---
+            if(window.myBlobUrl) URL.revokeObjectURL(window.myBlobUrl);
+            if(window.botBlobUrl) URL.revokeObjectURL(window.botBlobUrl);
+
+            window.myBlobUrl = (heavy.myAvatar && heavy.myAvatar.startsWith('data:image')) ? URL.createObjectURL(dataURLtoBlob(heavy.myAvatar)) : heavy.myAvatar;
+            window.botBlobUrl = (heavy.botAvatar && heavy.botAvatar.startsWith('data:image')) ? URL.createObjectURL(dataURLtoBlob(heavy.botAvatar)) : heavy.botAvatar;
+
+            window.currentAvatars = { my: window.myBlobUrl, bot: window.botBlobUrl };
+
+            const root = document.documentElement;
+            root.style.setProperty('--chat-avatar-me', window.myBlobUrl ? `url("${window.myBlobUrl}")` : 'none');
+            root.style.setProperty('--chat-avatar-bot', window.botBlobUrl ? `url("${window.botBlobUrl}")` : 'none');
 
             let styleTag = document.getElementById('dynamic-chat-style');
             if (!styleTag) {
@@ -5672,13 +5733,11 @@ async function openChatApp() {
                 styleTag.id = 'dynamic-chat-style';
                 document.head.appendChild(styleTag);
             }
-            
             styleTag.innerHTML = `
                 .msg-row.me .msg-bubble { ${s.myCss} }
                 .msg-row.other .msg-bubble { ${s.botCss} }
             `;
         }
-
         function loadSettingsToUI() {
             const s = getChatSettings();
             document.getElementById('set-my-frame').value = s.myFrame || '';
@@ -23419,12 +23478,12 @@ window.generateGalgameEndingAPI = async function() {
     </div>
 
     <div class="modal-body" style="padding:15px; padding-bottom:100px;">
-        <!-- 顶部导航 -->
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button class="m-btn small" onclick="switchGalView('active')" style="background:#d63031; color:white; flex:1;">🎮 当前游戏</button>
-            <button class="m-btn small" onclick="switchGalView('history')" style="background:#ff9ff3; color:#fff; flex:1;">📂 存档记录</button>
+                <!-- 顶部导航 (修改版：加入新功能按钮) -->
+        <div style="display:flex; gap:5px; margin-bottom:15px;">
+            <button class="m-btn small" onclick="switchGalView('active')" id="btn-gal-active" style="background:#d63031; color:white; flex:1; font-size:0.8rem; padding:8px 2px;">🎮 经典模式</button>
+            <button class="m-btn small" onclick="switchGalView('reverse')" id="btn-gal-reverse" style="background:#ff9ff3; color:white; flex:1; font-size:0.8rem; padding:8px 2px;">💞 当你攻略他</button>
+            <button class="m-btn small" onclick="switchGalView('history')" id="btn-gal-history" style="background:#ff9ff3; color:white; flex:1; font-size:0.8rem; padding:8px 2px;">📂 存档</button>
         </div>
-
         <!-- 1. 游戏进行区 -->
         <div id="gal-active-view">
             
@@ -23479,7 +23538,72 @@ window.generateGalgameEndingAPI = async function() {
                 </div>
             </div>
         </div>
+        <!-- ================= 新增：当你攻略他 专属面板 ================= -->
+        <div id="gal-reverse-view" style="display:none;">
+            <!-- A. 开始新游戏 -->
+            <div id="gal-rev-start-panel">
+                <div class="morandi-card" style="text-align:center; padding:30px;">
+                    <div style="font-size:3rem; margin-bottom:10px;">💞</div>
+                    <h3 style="color:#e056fd; margin-bottom:10px;">当你攻略他</h3>
+                    <p style="font-size:0.8rem; color:#888; margin-bottom:20px;">AI根据牌意提供选项，好感度代表Ta对你的心意。<br>结局由你随时掌控。</p>
+                    
+                    <div class="input-group" style="text-align:left;">
+                        <label style="color:#e056fd;">初始设定 / 想玩什么梗？</label>
+                        <textarea id="gal-rev-init-plot" class="editor-textarea" style="height:80px; border-color:#e056fd;" placeholder="例如：我是新转来的转校生，不小心撞到了身为校霸的他..."></textarea>
+                    </div>
+                    <button class="m-btn primary" onclick="startReverseGalDraw('init')" style="width:100%; margin-top:15px; background:#e056fd;">🎲 抽牌生成开篇与选项</button>
+                </div>
+            </div>
 
+            <!-- B. 游戏主界面 (进行中) -->
+            <div id="gal-rev-gameplay-panel" style="display:none;">
+                <!-- 状态栏：显示Ta对你的好感度 -->
+                <div class="morandi-card" style="padding:10px; margin-bottom:10px; background:#fff; border-left:5px solid #e056fd; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:bold; color:#e056fd;">Ta对你的好感度: <span id="gal-rev-fav-display" style="font-size:1.2rem;">0</span>%</div>
+                    <!-- 结局按钮：用户自己点击才生成结局 -->
+                    <button class="m-btn small" onclick="generateReverseGalEndingAPI()" style="background:#e056fd; color:white; font-size:0.7rem;">🎬 生成结局</button>
+                </div>
+
+                <!-- 剧情显示区 -->
+                <div id="gal-rev-story-area" style="background:#fff; padding:15px; border-radius:12px; height:260px; overflow-y:auto; border:1px solid #e056fd; margin-bottom:15px; font-size:0.95rem; line-height:1.6; color:#2d3436;">
+                    <!-- 剧情内容 -->
+                </div>
+
+                <!-- 选项操作区 -->
+                <div class="morandi-card" style="background:rgba(255,255,255,0.8); border:1px solid #e056fd;">
+                    <h4 style="margin:0 0 10px 0; color:#e056fd; font-size:0.9rem;">👇 请做出你的选择</h4>
+                    
+                    <div style="display:flex; flex-direction:column; gap:10px; font-size:0.9rem; color:#333;">
+                        <label style="display:flex; align-items:flex-start; gap:8px;">
+                            <input type="radio" name="gal_rev_choice" value="A" style="margin-top:4px;">
+                            <div><strong style="color:#e056fd;">A:</strong> <span id="gal-rev-opt-a">等待生成...</span></div>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px;">
+                            <input type="radio" name="gal_rev_choice" value="B" style="margin-top:4px;">
+                            <div><strong style="color:#e056fd;">B:</strong> <span id="gal-rev-opt-b">等待生成...</span></div>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px;">
+                            <input type="radio" name="gal_rev_choice" value="C" style="margin-top:4px;">
+                            <div><strong style="color:#e056fd;">C:</strong> <span id="gal-rev-opt-c">等待生成...</span></div>
+                        </label>
+                       <!-- 修改为上下排版，输入框独占一行宽100% -->
+<label style="display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:5px; border-top:1px dashed #ccc; padding-top:10px; width:100%;">
+    <div style="display:flex; align-items:center; gap:8px;">
+        <input type="radio" name="gal_rev_choice" value="D">
+        <strong style="color:#e056fd;">D(自己填):</strong>
+    </div>
+    <input type="text" id="gal-rev-opt-d-input" placeholder="不满意？自己写动作/说的话..." style="width:100%; padding:10px 8px; border:1px solid #e056fd; border-radius:6px; outline:none; box-sizing:border-box;">
+</label>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <button class="m-btn secondary" onclick="endGalgame(false)" style="flex:1; background:#f5f6fa; color:#e056fd;">🏳️ 存档退出</button>
+                        <button class="m-btn primary" onclick="startReverseGalDraw('next')" style="flex:2; background:#e056fd;">🎲 确认并抽牌</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ================= 新增结束 ================= -->
         <!-- 2. 历史记录 -->
         <div id="gal-history-view" style="display:none;">
             <div id="gal-history-list" style="padding-bottom:50px;"></div>
@@ -23502,6 +23626,24 @@ window.generateGalgameEndingAPI = async function() {
                 🔮 生成剧情
             </button>
             <button class="m-btn secondary" onclick="document.getElementById('galgame-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+<!-- ================= 🏩 当你攻略他 专属牌桌 ================= -->
+<div id="gal-rev-card-table-modal" class="modal-overlay" style="background: rgba(30, 10, 30, 0.98); z-index:10000; display:none;">
+    <div id="gal-rev-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #2d3436 0%, #000 100%);">
+        <div id="gal-rev-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;">
+        </div>
+        <div class="card-table-ui">
+            <div style="color:#e056fd; text-shadow:0 1px 3px #000; font-weight:bold; font-size:1.1rem;">
+                抽取命运牌，探测Ta的潜意识... (<span id="gal-rev-flipped-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="finishReverseGalDraw()" style="background:#e056fd; border:1px solid #fff; color:white; box-shadow:0 0 15px rgba(224, 86, 253, 0.5);">
+                🔮 确认牌意并生成
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('gal-rev-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">
                 取消
             </button>
         </div>
@@ -35612,14 +35754,17 @@ document.addEventListener('click', function(e) {
 <!-- ================= 修复补丁结束 ================= -->
 <!-- ================= 🚀 Line 聊天极限流畅补丁 START ================= -->
 <style>
-/* 1. 开启浏览器原生虚拟滚动：不在屏幕内的聊天气泡停止渲染，节省 90% 以上 GPU 性能 */
+/* 1. 释放渲染边界，依靠 JS 动态清理 DOM 来维持极限流畅 */
 #chat-history {
-    contain: strict; 
     overflow-y: auto;
+    overflow-x: hidden; /* 防止过大的贴纸导致整个页面能左右滑动 */
+    -webkit-overflow-scrolling: touch; /* 保证 iOS 依然丝滑滚动 */
 }
-.msg-row {
-    content-visibility: auto;
-    contain-intrinsic-size: 0 70px; /* 预估单个气泡高度，防止滚动条乱跳 */
+
+.msg-row, .msg-bubble, .msg-avatar {
+    /* 🔴 彻底解除裁剪限制，允许所有自定义气泡尾巴、头像框自然溢出显示 */
+    overflow: visible !important; 
+    contain: none !important;
 }
 
 /* 2. 剥离内联 Base64，改用全局 CSS 变量统一渲染，彻底解决内存撑爆问题 */
@@ -35640,22 +35785,7 @@ document.addEventListener('click', function(e) {
 (function() {
     console.log("🛠️ 正在加载 Line 聊天极限流畅补丁...");
 
-    // 1. 修复头像 Base64 内存泄漏导致越聊越卡的致命 Bug
-    const _origApplyChatSettings = window.applyChatSettings;
-    window.applyChatSettings = async function() {
-        await _origApplyChatSettings(); // 先执行原版逻辑
-        if (window.currentAvatars) {
-            const root = document.documentElement;
-            // 将巨大的图片数据存入 CSS 变量，全局共用一份
-            root.style.setProperty('--chat-avatar-me', window.currentAvatars.my ? `url("${window.currentAvatars.my}")` : 'none');
-root.style.setProperty('--chat-avatar-bot', window.currentAvatars.bot ? `url("${window.currentAvatars.bot}")` : 'none');
-            
-            // 🔥 核心魔术：清空 JS 变量中的 base64 代码。
-            // 这样后续新建聊天气泡时，HTML 标签里就不会再塞入几万行的乱码了
-            window.currentAvatars.my = ""; 
-            window.currentAvatars.bot = ""; 
-        }
-    };
+   
 
     // 2. 优化"加载更多"逻辑：保持滚动条平滑，不再全量清空重绘
     window.loadMoreMessages = function() {
@@ -36078,6 +36208,433 @@ ${specificRequirement}
     } finally {
         btn.innerText = oldText; btn.disabled = false;
     }
+};
+// ==================== 💞 旮旯Game 新模式：当你攻略他 核心逻辑 ====================
+
+let revGalDeck = [];
+let revGalFlipped = [];
+let pendingRevGalType = 'init'; // 'init' 或 'next'
+
+// 1. 重写视图切换函数，支持 3 个标签页
+window.switchGalView = function(view) {
+    const activeView = document.getElementById('gal-active-view');
+    const reverseView = document.getElementById('gal-reverse-view');
+    const historyView = document.getElementById('gal-history-view');
+    
+    const btnActive = document.getElementById('btn-gal-active');
+    const btnReverse = document.getElementById('btn-gal-reverse');
+    const btnHistory = document.getElementById('btn-gal-history');
+
+    // 重置所有颜色
+    btnActive.style.background = '#ff9ff3'; btnActive.style.color = '#fff';
+    btnReverse.style.background = '#ff9ff3'; btnReverse.style.color = '#fff';
+    btnHistory.style.background = '#ff9ff3'; btnHistory.style.color = '#fff';
+
+    activeView.style.display = 'none';
+    reverseView.style.display = 'none';
+    historyView.style.display = 'none';
+
+    if(view === 'active') {
+        activeView.style.display = 'block';
+        btnActive.style.background = '#d63031'; // 经典红
+    } else if(view === 'reverse') {
+        reverseView.style.display = 'block';
+        btnReverse.style.background = '#e056fd'; // 新模式紫粉
+        
+        // 自动判断显示开始页还是游戏页
+        const data = getGalData();
+        if (data.current_reverse && !data.current_reverse.finished) {
+            document.getElementById('gal-rev-start-panel').style.display = 'none';
+            document.getElementById('gal-rev-gameplay-panel').style.display = 'block';
+            renderReverseGalStory(); 
+        } else {
+            document.getElementById('gal-rev-start-panel').style.display = 'block';
+            document.getElementById('gal-rev-gameplay-panel').style.display = 'none';
+        }
+    } else {
+        historyView.style.display = 'block';
+        btnHistory.style.background = '#d63031'; 
+        renderGalHistory(); // 渲染历史记录
+    }
+};
+
+// 2. 启动抽牌 (独立牌桌)
+window.startReverseGalDraw = function(type) {
+    pendingRevGalType = type;
+    
+    if (type === 'init') {
+        const plot = document.getElementById('gal-rev-init-plot').value;
+        if(!plot) return alert("请先输入初始设定！");
+    } else {
+        // 检查用户是否选了选项
+        const choiceNode = document.querySelector('input[name="gal_rev_choice"]:checked');
+        if(!choiceNode) return alert("请先选择一个行动选项！");
+        if(choiceNode.value === 'D' && !document.getElementById('gal-rev-opt-d-input').value.trim()) {
+            return alert("请填写你自定义的D选项内容！");
+        }
+    }
+
+    const modal = document.getElementById('gal-rev-card-table-modal');
+    const area = document.getElementById('gal-rev-card-area');
+    const desk = document.getElementById('gal-rev-card-table-desk');
+    
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => {
+            if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+        });
+    }
+
+    area.innerHTML = '';
+    revGalDeck = []; revGalFlipped = [];
+    document.getElementById('gal-rev-flipped-count').innerText = '0';
+
+    for(let i=0; i<=77; i++) revGalDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) revGalDeck.push({ type:'lenormand', id:i, isReversed:false });
+    revGalDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    revGalDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px';
+        el.style.top = (60 + row*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped');
+                revGalFlipped = revGalFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+            } else {
+                el.classList.add('flipped');
+                revGalFlipped.push(card);
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ if(res && res.data) front.style.backgroundImage=`url(${res.data})`; else {front.style.background="#fff"; front.innerText=card.id;} });
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)"; else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('gal-rev-flipped-count').innerText = revGalFlipped.length;
+        };
+        area.appendChild(el);
+    });
+    modal.style.display = 'flex';
+};
+
+// 3. API 核心生成逻辑
+window.finishReverseGalDraw = async function() {
+    if(revGalFlipped.length === 0) return alert("请至少抽一张牌！");
+    
+    const btn = document.querySelector('#gal-rev-card-table-modal button.primary');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ 正在推演Ta的心理..."; btn.disabled = true;
+
+    try {
+        const cardsDesc = revGalFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const wb = window.BIG_MEMORY.world_book || {};
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+        let prompt = "";
+        const data = getGalData();
+
+        // --- A. 开篇生成 ---
+        if (pendingRevGalType === 'init') {
+            const plot = document.getElementById('gal-rev-init-plot').value;
+            
+            // 初始化新存档
+            data.current_reverse = { 
+                start_date: Date.now(), 
+                fav: 0, // 这里的 fav 是 Ta 对用户的好感
+                history: [{ type: 'init', content: `【初始设定】\n${plot}` }],
+                current_options: {} // 暂存AI生成的选项
+            };
+            saveGalData(data);
+
+            prompt = `你是一个乙女游戏引擎。世界观：${globalCtx}。初始情境：${plot}。命运牌：${cardsDesc}。
+            【任务】：
+            1. 根据牌意生成游戏的**开篇故事**（200字左右），描写此刻的情境和角色的微表情。
+            2. 提供 3 个给用户（玩家）的下一步行动选项（A、B、C）。选项要符合当下的情境，可以有主动、被动、作死等不同风格。
+            
+            【输出严格JSON】：
+            {
+              "story": "开篇正文...",
+              "optA": "选项A内容",
+              "optB": "选项B内容",
+              "optC": "选项C内容"
+            }`;
+        } 
+        // --- B. 下一轮生成 ---
+        else {
+            const prevStory = (data.current_reverse.history.length > 0) 
+                ? data.current_reverse.history[data.current_reverse.history.length-1].content 
+                : "";
+            
+            // 获取用户选择
+            const choiceVal = document.querySelector('input[name="gal_rev_choice"]:checked').value;
+            let userAction = "";
+            if(choiceVal === 'D') {
+                userAction = document.getElementById('gal-rev-opt-d-input').value.trim();
+            } else {
+                userAction = data.current_reverse.current_options[choiceVal];
+            }
+
+            prompt = `
+            你是一个乙女游戏引擎。世界观：${globalCtx}。
+            上一段剧情：${prevStory.substring(0, 300)}...
+            
+            【用户(我)的行动】：${userAction}
+            【命运牌】：${cardsDesc}。
+
+            【任务】：
+            1. 根据【命运牌】的牌意，分析角色的潜意识，并描写角色对用户行为的**反应剧情**（300字左右）。
+            2. 评估这次互动后，**角色对用户的好感度变化**。范围 -1 到 +30。牌意好/互动甜则加，牌意差/作死则扣。
+            3. 提供接下来的 3 个行动选项（A、B、C）供用户选择。
+            
+            【输出严格JSON】：
+            { 
+              "reaction_story": "角色反应正文（包含一点心理活动）...", 
+              "fav_change": 5, 
+              "reason": "好感度变化的原因简述",
+              "optA": "下一步选项A",
+              "optB": "下一步选项B",
+              "optC": "下一步选项C"
+            }`;
+        }
+
+        // 调用 API
+        let apiKey = document.getElementById('api-key').value;
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+        
+        if(!apiKey) {
+            try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){}
+        }
+        if(!apiKey) throw new Error("请先配置 API Key");
+
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content: "Output JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.8
+            })
+        });
+        const json = await res.json();
+        if(json.error) throw new Error(json.error.message);
+
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        const resObj = JSON.parse(raw);
+
+        // 处理返回数据
+        if (pendingRevGalType === 'init') {
+            data.current_reverse.history.push({ 
+                type: 'story', 
+                content: resObj.story + `\n\n🔮 开局牌意：${cardsDesc}` 
+            });
+            data.current_reverse.current_options = { A: resObj.optA, B: resObj.optB, C: resObj.optC };
+            
+            document.getElementById('gal-rev-start-panel').style.display = 'none';
+            document.getElementById('gal-rev-gameplay-panel').style.display = 'block';
+        } else {
+            // 获取刚刚用户选的具体文本用来记录
+            const choiceVal = document.querySelector('input[name="gal_rev_choice"]:checked').value;
+            const userActionText = choiceVal === 'D' ? document.getElementById('gal-rev-opt-d-input').value : data.current_reverse.current_options[choiceVal];
+
+            // 更新好感度
+            data.current_reverse.fav += resObj.fav_change;
+            if(data.current_reverse.fav < 0) data.current_reverse.fav = 0;
+            if(data.current_reverse.fav > 100) data.current_reverse.fav = 100;
+
+            data.current_reverse.history.push({
+                type: 'turn',
+                content: `【你选择了】：${userActionText}\n\n${resObj.reaction_story}\n\n👉 好感度变动: ${resObj.fav_change > 0 ? '+'+resObj.fav_change : resObj.fav_change} (${resObj.reason})\n(🔮 牌意: ${cardsDesc})`
+            });
+
+            // 更新新一轮选项
+            data.current_reverse.current_options = { A: resObj.optA, B: resObj.optB, C: resObj.optC };
+
+            // 清空复选框和输入框
+            const radios = document.getElementsByName('gal_rev_choice');
+            for(let r of radios) r.checked = false;
+            document.getElementById('gal-rev-opt-d-input').value = '';
+        }
+
+        saveGalData(data);
+        renderReverseGalStory();
+        document.getElementById('gal-rev-card-table-modal').style.display = 'none';
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
+// 4. 渲染界面
+window.renderReverseGalStory = function() {
+    const data = getGalData();
+    if (!data.current_reverse) return;
+    
+    // 更新好感度
+    document.getElementById('gal-rev-fav-display').innerText = data.current_reverse.fav;
+    
+    // 更新选项文本
+    if (data.current_reverse.current_options) {
+        document.getElementById('gal-rev-opt-a').innerText = data.current_reverse.current_options.A || "无";
+        document.getElementById('gal-rev-opt-b').innerText = data.current_reverse.current_options.B || "无";
+        document.getElementById('gal-rev-opt-c').innerText = data.current_reverse.current_options.C || "无";
+    }
+
+    // 渲染历史剧本
+    const area = document.getElementById('gal-rev-story-area');
+    let html = "";
+    data.current_reverse.history.forEach((h) => {
+        let contentHtml = h.content.replace(/\n/g, '<br>');
+        if(h.type === 'init') {
+            html += `<div style="padding-bottom:10px; border-bottom:1px dashed #ccc; margin-bottom:10px; color:#636e72;">${contentHtml}</div>`;
+        } else {
+            // 用紫色调区分新模式
+            html += `<div style="padding:10px; background:#f3e5f5; border-radius:8px; margin-bottom:10px; border-left:3px solid #e056fd;">
+                ${contentHtml}
+            </div>`;
+        }
+    });
+    area.innerHTML = html;
+    area.scrollTop = area.scrollHeight;
+};
+
+// 5. 手动触发结局 (修改：因为用户随时可点)
+window.generateReverseGalEndingAPI = async function() {
+    const data = getGalData();
+    if (!data.current_reverse) return;
+    
+    if(!confirm(`当前Ta对你的好感度是 ${data.current_reverse.fav}%。\n确定要现在生成结局吗？\n(好感度高低会影响结局是HE还是BE哦！)`)) return;
+
+    const btn = document.querySelector('#gal-rev-gameplay-panel .small');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ 结局生成中..."; btn.disabled = true;
+    
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    // 提取所有历史作为上下文
+    const allHistory = data.current_reverse.history || [];
+    const historyText = allHistory.map(h => h.content.replace(/<[^>]+>/g,"")).join("\n---\n").slice(-15000); // 防超长
+
+    const prompt = `
+    你是一个乙女游戏引擎。
+    【世界观】：${globalCtx}
+    【前情回顾】：${historyText}
+    
+    【当前状态】：角色对玩家的最终好感度是 ${data.current_reverse.fav} / 100。
+    
+    【任务】：
+    请为这个故事生成**最终大结局**。
+    1. **结局判定**：
+       - 如果好感度 >= 80，生成非常甜美的 True Ending (相爱)。
+       - 如果好感度 50-79，生成普通的 Normal Ending (暧昧/开放式)。
+       - 如果好感度 < 50，生成 Bad Ending (错过、角色后知后觉发现爱上玩家但已经错过了/误会导致分开/等等)。
+    2. **写作要求**：描写细腻，字数约 500 字。
+    3. 结尾需包含【结局达成：XXXX (比如: 执子之手 / 形同陌路)】。
+    
+    请直接输出结局正文。
+    `;
+
+    try {
+        let apiKey = document.getElementById('api-key').value;
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+        
+        if(!apiKey) { try { const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; } catch(e){} }
+        if(!apiKey) throw new Error("请先配置 API Key");
+
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Creative writer. Context-aware."}, {role:"user", content:prompt}],
+                temperature: 0.9
+            })
+        });
+        
+        if (!res.ok) throw new Error(`HTTP Error`);
+        
+        const json = await res.json();
+        const endingText = json.choices[0].message.content;
+        
+        // 保存结局，带上模式标记
+        data.current_reverse.history.push({ 
+            type: 'story', 
+            content: `<div style="color:#e056fd; font-weight:bold; text-align:center; margin-bottom:10px; font-size:1.1rem; border:2px solid #e056fd; padding:5px;">✨ 最终结局 ✨</div>${endingText}` 
+        });
+        
+        data.current_reverse.finished = true;
+        data.current_reverse.mode = 'reverse'; // 标记这个存档是新模式的
+        data.archives.unshift(data.current_reverse);
+        data.current_reverse = null; 
+        
+        saveGalData(data);
+        
+        alert("✨ 结局已生成并存档！");
+        switchGalView('history'); 
+
+    } catch(e) {
+        console.error(e);
+        alert("结局生成失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
+// 6. 覆盖原有的“退出保存”和“历史记录显示”逻辑兼容新模式
+const _oldEndGalgame = window.endGalgame;
+window.endGalgame = function(isSuccess) {
+    const data = getGalData();
+    // 判断当前处于哪个模式，保存哪个数据
+    if (document.getElementById('gal-reverse-view').style.display === 'block') {
+        if (!data.current_reverse) return;
+        if(!confirm("确定要结束当前进度并存档吗？(之后只能回顾，无法继续)")) return;
+        data.current_reverse.finished = true;
+        data.current_reverse.mode = 'reverse';
+        data.archives.unshift(data.current_reverse);
+        data.current_reverse = null;
+        saveGalData(data);
+        alert("✅ 已存档！");
+        switchGalView('history');
+    } else {
+        _oldEndGalgame(isSuccess);
+    }
+};
+
+// 稍微修改历史渲染，给新模式加上紫色标签
+const _oldRenderGalHistory = window.renderGalHistory;
+window.renderGalHistory = function() {
+    _oldRenderGalHistory(); // 先让老函数渲染一遍
+    // 给逆向攻略的存档加点颜色
+    const list = document.getElementById('gal-history-list');
+    const data = getGalData();
+    const children = list.children;
+    
+    data.archives.forEach((item, index) => {
+        if (item.mode === 'reverse' && children[index]) {
+            const card = children[index];
+            card.style.borderLeft = "5px solid #e056fd";
+            // 找到显示最终好感的地方，改颜色并加标签
+            const favEl = card.querySelector('strong');
+            if (favEl) {
+                favEl.innerHTML = `<span style="background:#e056fd; color:white; padding:2px 4px; border-radius:4px; font-size:0.7rem; margin-right:5px;">新模式</span> Ta对你的好感: ${item.fav}`;
+                favEl.style.color = "#e056fd";
+            }
+        }
+    });
 };
 </script>
 </html> 
