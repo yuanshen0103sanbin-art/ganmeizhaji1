@@ -4829,7 +4829,7 @@ canvas {
     <div style="display:flex; gap:10px;">
         <button class="m-btn secondary" onclick="exportFullBackup()">📤 导出备份 (.json)</button>
         <button class="m-btn secondary" onclick="document.getElementById('restore-file-input').click()">📥 导入恢复</button>
-        <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importFullRestore(this)">
+        <input type="file" id="restore-file-input" accept=".json,.txt,*/*" style="display:none" onchange="importFullRestore(this)">
     </div>
 </div>
 <div class="morandi-card" style="border:1px dashed #ff9a9e; margin-top:10px;">
@@ -18041,9 +18041,8 @@ window.addEventListener('load', function() {
         console.log("✅ 无限容量系统已就绪！");
     });
 });
-
 // ============================================================
-// 💾 全新备份引擎：真实物理下载 + 纯净分享面板 (全平台防卡死)
+// 💾 全新备份引擎：绕过APK残缺下载器 + 纯净分享方案
 // ============================================================
 async function exportFullBackup() {
     const btn = event.target;
@@ -18056,10 +18055,10 @@ async function exportFullBackup() {
     btn.style.opacity = "0.7";
 
     try {
-        // 1. 构建内存碎片数组 (流式打包，防止内存爆炸)
+        // 1. 构建内存碎片数组 (流式打包，防止几百兆相册撑爆内存)
         const jsonChunks = []; 
         jsonChunks.push('{\n');
-        jsonChunks.push('"meta": {"version":"8.0_RealDownload","date":"' + new Date().toLocaleString() + '"},\n');
+        jsonChunks.push('"meta": {"version":"9.0_Ultimate","date":"' + new Date().toLocaleString() + '"},\n');
 
         // 2. 获取轻量级的大内存对象
         const allUniversal = await idb.getAll('universal_store');
@@ -18068,7 +18067,7 @@ async function exportFullBackup() {
         const finalMemory = { ...window.BIG_MEMORY, ...universalObj };
         jsonChunks.push('"big_memory": ' + JSON.stringify(finalMemory) + ',\n');
 
-        // 3. 逐个遍历重型数据表 (严格排除文件APP相关的 Tarot 和 Lenormand，包含相册等)
+        // 3. 逐个遍历重型数据表 (严格排除文件APP相关的 Tarot 和 Lenormand)
         const storesToBackup = [
             'chat_history', 'pickup_data', 'forum_data', 'theater_data',
             'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
@@ -18107,83 +18106,109 @@ async function exportFullBackup() {
         const blob = new Blob(jsonChunks, { type: "application/json" });
         const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
         
-        // 生成纯净无特殊字符的文件名
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
         const fileName = `RetroOS_Backup_${dateStr}.json`;
         
-        // 5. 生成 Blob URL
         const blobUrl = URL.createObjectURL(blob);
 
         // ==========================================================
-        // 🚀 核心修复：生成真实的物理弹窗，由用户手动点击，破解所有拦截
+        // 🚀 核心界面：为 APK 和 电脑 区分不同的真实物理按钮
         // ==========================================================
         
-        // 清理可能存在的旧弹窗
         const oldUI = document.getElementById('real-download-ui');
         if(oldUI) oldUI.remove();
 
         const overlay = document.createElement('div');
         overlay.id = 'real-download-ui';
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        overlay.style.cssText = 'background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column;';
         
         overlay.innerHTML = `
-            <div class="morandi-card" style="width:85%; max-width:400px; text-align:center; padding:25px;">
-                <div style="font-size:3rem; margin-bottom:10px;">📦</div>
-                <h3 style="margin-bottom:5px; color:#2c3e50;">备份文件已打包完毕</h3>
-                <p style="font-size:0.85rem; color:#888; margin-bottom:20px;">数据大小: ${sizeMB} MB<br>请选择以下适合您设备的方式保存：</p>
+            <div class="morandi-card" style="width:90%; max-width:400px; text-align:center; padding:20px;">
+                <div style="font-size:3rem; margin-bottom:5px;">📦</div>
+                <h3 style="margin-bottom:5px; color:#2c3e50;">备份打包完成 (${sizeMB} MB)</h3>
                 
-                <!-- 真实 A 标签：安卓 / 电脑浏览器适用 -->
-                <a href="${blobUrl}" download="${fileName}" style="display:block; background:#06c755; color:white; padding:15px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:1.1rem; margin-bottom:15px; box-shadow:0 4px 10px rgba(6, 199, 85, 0.3);">
-                    📥 直接下载 (安卓 / PC)
-                </a>
+                <hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">
 
-                <!-- 纯净分享 API：iOS / Koder 等套壳应用适用 -->
-                <button id="btn-pure-share" style="width:100%; background:#0984e3; color:white; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; margin-bottom:15px; box-shadow:0 4px 10px rgba(9, 132, 227, 0.3);">
-                    📤 存储到文件 (iOS / Koder)
+                <div style="text-align:left; margin-bottom:15px;">
+                    <strong style="color:#0984e3; font-size:1.1rem;">方案A (手机/APK 必选)：</strong>
+                    <p style="font-size:0.8rem; color:#555; margin-top:5px; line-height:1.4;">绕过打包软件的残缺下载器，直接呼出手机系统底板。请选择<b style="color:red">存储到文件</b>或发送给<b style="color:red">微信文件传输助手</b>。</p>
+                </div>
+                <!-- 纯净分享 API：完美适配 APK 和 iOS -->
+                <button id="btn-pure-share" style="width:100%; background:#0984e3; color:white; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; box-shadow:0 4px 10px rgba(9, 132, 227, 0.3);">
+                    📤 唤出系统保存 (推荐)
                 </button>
 
-                <button id="btn-close-download" style="width:100%; background:#eee; color:#555; padding:12px; border:none; border-radius:8px; font-weight:bold;">关闭面板</button>
+                <hr style="border:0; border-top:1px dashed #ccc; margin:20px 0;">
+
+                <div style="text-align:left; margin-bottom:15px;">
+                    <strong style="color:#06c755; font-size:1.1rem;">方案B (电脑浏览器专供)：</strong>
+                    <p style="font-size:0.8rem; color:#ff7675; margin-top:5px; line-height:1.4;">注意：手机 APK 点这个会弹出空白的 Save As 导致保存失败！手机千万别点！</p>
+                </div>
+                <!-- 真实 A 标签：电脑浏览器适用 -->
+                <a href="${blobUrl}" download="${fileName}" style="display:block; background:#06c755; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:1rem; box-shadow:0 4px 10px rgba(6, 199, 85, 0.3);">
+                    📥 浏览器强制下载
+                </a>
+
+                <button id="btn-close-download" style="width:100%; margin-top:20px; background:#eee; color:#555; padding:10px; border:none; border-radius:8px;">关闭面板</button>
             </div>
         `;
         document.body.appendChild(overlay);
 
-        // 绑定 iOS 纯净分享逻辑 (彻底解决双文件问题)
+                // 绑定原生分享逻辑 (只传文件，杜绝 iOS 产出 txt 垃圾文件)
         document.getElementById('btn-pure-share').onclick = async () => {
             const fileObj = new File([blob], fileName, { type: "application/json" });
             if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
                 try {
-                    // 🔥 致命修复：绝不传入 title 或 text 属性，防止 iOS 把它分离成一个额外的 .txt 文本文件！
                     await navigator.share({ files: [fileObj] });
                 } catch(e) {
-                    console.log("分享面板被取消或受限");
+                    console.log("面板被取消");
                 }
             } else {
-                alert("❌ 当前环境不支持分享唤起，请点击上方的【直接下载】按钮！");
+                // --- 🚀 新增：APK 封闭环境的纯文本复制兜底方案 ---
+                if(confirm("您的安卓套壳应用不支持直接保存文件。\n\n是否生成【纯文本代码】以便您手动复制保存？\n(文本可能较长，加载请等待几秒)")) {
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        const text = reader.result;
+                        const overlay = document.createElement('div');
+                        overlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;";
+                        overlay.innerHTML = `
+                            <div style="background:#fff; width:100%; max-width:600px; height:85%; border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
+                                <div style="padding:15px; background:#f5f5f5; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-weight:bold; font-size:0.9rem;">备份数据 (全选复制并保存为文件)</span>
+                                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="border:none; background:#ff6b6b; color:#fff; padding:5px 15px; border-radius:4px;">关闭</button>
+                                </div>
+                                <textarea id="fallback-backup-area" style="flex:1; width:100%; border:none; padding:15px; font-size:0.8rem; line-height:1.4; resize:none; outline:none;" readonly>${text}</textarea>
+                                <div style="padding:10px; text-align:center; background:#eee;">
+                                    <button onclick="document.getElementById('fallback-backup-area').select(); document.execCommand('copy'); alert('✅ 已全文复制！\\n\\n请立刻切换到手机的【备忘录】或【微信文件传输助手】粘贴并保存。');" style="padding:12px 20px; background:#0984e3; color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold; width:90%;">📋 一键复制全部代码</button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(overlay);
+                    };
+                    reader.readAsText(blob);
+                }
             }
         };
 
         // 绑定关闭并释放内存
         document.getElementById('btn-close-download').onclick = () => {
             overlay.remove();
-            URL.revokeObjectURL(blobUrl); // 清理内存
+            URL.revokeObjectURL(blobUrl); 
         };
 
-        // 恢复触发按钮状态
         btn.removeAttribute('data-processing');
         btn.innerText = originalText;
         btn.style.opacity = "1";
 
     } catch (e) {
         console.error(e);
-        alert("打包彻底失败: " + e.message + "\n可能是存储空间不足导致。");
+        alert("打包失败: " + e.message);
         btn.removeAttribute('data-processing');
         btn.innerText = originalText;
         btn.style.opacity = "1";
     }
 }
-
-
 // ============================================================
 // 📥 全新恢复引擎：逐行解析法 (解决串台 & 内存溢出)
 // ============================================================
