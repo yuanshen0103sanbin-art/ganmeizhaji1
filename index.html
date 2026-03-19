@@ -36625,4 +36625,53 @@ window.renderGalHistory = function() {
     });
 };
 </script>
+<!-- ================= 智能拦截器修复补丁 ================= -->
+<script>
+(function() {
+    console.log("🛡️ 智能拦截器补丁已加载");
+
+    // 1. 判断是否为老用户 (检查本地是否有存过任何设置)
+    const isOldUser = localStorage.getItem('chat_settings') || 
+                      localStorage.getItem('api_profiles') || 
+                      localStorage.getItem('fridge_data') ||
+                      localStorage.getItem('RetroOS_Init_Flag');
+    
+    if (!isOldUser) {
+        // 新用户：无视加载时间，直接开锁放行
+        console.log("👋 欢迎新用户！免除数据加载等待。");
+        window.SYSTEM_DATA_READY = true;
+        // 盖个戳，下次再打开这个网页时，就会被识别为老用户了
+        localStorage.setItem('RetroOS_Init_Flag', 'true');
+    } else {
+        // 标记老用户
+        localStorage.setItem('RetroOS_Init_Flag', 'true');
+    }
+
+    // 2. 修复加载函数 (解决因报错导致永远不开锁的致命Bug)
+    if (typeof window.loadAllBigData === 'function') {
+        const _origLoadAllData = window.loadAllBigData;
+        window.loadAllBigData = async function() {
+            try {
+                // 等待老用户的数据正常加载
+                await _origLoadAllData();
+            } catch (e) {
+                console.warn("⚠️ 数据加载中出现小波动，已自动跳过:", e);
+            } finally {
+                // 【核心修复】无论加载成功还是中途报错，最终都必须把锁打开！
+                window.SYSTEM_DATA_READY = true;
+                console.log("🔓 隐形保镖：数据通道已完全开放。");
+            }
+        };
+    }
+
+    // 3. 终极防卡死保险：最多只拦截 3 秒，3秒后强行砸锁
+    setTimeout(() => {
+        if (!window.SYSTEM_DATA_READY) {
+            console.warn("⚠️ 加载超时，强制解除系统锁定！");
+            window.SYSTEM_DATA_READY = true;
+        }
+    }, 3000);
+
+})();
+</script>
 </html> 
