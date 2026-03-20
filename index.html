@@ -4829,7 +4829,7 @@ canvas {
     <div style="display:flex; gap:10px;">
         <button class="m-btn secondary" onclick="exportFullBackup()">📤 导出备份 (.json)</button>
         <button class="m-btn secondary" onclick="document.getElementById('restore-file-input').click()">📥 导入恢复</button>
-        <input type="file" id="restore-file-input" accept=".json,.txt,*/*" style="display:none" onchange="importFullRestore(this)">
+        <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importFullRestore(this)">
     </div>
 </div>
 <div class="morandi-card" style="border:1px dashed #ff9a9e; margin-top:10px;">
@@ -9358,7 +9358,7 @@ ${modePrompt}
                     { role: "user", content: `${previousContext}\n\n【本次指令】: ${userText || "继续热烈讨论，增加更多楼层"}` }
                 ],
                 temperature: 0.75, // 稍微降低一点点温度以保证 JSON 格式，但保留创造性
-                
+                max_tokens: 30000
             })
         });
 
@@ -10088,7 +10088,7 @@ ${context}
                     { role: "user", content: `【前文】\n${historyContext}\n\n【本次情节指令】\n${promptText || "继续刚才的对话，深入展开"}` }
                 ],
                 temperature: 0.8,
-                
+                max_tokens: 30000 // 允许长输出
             })
         });
 
@@ -14184,7 +14184,7 @@ window.finishWitchDraw = async function() {
 【任务要求】
 请生成以下内容：
 1. **角色的陷阱**：(0-18，不能是 #${userTrapIdx})。
-2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字）。
+2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字且不包含角色的陷阱）。
 3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意（有的紧张，有的得意，有的平淡）。
 4. **两篇长篇小故事**：
    - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚。**字数不少于 300 字**。
@@ -15711,7 +15711,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-                
+                max_tokens: 30000 // 确保足够长
             })
         });
         const json = await res.json();
@@ -18041,54 +18041,105 @@ window.addEventListener('load', function() {
         console.log("✅ 无限容量系统已就绪！");
     });
 });
-// ============================================================
-// 💾 全新备份引擎：绕过APK残缺下载器 + 纯净分享方案
-// ============================================================
+// 全局变量用于存储打包好的文件 (保持不变)
+let pendingBackupBlob = null; // 修改：只存 Blob，不存 File 对象
+let pendingFileName = "";
 async function exportFullBackup() {
     const btn = event.target;
-    if(btn.getAttribute('data-processing')) return;
     
-    // 锁定按钮防连点
+    // ============================================================
+    // 🟢 阶段二：用户点击绿色按钮，触发保存/下载
+    // ============================================================
+    if (pendingBackupBlob) {
+        const fileObj = new File([pendingBackupBlob], pendingFileName, { type: "application/json" });
+
+        // --- 方案 A: 优先尝试手机原生分享 (iOS/Android 最佳体验) ---
+        // 这会唤起底部的分享菜单，你可以选择 "存储到文件" 或者 发送给微信文件传输助手
+        if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+            try {
+                await navigator.share({
+                    files: [fileObj],
+                    title: 'RetroOS 备份',
+                    text: '这是您的系统备份文件，请妥善保存。'
+                });
+                // 分享成功后重置按钮
+                setTimeout(() => resetExportBtn(btn), 1000);
+                return; 
+            } catch (e) {
+                // 如果用户取消了分享，或者不支持，就继续往下走执行方案 B
+                console.log("分享被取消或不支持，尝试直接下载...");
+            }
+        }
+
+        // --- 方案 B: 传统浏览器下载 (PC/不支持分享的设备) ---
+        try {
+            const url = URL.createObjectURL(pendingBackupBlob);
+            const a = document.createElement('a');
+            
+            // 🔥 iOS 兼容修正：不要用 display:none，改用透明度
+            a.style.opacity = '0';
+            a.style.position = 'fixed';
+            a.style.pointerEvents = 'none';
+            
+            a.href = url;
+            a.download = pendingFileName;
+            
+            // 🔥 iOS 兼容修正：如果 download 属性失效，强制在新窗口打开让用户手动存
+            a.target = '_blank'; 
+
+            document.body.appendChild(a);
+            a.click();
+            
+            // 延迟清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                resetExportBtn(btn);
+            }, 3000); // 延长时间以适应 iOS 动画
+            
+        } catch (e) { 
+            alert("保存失败: " + e.message + "\n请尝试使用其他浏览器或截图联系作者。"); 
+        }
+        return;
+    }
+
+    // ============================================================
+    // 🟡 阶段一：分块打包数据 (保持原样，无需修改)
+    // ============================================================
+    if(btn.getAttribute('data-processing')) return;
     btn.setAttribute('data-processing', 'true');
-    const originalText = btn.innerText;
-    btn.innerText = "📦 正在分步打包...请勿切换页面";
+    btn.innerText = "📦 正在扫描并打包...";
     btn.style.opacity = "0.7";
 
     try {
-        // 1. 构建内存碎片数组 (流式打包，防止几百兆相册撑爆内存)
         const jsonChunks = []; 
-        jsonChunks.push('{\n');
-        jsonChunks.push('"meta": {"version":"9.0_Ultimate","date":"' + new Date().toLocaleString() + '"},\n');
 
-        // 2. 获取轻量级的大内存对象
+        // 1. 写入头部
+        jsonChunks.push('{"meta":{"version":"5.0_iOS_Fix","date":"' + new Date().toLocaleString() + '"},');
+
+        // 2. 获取 Big Memory
         const allUniversal = await idb.getAll('universal_store');
         const universalObj = {};
         allUniversal.forEach(item => { universalObj[item.id] = item.data; });
         const finalMemory = { ...window.BIG_MEMORY, ...universalObj };
-        jsonChunks.push('"big_memory": ' + JSON.stringify(finalMemory) + ',\n');
+        
+        jsonChunks.push('"big_memory":' + JSON.stringify(finalMemory) + ',');
 
-        // 3. 逐个遍历重型数据表 (严格排除文件APP相关的 Tarot 和 Lenormand)
-        const storesToBackup = [
-            'chat_history', 'pickup_data', 'forum_data', 'theater_data',
-            'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
-        ];
-
-        for (let i = 0; i < storesToBackup.length; i++) {
-            const storeName = storesToBackup[i];
-            jsonChunks.push(`"${storeName}": [\n`);
-            
+        // 3. 处理大型独立仓库 (确保论坛和小剧场都在)
+        async function streamStore(keyName, storeName) {
+            jsonChunks.push(`"${keyName}": [`);
+            let count = 0;
             const tx = idb.db.transaction(storeName, 'readonly');
             const store = tx.objectStore(storeName);
             let cursorReq = store.openCursor();
-            let isFirst = true;
 
             await new Promise((resolve, reject) => {
                 cursorReq.onsuccess = (e) => {
                     const cursor = e.target.result;
                     if (cursor) {
-                        if (!isFirst) jsonChunks.push(',\n');
+                        if (count > 0) jsonChunks.push(','); 
                         jsonChunks.push(JSON.stringify(cursor.value)); 
-                        isFirst = false;
+                        count++;
                         cursor.continue();
                     } else {
                         resolve();
@@ -18096,222 +18147,179 @@ async function exportFullBackup() {
                 };
                 cursorReq.onerror = reject;
             });
-            
-            jsonChunks.push('\n]');
-            if (i < storesToBackup.length - 1) jsonChunks.push(',\n');
+            jsonChunks.push('],');
         }
-        jsonChunks.push('\n}'); 
 
-        // 4. 将碎片融合成单体 Blob 文件
+        await streamStore('chat_history', 'chat_history');
+        await streamStore('pickup_data', 'pickup_data');
+        await streamStore('forum_data', 'forum_data');
+        await streamStore('theater_data', 'theater_data');
+
+        // 4. 图片库 (已排除塔罗牌)
+        jsonChunks.push('"image_stores": {');
+        const imageStoresToBackup = [
+            'album_data',       
+            'settings_heavy',   
+            'chat_stickers',    
+            'anniversary_data', 
+            'tv'
+        ];
+
+        for (let i = 0; i < imageStoresToBackup.length; i++) {
+            const storeName = imageStoresToBackup[i];
+            jsonChunks.push(`"${storeName}":`);
+            const items = await idb.getAll(storeName);
+            jsonChunks.push(JSON.stringify(items));
+            if (i < imageStoresToBackup.length - 1) jsonChunks.push(',');
+        }
+
+        jsonChunks.push('}}'); 
+
+        // 5. 生成 Blob (强制使用 application/json)
         const blob = new Blob(jsonChunks, { type: "application/json" });
-        const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+        const sizeMB = blob.size / 1024 / 1024;
         
+        pendingBackupBlob = blob;
+        // 文件名去掉特殊字符，防止 iOS 报错
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
-        const fileName = `RetroOS_Backup_${dateStr}.json`;
-        
-        const blobUrl = URL.createObjectURL(blob);
+        pendingFileName = `RetroOS_${dateStr}.json`;
 
-        // ==========================================================
-        // 🚀 核心界面：为 APK 和 电脑 区分不同的真实物理按钮
-        // ==========================================================
-        
-        const oldUI = document.getElementById('real-download-ui');
-        if(oldUI) oldUI.remove();
-
-        const overlay = document.createElement('div');
-        overlay.id = 'real-download-ui';
-        overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column;';
-        
-        overlay.innerHTML = `
-            <div class="morandi-card" style="width:90%; max-width:400px; text-align:center; padding:20px;">
-                <div style="font-size:3rem; margin-bottom:5px;">📦</div>
-                <h3 style="margin-bottom:5px; color:#2c3e50;">备份打包完成 (${sizeMB} MB)</h3>
-                
-                <hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">
-
-                <div style="text-align:left; margin-bottom:15px;">
-                    <strong style="color:#0984e3; font-size:1.1rem;">方案A (手机/APK 必选)：</strong>
-                    <p style="font-size:0.8rem; color:#555; margin-top:5px; line-height:1.4;">绕过打包软件的残缺下载器，直接呼出手机系统底板。请选择<b style="color:red">存储到文件</b>或发送给<b style="color:red">微信文件传输助手</b>。</p>
-                </div>
-                <!-- 纯净分享 API：完美适配 APK 和 iOS -->
-                <button id="btn-pure-share" style="width:100%; background:#0984e3; color:white; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; box-shadow:0 4px 10px rgba(9, 132, 227, 0.3);">
-                    📤 唤出系统保存 (推荐)
-                </button>
-
-                <hr style="border:0; border-top:1px dashed #ccc; margin:20px 0;">
-
-                <div style="text-align:left; margin-bottom:15px;">
-                    <strong style="color:#06c755; font-size:1.1rem;">方案B (电脑浏览器专供)：</strong>
-                    <p style="font-size:0.8rem; color:#ff7675; margin-top:5px; line-height:1.4;">注意：手机 APK 点这个会弹出空白的 Save As 导致保存失败！手机千万别点！</p>
-                </div>
-                <!-- 真实 A 标签：电脑浏览器适用 -->
-                <a href="${blobUrl}" download="${fileName}" style="display:block; background:#06c755; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:1rem; box-shadow:0 4px 10px rgba(6, 199, 85, 0.3);">
-                    📥 浏览器强制下载
-                </a>
-
-                <button id="btn-close-download" style="width:100%; margin-top:20px; background:#eee; color:#555; padding:10px; border:none; border-radius:8px;">关闭面板</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-                // 绑定原生分享逻辑 (只传文件，杜绝 iOS 产出 txt 垃圾文件)
-        document.getElementById('btn-pure-share').onclick = async () => {
-            const fileObj = new File([blob], fileName, { type: "application/json" });
-            if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
-                try {
-                    await navigator.share({ files: [fileObj] });
-                } catch(e) {
-                    console.log("面板被取消");
-                }
-            } else {
-                // --- 🚀 新增：APK 封闭环境的纯文本复制兜底方案 ---
-                if(confirm("您的安卓套壳应用不支持直接保存文件。\n\n是否生成【纯文本代码】以便您手动复制保存？\n(文本可能较长，加载请等待几秒)")) {
-                    const reader = new FileReader();
-                    reader.onload = function() {
-                        const text = reader.result;
-                        const overlay = document.createElement('div');
-                        overlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;";
-                        overlay.innerHTML = `
-                            <div style="background:#fff; width:100%; max-width:600px; height:85%; border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
-                                <div style="padding:15px; background:#f5f5f5; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-weight:bold; font-size:0.9rem;">备份数据 (全选复制并保存为文件)</span>
-                                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="border:none; background:#ff6b6b; color:#fff; padding:5px 15px; border-radius:4px;">关闭</button>
-                                </div>
-                                <textarea id="fallback-backup-area" style="flex:1; width:100%; border:none; padding:15px; font-size:0.8rem; line-height:1.4; resize:none; outline:none;" readonly>${text}</textarea>
-                                <div style="padding:10px; text-align:center; background:#eee;">
-                                    <button onclick="document.getElementById('fallback-backup-area').select(); document.execCommand('copy'); alert('✅ 已全文复制！\\n\\n请立刻切换到手机的【备忘录】或【微信文件传输助手】粘贴并保存。');" style="padding:12px 20px; background:#0984e3; color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold; width:90%;">📋 一键复制全部代码</button>
-                                </div>
-                            </div>
-                        `;
-                        document.body.appendChild(overlay);
-                    };
-                    reader.readAsText(blob);
-                }
-            }
-        };
-
-        // 绑定关闭并释放内存
-        document.getElementById('btn-close-download').onclick = () => {
-            overlay.remove();
-            URL.revokeObjectURL(blobUrl); 
-        };
-
+        // 6. 按钮变绿
         btn.removeAttribute('data-processing');
-        btn.innerText = originalText;
+        btn.setAttribute('data-ready', 'true');
+        btn.innerText = `✅ 准备就绪 (${sizeMB.toFixed(1)}MB) 点击保存`;
+        btn.style.background = "#06c755";
+        btn.style.color = "white";
+        btn.style.fontWeight = "bold";
         btn.style.opacity = "1";
 
     } catch (e) {
         console.error(e);
         alert("打包失败: " + e.message);
-        btn.removeAttribute('data-processing');
-        btn.innerText = originalText;
-        btn.style.opacity = "1";
+        resetExportBtn(btn);
     }
 }
-// ============================================================
-// 📥 全新恢复引擎：逐行解析法 (解决串台 & 内存溢出)
-// ============================================================
+function resetExportBtn(btn) {
+    btn.innerText = "📤 导出备份 (.json)";
+    btn.style.background = "";
+    btn.style.color = "";
+    btn.style.opacity = "1";
+    btn.removeAttribute('data-ready');
+    btn.removeAttribute('data-processing');
+    
+    // 修改点：清理新的 Blob 变量，而不是原来的 File 变量
+    pendingBackupBlob = null; 
+    pendingFileName = "";
+}
 async function importFullRestore(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (!confirm(`⚠️ 警告：恢复备份将【覆盖】当前所有数据！\n(塔罗牌和雷诺曼文件不受影响)\n\n确定继续吗？`)) {
+    if (!confirm(`⚠️ 警告：恢复备份将【覆盖】当前数据！\n(塔罗牌和雷诺曼文件不受影响)\n\n确定继续吗？`)) {
         input.value = '';
         return;
     }
 
     const statusEl = document.querySelector('.modal-header span'); 
     const originalTitle = statusEl.innerText;
-    statusEl.innerText = "⏳ 正在逐行解析数据 (防闪退模式)...";
-
-    // 定义要恢复的表
-    const arrayStores = [
-        'chat_history', 'pickup_data', 'forum_data', 'theater_data',
-        'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
-    ];
+    statusEl.innerText = "⏳ 正在恢复数据...";
 
     const reader = new FileReader();
     reader.readAsText(file);
 
     reader.onload = async (e) => {
+        const rawText = e.target.result;
+        
         try {
-            console.log("开始流式恢复...");
+            console.log("开始恢复...");
             
-            // 将文本按换行符切开
-            // 因为我们在导出时规定了 "每条记录独占一行"，所以这样拆分绝对安全
-            const lines = e.target.result.split('\n');
-            
-            // 清空旧数据表
-            for (let s of arrayStores) await idb.clear(s);
+            // 辅助解析函数
+            async function extractAndSave(keyName, storeName, isArray = true) {
+                statusEl.innerText = `⏳ 恢复中: ${keyName}...`;
+                
+                const keyIndex = rawText.indexOf(`"${keyName}":`);
+                if (keyIndex === -1) return; 
 
-            let currentMode = "root"; 
-            let currentStoreName = "";
+                let startSearch = keyIndex + keyName.length + 2; 
+                let startIndex = -1;
+                let openChar = isArray ? '[' : '{';
+                
+                for(let i = startSearch; i < startSearch + 100; i++) {
+                    if (rawText[i] === openChar) { startIndex = i; break; }
+                }
+                if (startIndex === -1) return;
 
-            for (let line of lines) {
-                line = line.trim();
-                if (!line) continue;
-
-                // 1. 抓取 Big Memory
-                if (line.startsWith('"big_memory":')) {
-                    statusEl.innerText = `⏳ 正在恢复核心记忆...`;
-                    let jsonStr = line.substring(13).trim();
-                    if (jsonStr.endsWith(',')) jsonStr = jsonStr.slice(0, -1);
-                    
-                    const bmData = JSON.parse(jsonStr);
-                    window.BIG_MEMORY = bmData;
-                    
-                    // 写入数据库
-                    for (let k in bmData) {
-                        await idb.put('universal_store', { id: k, data: bmData[k] });
+                let balance = 0;
+                let endIndex = -1;
+                let inQuote = false;
+                let open = isArray ? '[' : '{';
+                let close = isArray ? ']' : '}';
+                
+                for (let i = startIndex; i < rawText.length; i++) {
+                    const char = rawText[i];
+                    if (char === '"' && rawText[i-1] !== '\\') inQuote = !inQuote;
+                    if (!inQuote) {
+                        if (char === open) balance++;
+                        else if (char === close) balance--;
                     }
-                    continue;
+                    if (balance === 0) { endIndex = i + 1; break; }
                 }
 
-                // 2. 侦测进入某个表 (例如 "chat_history": [ )
-                // 用正则严谨匹配开头，杜绝 RPG 游戏机里的 chat_history 引发串台
-                let startMatch = line.match(/^"([a-zA-Z0-9_]+)":\s*\[/);
-                if (startMatch && arrayStores.includes(startMatch[1])) {
-                    currentMode = "array";
-                    currentStoreName = startMatch[1];
-                    statusEl.innerText = `⏳ 正在还原数据表: ${currentStoreName}...`;
-                    continue;
-                }
+                if (endIndex === -1) return;
 
-                // 3. 侦测表结束 (例如 ], )
-                if (currentMode === "array" && (line === '],' || line === ']')) {
-                    currentMode = "root";
-                    currentStoreName = "";
-                    continue;
-                }
+                const jsonChunk = rawText.substring(startIndex, endIndex);
+                const dataChunk = JSON.parse(jsonChunk);
 
-                // 4. 解析并写入单条数据
-                if (currentMode === "array" && currentStoreName) {
-                    if (line.endsWith(',')) line = line.slice(0, -1); 
-                    if (line === '{' || line === '}') continue; // 过滤无意义符号
-                    
-                    if (line.startsWith('{') && line.endsWith('}')) {
-                        const record = JSON.parse(line);
-                        await idb.put(currentStoreName, record);
+                if (isArray && storeName) {
+                    await idb.clear(storeName); // 清空旧数据
+                    const tx = idb.db.transaction([storeName], 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    for (let item of dataChunk) {
+                        store.put(item); // 写入新数据
+                    }
+                    await new Promise(resolve => tx.oncomplete = resolve);
+                } else if (keyName === 'big_memory') {
+                    window.BIG_MEMORY = dataChunk;
+                    for (let k in dataChunk) {
+                        await idb.put('universal_store', { id: k, data: dataChunk[k] });
+                    }
+                } else if (keyName === 'image_stores') {
+                    for (let subKey in dataChunk) {
+                        if (dataChunk[subKey] && Array.isArray(dataChunk[subKey])) {
+                            await idb.clear(subKey);
+                            const tx = idb.db.transaction([subKey], 'readwrite');
+                            const store = tx.objectStore(subKey);
+                            dataChunk[subKey].forEach(item => store.put(item));
+                            await new Promise(resolve => tx.oncomplete = resolve);
+                        }
                     }
                 }
             }
 
-            alert("🎉 数据完美恢复成功！所有模块已归位。\n页面即将刷新...");
+            // === 🔥 按顺序恢复所有模块 🔥 ===
+            
+            // 1. 核心通用数据 (日记、宠物、设置)
+            await extractAndSave('big_memory', null, false);
+            
+            // 2. 聊天类 (这是你之前丢失的部分)
+            await extractAndSave('chat_history', 'chat_history', true);
+            await extractAndSave('pickup_data', 'pickup_data', true);
+            await extractAndSave('forum_data', 'forum_data', true);     // ✅ 新增
+            await extractAndSave('theater_data', 'theater_data', true); // ✅ 新增
+            
+            // 3. 图片资源 (不含塔罗)
+            await extractAndSave('image_stores', null, false);
+
+            alert("🎉 数据恢复成功！\n论坛、小剧场、聊天记录已全部归位。\n页面即将刷新...");
             location.reload();
 
         } catch (err) {
             console.error(err);
-            alert("❌ 恢复失败 (文件格式非法或损坏):\n" + err.message);
+            alert("❌ 恢复失败 (文件可能已损坏):\n" + err.message);
             statusEl.innerText = originalTitle;
         }
     };
     
-    reader.onerror = () => {
-        alert("❌ 读取文件失败，请检查文件权限。");
-        statusEl.innerText = originalTitle;
-    };
-
     input.value = ''; 
 }
 const NotificationManager = {
@@ -18582,6 +18590,15 @@ window.deleteStudyPlan = function() {
                     <div class="receipt-title">SOUL MESSAGE</div>
                 </div>
                 <div id="output-content" style="font-family:'Georgia', serif; line-height:1.8; color:#333; white-space: pre-wrap; margin-top:15px;"></div>
+<!-- === 👇 粘贴开始：追加提问 UI 👇 === -->
+<div id="tarot-follow-up-section" style="display:none; margin-top: 25px; padding: 15px; background: rgba(255,255,255,0.6); border-radius: 12px; border: 1px dashed #a29bfe; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);">
+    <div style="font-weight:bold; color:#6a1b9a; margin-bottom:10px;">💬 意犹未尽？追加提问</div>
+    <textarea id="follow-up-input" class="editor-textarea" style="height:60px; width:100%; border:1px solid #d1c4e9; padding:10px; border-radius:8px; outline:none;" placeholder="基于刚才的解答，你还有什么细节想追问的？..."></textarea>
+    <button class="m-btn primary" onclick="startFollowUpDraw()" style="width:100%; margin-top:10px; background:linear-gradient(45deg, #a29bfe, #6c5ce7); border:none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);">
+        🃏 为此追问抽取新牌
+    </button>
+</div>
+<!-- === 👆 粘贴结束 👆 === -->
                 
                 <div style="margin-top:30px; display:flex; gap:10px;">
                     <button class="m-btn small" onclick="confirmShuffle()" style="background:#eee;">🔄 重新抽牌</button>
@@ -18590,6 +18607,24 @@ window.deleteStudyPlan = function() {
             </div>
         </div>
     </div>
+<!-- === 👇 粘贴开始：追加提问专用牌桌 👇 === -->
+<div id="tarot-follow-up-table-modal" class="modal-overlay" style="background: rgba(20, 10, 30, 0.95); z-index:35000; display:none;">
+    <div id="tarot-fu-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px;">
+        <div id="tarot-fu-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;"></div>
+        <div class="card-table-ui">
+            <div style="color:#e0c3fc; text-shadow:0 1px 3px #000; font-weight:bold; font-size:1.1rem;">
+                抽取新牌来解答你的追问... (已选: <span id="tarot-fu-flipped-count">0</span>)
+            </div>
+            <button class="m-btn primary" onclick="finishFollowUpDraw()" style="background:#a29bfe; border:1px solid #fff; color:white; box-shadow:0 0 15px rgba(162,155,254,0.5);">
+                ✨ 确认并获取补充解答
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('tarot-follow-up-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+<!-- === 👆 粘贴结束 👆 === -->
 </div>
 <div id="finance-modal" class="modal-overlay">
     <div class="modal-header">
@@ -22666,7 +22701,9 @@ window.generateGalgameEndingAPI = async function() {
             body: JSON.stringify({
                 model: model,
                 messages: [{role:"system", content:"Creative writer. Context-aware."}, {role:"user", content:prompt}],
-                temperature: 0.9,              
+                temperature: 0.9,
+                // 🔥 如果你的模型支持 16k，这里可以设更大，但在普通模型下 1500-2000 token 是输出上限
+                max_tokens: 20000 
             })
         });
         
@@ -23249,7 +23286,7 @@ window.generateGalgameEndingAPI = async function() {
                 model: model,
                 messages: [{role:"system", content:"Creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.9,
-              
+                max_tokens: 20000 // 限制返回长度，防止超时
             })
         });
         
@@ -23659,6 +23696,7 @@ window.generateGalgameEndingAPI = async function() {
             <div class="witch-mode-switch">
                 <button class="m-btn small" id="btn-mode-cookie" onclick="setWitchMode('cookie')" style="flex:1; background:#6c5ce7; color:white;">🍪 女巫饼干</button>
                 <button class="m-btn small" id="btn-mode-tangyuan" onclick="setWitchMode('tangyuan')" style="flex:1; background:#30336b; color:#ccc;">🥣 吃元宵</button>
+<button class="m-btn small" id="btn-mode-notes" onclick="setWitchMode('notes')" style="flex:1; background:#30336b; color:#ccc;">📄 传纸条</button>
             </div>
 
             <!-- 1. 准备阶段 -->
@@ -23689,6 +23727,18 @@ window.generateGalgameEndingAPI = async function() {
                         <input type="text" class="editor-textarea" placeholder="惩罚 6..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #ff7675;">
                     </div>
                 </div>
+<!-- 📄 传纸条模式设置 (新增) -->
+<div id="setup-notes" class="morandi-card" style="display:none; background:rgba(255,255,255,0.1); border:1px solid #0984e3; color:#fff; padding:15px;">
+    <h3 style="color:#0984e3; margin-bottom:10px;">📄 惩罚盲盒 (全天制)</h3>
+    <p style="font-size:0.8rem; color:#ccc;">请写下 5 个<span style="color:#00cec9;font-weight:bold;">“可以全天执行的规则”</span><br>(例如：一天之内只能吃蔬菜、今天必须带猫耳、每句话结尾要加喵)。</p>
+    <div class="notes-input-list" id="notes-punishment-list">
+        <input type="text" class="editor-textarea" placeholder="纸条 1..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+        <input type="text" class="editor-textarea" placeholder="纸条 2..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+        <input type="text" class="editor-textarea" placeholder="纸条 3..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+        <input type="text" class="editor-textarea" placeholder="纸条 4..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+        <input type="text" class="editor-textarea" placeholder="纸条 5..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+    </div>
+</div>
             </div>
 
             <!-- 2. 游戏棋盘区 -->
@@ -28785,7 +28835,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -29916,7 +29966,48 @@ body, #screen {
     position: relative;
     animation: unfold 0.6s ease-out;
 }
-
+/* === 📄 传纸条模式专属样式 === */
+.witch-note-paper {
+    background: #fdf6e3;
+    border: 1px solid #dcdde1;
+    box-shadow: 2px 3px 6px rgba(0,0,0,0.1);
+    padding: 15px;
+    border-radius: 2px;
+    font-family: "Songti SC", serif;
+    color: #2f3640;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    background-image: repeating-linear-gradient(transparent, transparent 24px, #eee 25px);
+    background-attachment: local;
+    line-height: 25px;
+}
+.witch-note-paper:hover {
+    transform: translateY(-5px) rotate(-1deg);
+    box-shadow: 4px 6px 12px rgba(0,0,0,0.15);
+}
+.witch-note-paper.closed {
+    background: #a29bfe;
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px);
+    color: white;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.witch-note-paper.picked {
+    border: 3px solid #6c5ce7;
+    transform: scale(1.05);
+    z-index: 10;
+}
+.notes-input-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
 .ws-header {
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 1px solid #6c5ce7; padding-bottom: 10px; margin-bottom: 15px;
@@ -31453,7 +31544,7 @@ window.finishWitchDraw = async function() {
 【任务要求】
 请生成以下内容：
 1. **角色的陷阱**：(0-18，不能是 #${userTrapIdx})。
-2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字）。
+2. **行动逻辑**：角色吃饼干的优先顺序数组（确保只包含 0-18 的数字且不包含角色的陷阱）。
 3. **多条安全反应**：当角色吃到**安全饼干**时说的台词。**请生成 5 到 9 句完全不同的反应**，语气要符合人设和牌意。
 4. **两篇长篇小故事**：
    - **Story A (用户输)**：角色获胜。描写角色如何实施惩罚（还有详细的惩罚内容）。**字数不少于 300 字**。
@@ -31619,6 +31710,7 @@ window.saveShadowData = function(list) {
 
 // 2. 【香片】修复：JSON Parse Error (Unterminated string)
 // 原因：生成的 12 个香片内容太长，超过了 token 限制被截断。
+// 修复：增加 max_tokens，并添加 JSON 容错截取逻辑。
 window.finishScentDraw = async function() {
     if(scentFlipped.length === 0) return alert("请至少抽一张牌！");
 
@@ -31666,7 +31758,7 @@ window.finishScentDraw = async function() {
                 model: model,
                 messages: [{role:"system", content:"Output JSON array only."}, {role:"user", content:prompt}],
                 temperature: 0.85,
-             
+                max_tokens: 30000 // 🔴 增大 Token 限制
             })
         });
         const json = await res.json();
@@ -32035,6 +32127,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -32061,7 +32154,7 @@ async function callRpgApi(prompt, ctx, callback) {
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:prompt}],
                 temperature: 0.8,
-              
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -32454,7 +32547,7 @@ ${extraInstruction}
                 model: model,
                 messages: [{role:"system", content:"You are a creative writer."}, {role:"user", content:fullPrompt}],
                 temperature: 0.85,
-                
+                max_tokens: 30000
             })
         });
         const json = await res.json();
@@ -33890,7 +33983,7 @@ async function generateXHSThread() {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: model,
-               
+                max_tokens: 30000, 
                 messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
                 temperature: 0.85
             })
@@ -34360,7 +34453,7 @@ ${contextPrompt}
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: model,
-               
+                max_tokens: 30000, 
                 messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
                 temperature: 0.85
             })
@@ -34597,7 +34690,7 @@ window.generateMomentsThread = async function() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: model, 
+                model: model, max_tokens: 30000, 
                 messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
                 temperature: 0.8
             })
@@ -36624,54 +36717,1158 @@ window.renderGalHistory = function() {
         }
     });
 };
-</script>
-<!-- ================= 智能拦截器修复补丁 ================= -->
-<script>
-(function() {
-    console.log("🛡️ 智能拦截器补丁已加载");
 
-    // 1. 判断是否为老用户 (检查本地是否有存过任何设置)
-    const isOldUser = localStorage.getItem('chat_settings') || 
-                      localStorage.getItem('api_profiles') || 
-                      localStorage.getItem('fridge_data') ||
-                      localStorage.getItem('RetroOS_Init_Flag');
-    
-    if (!isOldUser) {
-        // 新用户：无视加载时间，直接开锁放行
-        console.log("👋 欢迎新用户！免除数据加载等待。");
-        window.SYSTEM_DATA_READY = true;
-        // 盖个戳，下次再打开这个网页时，就会被识别为老用户了
-        localStorage.setItem('RetroOS_Init_Flag', 'true');
-    } else {
-        // 标记老用户
-        localStorage.setItem('RetroOS_Init_Flag', 'true');
-    }
+// ============================================================
+// 🔮 塔罗牌：追加提问(包含完整上下文记忆) 与 独立删除
+// ============================================================
 
-    // 2. 修复加载函数 (解决因报错导致永远不开锁的致命Bug)
-    if (typeof window.loadAllBigData === 'function') {
-        const _origLoadAllData = window.loadAllBigData;
-        window.loadAllBigData = async function() {
-            try {
-                // 等待老用户的数据正常加载
-                await _origLoadAllData();
-            } catch (e) {
-                console.warn("⚠️ 数据加载中出现小波动，已自动跳过:", e);
-            } finally {
-                // 【核心修复】无论加载成功还是中途报错，最终都必须把锁打开！
-                window.SYSTEM_DATA_READY = true;
-                console.log("🔓 隐形保镖：数据通道已完全开放。");
-            }
-        };
-    }
+(function initTarotFollowUpLogic() {
+    let fuDeck = [];
+    let fuFlipped = [];
+    window.currentTarotHistoryIndex = -1; 
 
-    // 3. 终极防卡死保险：最多只拦截 3 秒，3秒后强行砸锁
-    setTimeout(() => {
-        if (!window.SYSTEM_DATA_READY) {
-            console.warn("⚠️ 加载超时，强制解除系统锁定！");
-            window.SYSTEM_DATA_READY = true;
+    // 1. 渲染历史详情，加载独立的追问气泡
+    const _origViewTarotHistory = window.viewHistoryDetail_BigDB;
+    window.viewHistoryDetail_BigDB = function(index) {
+        _origViewTarotHistory(index); 
+        window.currentTarotHistoryIndex = index;
+        
+        const h = window.BIG_MEMORY.tarot_history[index];
+        const contentEl = document.getElementById('output-content');
+        
+        // 渲染追加提问区域
+        let fuHtml = '';
+        if (h.followUps && h.followUps.length > 0) {
+            fuHtml += `<div style="margin-top:20px; border-top:2px dashed #d1c4e9; padding-top:15px;"><h4 style="color:#6a1b9a; margin:0 0 10px 0;">💬 历史追问记录</h4>`;
+            h.followUps.forEach((fu, idx) => {
+                fuHtml += `
+                <div class="morandi-card" style="position:relative; margin-bottom:15px; border:1px solid #d1c4e9; background:#fbf7fc; padding:15px;">
+                    <button onclick="deleteTarotFollowUp(${index}, ${idx})" style="position:absolute; top:10px; right:10px; background:#ff7675; color:white; border:none; border-radius:4px; font-size:0.75rem; padding:4px 8px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 删除</button>
+                    <div style="font-weight:bold; color:#2c3e50; margin-bottom:5px; padding-right:50px;">👤 追问：${fu.question}</div>
+                    <div style="font-size:0.8rem; color:#a29bfe; margin-bottom:10px;">🎴 新牌意：${fu.cards}</div>
+                    <div style="font-family:'Georgia', serif; line-height:1.6; color:#4a4a4a;">${fu.answer.replace(/\n/g, '<br>')}</div>
+                </div>`;
+            });
+            fuHtml += `</div>`;
         }
-    }, 3000);
+        
+        contentEl.innerHTML += fuHtml;
 
+        // 显示追加提问输入区
+        const fuSection = document.getElementById('tarot-follow-up-section');
+        if(fuSection) {
+            fuSection.style.display = 'block';
+            document.getElementById('follow-up-input').value = ''; 
+        }
+
+        // 添加顶部的【彻底销毁此占卜】按钮
+        let delBtn = document.getElementById('detail-tarot-del-btn');
+        if(!delBtn) {
+            const headerActions = document.querySelector('#tarot-result-area div').lastElementChild; 
+            delBtn = document.createElement('button');
+            delBtn.id = 'detail-tarot-del-btn';
+            delBtn.className = 'm-btn small';
+            delBtn.style.cssText = 'background:#ff7675; color:white; margin-right:10px;';
+            delBtn.innerHTML = '🗑️ 彻底销毁此占卜';
+            headerActions.parentNode.insertBefore(delBtn, headerActions);
+        }
+        delBtn.onclick = () => {
+            window.deleteTarotHistory(index); 
+            document.getElementById('tarot-result-area').style.display = 'none';
+            document.getElementById('tarot-desk-area').style.display = 'flex';
+        };
+    };
+
+    // 删除单条追问
+    window.deleteTarotFollowUp = function(historyIndex, fuIndex) {
+        if(!confirm("确定要删掉这条追问记录吗？")) return;
+        const h = window.BIG_MEMORY.tarot_history[historyIndex];
+        if(h && h.followUps) {
+            h.followUps.splice(fuIndex, 1);
+            window.saveToBigDB('tarot_history', window.BIG_MEMORY.tarot_history);
+            window.viewHistoryDetail_BigDB(historyIndex); 
+        }
+    };
+
+    const _origStartDivination = window.startDivination;
+    window.startDivination = async function() {
+        const fuSection = document.getElementById('tarot-follow-up-section');
+        if(fuSection) fuSection.style.display = 'none';
+        const delBtn = document.getElementById('detail-tarot-del-btn');
+        if(delBtn) delBtn.style.display = 'none';
+        await _origStartDivination();
+    };
+
+    const _origSaveTarot = window.saveDivinationResult;
+    window.saveDivinationResult = function() {
+        _origSaveTarot();
+        window.viewHistoryDetail_BigDB(0); 
+    };
+
+    // 展开牌桌
+    window.startFollowUpDraw = function() {
+        const q = document.getElementById('follow-up-input').value.trim();
+        if(!q) return alert("✍️ 请先输入你想要追问的问题！");
+        
+        const modal = document.getElementById('tarot-follow-up-table-modal');
+        const area = document.getElementById('tarot-fu-area');
+        area.innerHTML = ''; fuDeck = []; fuFlipped = [];
+        document.getElementById('tarot-fu-flipped-count').innerText = '0';
+
+        for(let i=0; i<=77; i++) fuDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+        for(let i=1; i<=36; i++) fuDeck.push({ type:'lenormand', id:i, isReversed:false });
+        fuDeck.sort(()=>Math.random()-0.5);
+
+        const deskW = window.innerWidth;
+        const cols = 4; const cardW=60, cardH=90, gap=10;
+        const startX = (deskW - (cols*(cardW+gap)))/2;
+
+        fuDeck.forEach((card, i) => {
+            const el = document.createElement('div');
+            el.className = 'playing-card';
+            el.style.left = (startX + (i%cols)*(cardW+gap)) + 'px';
+            el.style.top = (60 + Math.floor(i/cols)*(cardH+gap)) + 'px';
+            el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+            
+            const front = document.createElement('div');
+            front.className = 'playing-card-front';
+            el.appendChild(front);
+            
+            el.onclick = async () => {
+                if(el.classList.contains('flipped')) {
+                    el.classList.remove('flipped');
+                    fuFlipped = fuFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+                } else {
+                    el.classList.add('flipped');
+                    fuFlipped.push(card);
+                    const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                    idb.get(db, card.id).then(res=>{ 
+                        if(res && res.data) front.style.backgroundImage=`url(${res.data})`; 
+                        else { front.style.background="#fff"; front.innerText=card.id; }
+                    });
+                    front.style.transform = (card.isReversed) ? "rotateY(180deg) rotate(180deg)" : "rotateY(180deg)";
+                }
+                document.getElementById('tarot-fu-flipped-count').innerText = fuFlipped.length;
+            };
+            area.appendChild(el);
+        });
+        modal.style.display = 'flex';
+    };
+
+    // 核心 API (包含无限上下文记忆)
+    window.finishFollowUpDraw = async function() {
+        if(fuFlipped.length === 0) return alert("请至少抽一张新牌！");
+        const btn = document.querySelector('#tarot-follow-up-table-modal .primary');
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "🔮 正在感知新的指引...";
+
+        const newCardsDesc = fuFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const followUpQ = document.getElementById('follow-up-input').value.trim();
+        const historyItem = window.BIG_MEMORY.tarot_history[window.currentTarotHistoryIndex]; 
+        
+        // 🔥 核心：构建完整的上下文历史
+        let previousContext = "";
+        if (historyItem.followUps && historyItem.followUps.length > 0) {
+            previousContext = "【中间的追问与解答记录】：\n";
+            historyItem.followUps.forEach((fu, index) => {
+                previousContext += `[追问 ${index+1}]：${fu.question}\n[牌意]：${fu.cards}\n[你的解答]：${fu.answer}\n\n`;
+            });
+        }
+        
+        const wb = window.getWBData();
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+        let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
+        let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+        
+        if(!apiKey) { btn.disabled=false; btn.innerText=oldText; return alert("请配置 API Key"); }
+
+        const prompt = `你是一位高阶塔罗梦占师。
+【世界书/角色设定】：${globalCtx}
+
+【前情回顾（最初的占卜）】：
+- 用户的初始问题：${historyItem.question}
+- 初始牌意：${historyItem.cardsText}
+- 你最初的解答：${historyItem.rawText}
+
+${previousContext}
+
+【本次最新的追加提问】：
+- 用户补充问道："${followUpQ}"
+- 【新抽出的命运牌】：${newCardsDesc}
+
+【任务要求】：
+1. 根据上述所有的问题、解答和语境，针对用户最新的【追加提问】和【新牌】给出补充解答。
+2. 保持同理心和角色人设，直接输出解答正文，绝对不要重复（可以补充不可以一模一样）之前说过的话，顺着刚才的话题往下解。`;
+
+        try {
+            const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: model, messages: [{role:"system", content:"You are a Tarot Reader."}, {role:"user", content:prompt}], temperature: 0.8 })
+            });
+            const json = await res.json();
+            const reply = json.choices[0].message.content.trim();
+            
+            if (!historyItem.followUps) historyItem.followUps = [];
+            historyItem.followUps.push({ question: followUpQ, cards: newCardsDesc, answer: reply });
+            
+            window.saveToBigDB('tarot_history', window.BIG_MEMORY.tarot_history);
+            
+            document.getElementById('tarot-follow-up-table-modal').style.display = 'none';
+            document.getElementById('follow-up-input').value = '';
+            window.viewHistoryDetail_BigDB(window.currentTarotHistoryIndex); 
+
+        } catch(e) {
+            alert("生成失败: " + e.message);
+        } finally {
+            btn.disabled = false; btn.innerText = oldText;
+        }
+    };
 })();
 </script>
+<!-- ================= 📄 传纸条模式：完美修复版 (防串台 + API修复 + 自动断点续玩) ================= -->
+<script>
+(function initWitchNotesModePerfect() {
+    console.log("📄 正在安装女巫【传纸条】终极补丁...");
+
+    // ================= 1. 自动注入 CSS 样式 =================
+    const styleId = "witch-notes-style";
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.innerHTML = `
+            .witch-note-paper { background: #fdf6e3; border: 1px solid #dcdde1; box-shadow: 2px 3px 6px rgba(0,0,0,0.1); padding: 15px; border-radius: 2px; font-family: "Songti SC", serif; color: #2f3640; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; background-image: repeating-linear-gradient(transparent, transparent 24px, #eee 25px); background-attachment: local; line-height: 25px; }
+            .witch-note-paper:hover { transform: translateY(-5px) rotate(-1deg); box-shadow: 4px 6px 12px rgba(0,0,0,0.15); }
+            .witch-note-paper.closed { background: #a29bfe; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px); color: white; text-align: center; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; }
+            .witch-note-paper.picked { border: 3px solid #6c5ce7; transform: scale(1.05); z-index: 10; }
+            .notes-input-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // ================= 2. 自动注入 HTML 结构 =================
+    setTimeout(() => {
+        // 注入切换按钮
+        const switchContainer = document.querySelector('.witch-mode-switch');
+        if (switchContainer && !document.getElementById('btn-mode-notes')) {
+            const btn = document.createElement('button');
+            btn.className = 'm-btn small';
+            btn.id = 'btn-mode-notes';
+            btn.style.cssText = 'flex:1; background:#30336b; color:#ccc;';
+            btn.innerText = '📄 传纸条';
+            btn.onclick = () => window.setWitchMode('notes');
+            switchContainer.appendChild(btn);
+        }
+
+        // 注入设置面板
+        const setupPanel = document.getElementById('witch-setup-panel');
+        if (setupPanel && !document.getElementById('setup-notes')) {
+            const notesSetupHTML = `
+                <div id="setup-notes" class="morandi-card" style="display:none; background:rgba(255,255,255,0.1); border:1px solid #0984e3; color:#fff; padding:15px;">
+                    <h3 style="color:#0984e3; margin-bottom:10px;">📄 惩罚盲盒 (全天制)</h3>
+                    <p style="font-size:0.8rem; color:#ccc;">请写下 5 个<span style="color:#00cec9;font-weight:bold;">“可以全天执行的规则”</span><br>(例如：一天之内只能吃蔬菜、今天必须带猫耳、每句话结尾加喵)。</p>
+                    <div class="notes-input-list" id="notes-punishment-list">
+                        <input type="text" class="editor-textarea" placeholder="纸条 1..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 2..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 3..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 4..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 5..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                    </div>
+                </div>
+            `;
+            setupPanel.insertAdjacentHTML('beforeend', notesSetupHTML);
+        }
+
+        // 注入游戏棋盘
+        const gameView = document.getElementById('witch-game-view');
+        if (gameView && !document.getElementById('witch-notes-container')) {
+            const targetContainer = document.getElementById('witch-tangyuan-container') || document.getElementById('witch-board-container');
+            const notesBoardHTML = `
+                <div id="witch-notes-container" style="display:none; margin-top:20px;">
+                    <div style="text-align:center; color:#fff; margin-bottom:15px;">
+                        <span style="color:#0984e3; font-weight:bold;">这是 Ta 写的 5 张纸条：</span>请盲抽一张！
+                    </div>
+                    <div id="notes-board-area" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:15px;"></div>
+                    <button id="btn-notes-phase2" class="m-btn primary" onclick="window.startNotesPhase2Draw()" style="width:100%; margin-top:20px; background:#00b894; display:none;">
+                        🎲 看看今天 Ta 的状态 (二次抽牌结算)
+                    </button>
+                </div>
+            `;
+            if (targetContainer) targetContainer.insertAdjacentHTML('afterend', notesBoardHTML);
+        }
+    }, 500);
+
+    // ================= 3. 解决串台 Bug：强制界面隔离隔离 =================
+    window.forceWitchUIIsolation = function(mode) {
+        // 按钮颜色
+        const btnCookie = document.getElementById('btn-mode-cookie');
+        const btnTy = document.getElementById('btn-mode-tangyuan');
+        const btnNotes = document.getElementById('btn-mode-notes');
+        if(btnCookie) { btnCookie.style.background = mode==='cookie' ? '#6c5ce7' : '#30336b'; btnCookie.style.color = mode==='cookie' ? '#fff' : '#ccc'; }
+        if(btnTy) { btnTy.style.background = mode==='tangyuan' ? '#ff7675' : '#30336b'; btnTy.style.color = mode==='tangyuan' ? '#fff' : '#ccc'; }
+        if(btnNotes) { btnNotes.style.background = mode==='notes' ? '#0984e3' : '#30336b'; btnNotes.style.color = mode==='notes' ? '#fff' : '#ccc'; }
+        
+        // 设置面板强制单显
+        const setupCookie = document.getElementById('setup-cookie');
+        const setupTy = document.getElementById('setup-tangyuan');
+        const setupNotes = document.getElementById('setup-notes');
+        if(setupCookie) setupCookie.style.display = mode==='cookie' ? 'block' : 'none';
+        if(setupTy) setupTy.style.display = mode==='tangyuan' ? 'block' : 'none';
+        if(setupNotes) setupNotes.style.display = mode==='notes' ? 'block' : 'none';
+
+        // 游戏盘强制单显 (解决底部漏出元宵碗的问题)
+        const boardCookie = document.getElementById('witch-board-container');
+        const boardTy = document.getElementById('witch-tangyuan-container');
+        const boardNotes = document.getElementById('witch-notes-container');
+        if(boardCookie) boardCookie.style.display = mode==='cookie' ? 'grid' : 'none';
+        if(boardTy) boardTy.style.display = mode==='tangyuan' ? 'block' : 'none'; 
+        if(boardNotes) boardNotes.style.display = mode==='notes' ? 'block' : 'none';
+    };
+
+    window.setWitchMode = function(mode) {
+        if (typeof witchGameState !== 'undefined' && witchGameState.isPlaying) {
+            return alert("游戏进行中，请先重置/结束当前游戏！");
+        }
+        if (typeof witchGameState === 'undefined') window.witchGameState = {};
+        witchGameState.gameMode = mode;
+        window.forceWitchUIIsolation(mode);
+        window.initWitchBoard('new');
+    };
+
+    const _origInitWitchBoard = window.initWitchBoard;
+    window.initWitchBoard = function(mode = 'new', data = null) {
+        // 先确保界面绝对隔离
+        if (witchGameState && witchGameState.gameMode) {
+            window.forceWitchUIIsolation(witchGameState.gameMode);
+        }
+
+        _origInitWitchBoard(mode, data); 
+
+        // 纸条特有初始化
+        if (witchGameState.gameMode === 'notes' && (mode === 'new' || mode === 'new_notes_board')) {
+            if (mode === 'new') {
+                witchGameState.notesUserPuns = [];
+                witchGameState.notesCharPuns = [];
+                witchGameState.notesUserPicked = -1;
+                witchGameState.notesCharPicked = -1;
+                witchGameState.notesPhase2Result = null;
+                const inputs = document.querySelectorAll('#notes-punishment-list input');
+                inputs.forEach(i => i.value = '');
+            }
+            const btn2 = document.getElementById('btn-notes-phase2');
+            if(btn2) btn2.style.display = 'none';
+            const tableBtn = document.querySelector('#witch-card-table-modal .primary');
+            if(tableBtn) tableBtn.setAttribute('onclick', 'window.finishWitchDraw()');
+        }
+    };
+
+    // ================= 4. 解决刷新消失 Bug：断点续玩自动存档系统 =================
+    window.autoSaveNotesProgress = function() {
+        if (witchGameState && witchGameState.isPlaying && witchGameState.gameMode === 'notes') {
+            localStorage.setItem('witch_notes_ongoing', JSON.stringify(witchGameState));
+        }
+    };
+
+    window.clearNotesProgress = function() {
+        localStorage.removeItem('witch_notes_ongoing');
+    };
+
+    // 拦截重置按钮，清除存档
+    const _origResetWitchGame = window.resetWitchGame;
+    window.resetWitchGame = function() {
+        window.clearNotesProgress();
+        _origResetWitchGame();
+    };
+
+    // 拦截打开APP，尝试恢复进度
+    const _origOpenWitchApp = window.openWitchApp;
+    window.openWitchApp = function() {
+        const savedStr = localStorage.getItem('witch_notes_ongoing');
+        if (savedStr) {
+            try {
+                const savedState = JSON.parse(savedStr);
+                if (savedState && savedState.isPlaying && savedState.gameMode === 'notes') {
+                    window.witchGameState = savedState;
+                    document.getElementById('witch-app-modal').style.display = 'flex';
+                    window.switchWitchView('game');
+                    window.forceWitchUIIsolation('notes');
+                    
+                    document.getElementById('witch-setup-panel').style.display = 'none';
+                    document.getElementById('btn-witch-start').style.display = 'none';
+                    document.getElementById('witch-log-panel').style.display = 'block';
+                    
+                    // 恢复纸条界面
+                    window.renderNotesSelection();
+                    if (savedState.notesUserPicked !== -1) {
+                        const el = document.getElementById('notes-board-area').children[savedState.notesUserPicked];
+                        if (el) {
+                            el.classList.remove('closed');
+                            el.classList.add('picked');
+                            el.innerHTML = `<div style="font-size:0.75rem; color:#888;">你抽中了:</div><strong style="color:#0984e3;">${savedState.notesCharPuns[savedState.notesUserPicked]}</strong>`;
+                        }
+                        const btn2 = document.getElementById('btn-notes-phase2');
+                        if (btn2) btn2.style.display = 'block';
+                    }
+                    return; // 恢复成功，不再走老路
+                }
+            } catch(e) {}
+        }
+        // 如果没存档，正常打开
+        _origOpenWitchApp();
+    };
+
+    // ================= 5. 一阶段抽牌与 API =================
+    const _origStartWitchDraw = window.startWitchDraw;
+    window.startWitchDraw = function() {
+        if (witchGameState.gameMode === 'notes') {
+            const inputs = document.querySelectorAll('#notes-punishment-list input');
+            if(!inputs || inputs.length === 0) return alert("系统正在加载，请稍等！");
+            
+            witchGameState.notesUserPuns = [];
+            for(let input of inputs) {
+                if(!input.value.trim()) return alert("请写满 5 张惩罚纸条！");
+                witchGameState.notesUserPuns.push(input.value.trim());
+            }
+            _origStartWitchDraw();
+            setTimeout(() => {
+                const uiText = document.querySelector('#witch-card-table-modal .card-table-ui div');
+                const uiBtn = document.querySelector('#witch-card-table-modal .primary');
+                if(uiText) uiText.innerHTML = `抽取命运牌，探测 Ta 写的纸条... (<span id="witch-flipped-count">0</span>)`;
+                if(uiBtn) uiBtn.innerText = "📄 生成盲盒纸条";
+            }, 50);
+        } else {
+            _origStartWitchDraw();
+        }
+    };
+
+    const _origFinishWitchDraw = window.finishWitchDraw;
+    window.finishWitchDraw = async function() {
+        if (witchGameState.gameMode !== 'notes') return _origFinishWitchDraw(); 
+
+        if(typeof witchFlipped === 'undefined' || witchFlipped.length === 0) return alert("请至少抽一张牌！");
+        const btn = document.querySelector('#witch-card-table-modal .primary');
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "📄 正在书写惩罚纸条...";
+
+        const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const wb = window.BIG_MEMORY.world_book || {};
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        
+        // 💡 解决 API 读取 Bug：强化默认值读取机制
+        let apiKey = document.getElementById('api-key').value;
+        let apiUrl = document.getElementById('api-url').value;
+        let model = document.getElementById('model-select').value;
+        if (!apiKey || !apiUrl || !model) {
+            try { 
+                const s = JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); 
+                if(!apiKey) apiKey = s.key; 
+                if(!apiUrl) apiUrl = s.url; 
+                if(!model) model = s.model; 
+            } catch(e){}
+        }
+        if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+        if(!model) model = "gpt-3.5-turbo";
+        if(!apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请在桌面【设置】中配置 API Key！"); }
+
+        const userNotes = JSON.stringify(witchGameState.notesUserPuns);
+        const prompt = `你现在正在和用户玩“传纸条”惩罚盲盒游戏。
+规则：双方各写5张【必须全天执行的限制级/惩罚规则】。然后盲抽一张度过今天。
+【世界观/角色】：${globalCtx}
+【命运牌】：${cardsDesc}
+【用户写的5张纸条】：${userNotes}
+【任务】：
+1. 结合角色人设和牌意，写出 5 张由 Ta 构思的惩罚纸条。
+2. 从用户写的 5 张纸条中，随机帮 Ta 挑选一张（输出 0-4 的索引）。
+严格输出JSON：{"char_notes": ["Ta惩罚1", "Ta惩罚2", "Ta惩罚3", "Ta惩罚4", "Ta惩罚5"], "char_pick_index": 2}`;
+
+        try {
+            const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
+            });
+            const json = await res.json();
+            let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+            const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+            if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+            const result = JSON.parse(raw);
+
+            witchGameState.notesCharPuns = result.char_notes;
+            witchGameState.notesCharPicked = result.char_pick_index;
+            
+            window.forceWitchUIIsolation('notes'); // 强制界面干净
+            window.initWitchBoard('new_notes_board'); 
+            window.renderNotesSelection(); 
+            
+            const logEl = document.getElementById('witch-game-log');
+            if(logEl) {
+                logEl.innerHTML += `<div>📄 Ta 的 5 张纸条已写好，Ta 也抽走了你的纸条。现在轮到你抽了！</div>`;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+            document.getElementById('witch-reaction-text').innerText = "请从下方 5 张纸条中盲选一张！";
+
+            witchGameState.isPlaying = true;
+            witchGameState.isMyTurn = true;
+            
+            // 🔥 一阶段完成：自动存档
+            window.autoSaveNotesProgress();
+            
+            document.getElementById('witch-card-table-modal').style.display = 'none';
+            document.getElementById('witch-setup-panel').style.display = 'none';
+            document.getElementById('btn-witch-start').style.display = 'none';
+            document.getElementById('witch-log-panel').style.display = 'block';
+
+        } catch(e) {
+            console.error(e);
+            alert("生成失败: " + e.message);
+        } finally {
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    };
+
+    // ================= 6. 纸条交互与阶段二 =================
+    window.renderNotesSelection = function() {
+        const area = document.getElementById('notes-board-area');
+        if(!area) return;
+        area.innerHTML = '';
+        for(let i = 0; i < 5; i++) {
+            const paper = document.createElement('div');
+            paper.className = 'witch-note-paper closed';
+            paper.innerText = `纸条 ${i+1}`;
+            paper.onclick = () => window.pickCharNote(i, paper);
+            area.appendChild(paper);
+        }
+    };
+
+    window.pickCharNote = function(index, el) {
+        if (witchGameState.notesUserPicked !== -1) return; // 只能选一次
+        witchGameState.notesUserPicked = index;
+        el.classList.remove('closed');
+        el.classList.add('picked');
+        el.innerHTML = `<div style="font-size:0.75rem; color:#888;">你抽中了:</div><strong style="color:#0984e3;">${witchGameState.notesCharPuns[index]}</strong>`;
+        
+        document.getElementById('witch-reaction-text').innerText = "双方纸条已确认！请点击下方按钮进行今天的一日结算。";
+        const log = document.getElementById('witch-game-log');
+        if(log) {
+            log.innerHTML += `<div>💥 你抽到了：【${witchGameState.notesCharPuns[index]}】</div>`;
+            log.innerHTML += `<div>💥 Ta 抽到了你的：【${witchGameState.notesUserPuns[witchGameState.notesCharPicked]}】</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        document.getElementById('btn-notes-phase2').style.display = 'block';
+        
+        // 🔥 选定纸条后：自动存档
+        window.autoSaveNotesProgress();
+    };
+
+    window.startNotesPhase2Draw = function() {
+        const modal = document.getElementById('witch-card-table-modal');
+        document.querySelector('#witch-card-table-modal .primary').setAttribute('onclick', 'window.finishNotesPhase2Draw()');
+        modal.querySelector('.card-table-ui div').innerHTML = `抽取命运牌，看看这一天你们过得怎么样... (<span id="witch-flipped-count">0</span>)`;
+        modal.querySelector('.card-table-ui .primary').innerText = "📖 生成全天日记与对话";
+        if(typeof _origStartWitchDraw === 'function') _origStartWitchDraw(); 
+    };
+
+    window.finishNotesPhase2Draw = async function() {
+        if(typeof witchFlipped === 'undefined' || witchFlipped.length === 0) return alert("请至少抽一张牌！");
+        
+        const btn = document.querySelector('#witch-card-table-modal .primary');
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "📖 正在快进时间...";
+
+        const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const wb = window.BIG_MEMORY.world_book || {};
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        
+        // 💡 解决 API 读取 Bug
+        let apiKey = document.getElementById('api-key').value;
+        let apiUrl = document.getElementById('api-url').value;
+        let model = document.getElementById('model-select').value;
+        if (!apiKey || !apiUrl || !model) {
+            try { 
+                const s = JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); 
+                if(!apiKey) apiKey = s.key; 
+                if(!apiUrl) apiUrl = s.url; 
+                if(!model) model = s.model; 
+            } catch(e){}
+        }
+        if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+        if(!model) model = "gpt-3.5-turbo";
+
+        const prompt = `你是一位极其擅长描写日常感与心理拉扯的小说家。这是“传纸条惩罚”游戏的一天结束后的总结。
+【世界观/角色】：${globalCtx}
+【角色(Ta)今天必须遵守的惩罚】：${witchGameState.notesUserPuns[witchGameState.notesCharPicked]}
+【用户(我)今天必须遵守的惩罚】：${witchGameState.notesCharPuns[witchGameState.notesUserPicked]}
+【决定今天过得怎样的命运牌】：${cardsDesc}
+
+【任务要求】：
+1. **全局突发状况**：根据牌意，给今天加一个不可抗力的全局事件（例如：下暴雨、停电、被迫出门等）。
+2. **角色的一天日记**：第一人称视角，不少于300字。详细记录今天遵守惩罚时发生的趣事、糗事、内心吐槽，以及观察用户做惩罚时的反应。
+3. **睡前对话**：角色对用户今天表现的评价和总结（包括用户有没有遵守惩罚、Ta的想法）。必须带一点口语化的聊天张力。
+
+【输出格式】严格 JSON 格式：
+{"global_event": "今天发生的小意外...", "diary": "日记正文...", "dialogue": "睡前对话..."}`;
+
+        try {
+            const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
+            });
+            const json = await res.json();
+            let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+            const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+            if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+            const result = JSON.parse(raw);
+
+            witchGameState.notesPhase2Result = result;
+            witchGameState.isPlaying = false; // 游戏结束
+            
+            // 🔥 游戏结束，清空断点缓存，准备存入永久历史
+            window.clearNotesProgress();
+            
+            const modal = document.getElementById('witch-story-modal');
+            document.getElementById('ws-title').innerText = "📖 惩罚日记结算";
+            
+            let htmlContent = `<div style="color:#ff7675; font-weight:bold; margin-bottom:10px;">⚡ 全局影响：${result.global_event}</div>`;
+            htmlContent += `<h4 style="color:#a29bfe; margin-top:15px; border-bottom:1px dashed #6c5ce7; padding-bottom:5px;">✍️ Ta的日记</h4>`;
+            htmlContent += `<div style="font-family:'Georgia', serif; line-height:1.6;">${result.diary.replace(/\n/g, '<br>')}</div>`;
+            htmlContent += `<h4 style="color:#00cec9; margin-top:20px; border-bottom:1px dashed #00cec9; padding-bottom:5px;">💬 睡前私语</h4>`;
+            htmlContent += `<div style="font-weight:bold;">“${result.dialogue}”</div>`;
+            
+            document.getElementById('ws-content').innerHTML = htmlContent;
+            document.getElementById('ws-date').innerText = new Date().toLocaleString();
+            
+            btn.setAttribute('onclick', 'window.finishWitchDraw()'); 
+            document.getElementById('witch-card-table-modal').style.display = 'none';
+            modal.style.zIndex = "30000";
+            modal.style.display = 'flex';
+            
+            if(typeof window.manualSaveWitchGame === 'function') window.manualSaveWitchGame();
+
+        } catch(e) {
+            alert("结算失败: " + e.message);
+        } finally {
+            btn.innerText = oldText; btn.disabled = false;
+            btn.setAttribute('onclick', 'window.finishWitchDraw()');
+        }
+    };
+
+    // ================= 7. 拦截历史记录阅读 =================
+    const _origReadWitchStory = window.readWitchStory;
+    window.readWitchStory = function(index) {
+        const list = window.getWitchData();
+        const item = list[index];
+        if(!item || !item.state) return alert("该记录数据不完整");
+        
+        if (item.state.gameMode === 'notes') {
+            const res = item.state.notesPhase2Result;
+            if (!res) return alert("该局游戏尚未完成结算。");
+            
+            const modal = document.getElementById('witch-story-modal');
+            document.getElementById('ws-title').innerText = "📖 传纸条惩罚回顾";
+            
+            let htmlContent = `
+                <div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:5px; margin-bottom:15px; font-size:0.9rem;">
+                    <div><strong>你的惩罚:</strong> ${item.state.notesCharPuns[item.state.notesUserPicked]}</div>
+                    <div style="margin-top:5px;"><strong>Ta的惩罚:</strong> ${item.state.notesUserPuns[item.state.notesCharPicked]}</div>
+                </div>
+                <div style="color:#ff7675; font-weight:bold; margin-bottom:10px;">⚡ 全局影响：${res.global_event}</div>
+                <h4 style="color:#a29bfe; margin-top:15px; border-bottom:1px dashed #6c5ce7; padding-bottom:5px;">✍️ Ta的日记</h4>
+                <div style="font-family:'Georgia', serif; line-height:1.6;">${res.diary.replace(/\n/g, '<br>')}</div>
+                <h4 style="color:#00cec9; margin-top:20px; border-bottom:1px dashed #00cec9; padding-bottom:5px;">💬 睡前私语</h4>
+                <div style="font-weight:bold;">“${res.dialogue}”</div>
+            `;
+            
+            document.getElementById('ws-content').innerHTML = htmlContent;
+            document.getElementById('ws-date').innerText = item.date;
+            modal.style.zIndex = "30000";
+            modal.style.display = 'flex';
+            return;
+        }
+        
+        _origReadWitchStory(index); // 饼干/元宵
+    };
+
+    console.log("✅ 传纸条系统(完美修复版) 加载完毕！");
+})();
+</script>
+<!-- ================= 📄 传纸条模式：V4 终极隔离版 (彻底解决串台报错) ================= -->
+<script>
+(function initWitchNotesModeV4() {
+    console.log("📄 正在安装女巫【传纸条】V4 终极隔离补丁...");
+
+    // ================= 1. 自动注入 CSS 样式 =================
+    const styleId = "witch-notes-style";
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.innerHTML = `
+            .witch-note-paper { background: #fdf6e3; border: 1px solid #dcdde1; box-shadow: 2px 3px 6px rgba(0,0,0,0.1); padding: 15px; border-radius: 2px; font-family: "Songti SC", serif; color: #2f3640; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; background-image: repeating-linear-gradient(transparent, transparent 24px, #eee 25px); background-attachment: local; line-height: 25px; margin-bottom: 10px; }
+            .witch-note-paper:hover { transform: translateY(-5px) rotate(-1deg); box-shadow: 4px 6px 12px rgba(0,0,0,0.15); }
+            .witch-note-paper.closed { background: #a29bfe; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 5px, transparent 5px, transparent 10px); color: white; text-align: center; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; }
+            .witch-note-paper.picked { border: 3px solid #6c5ce7; transform: scale(1.05); z-index: 10; }
+            .notes-input-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // ================= 2. 自动注入 HTML =================
+    setTimeout(() => {
+        // 顶部按钮
+        const switchContainer = document.querySelector('.witch-mode-switch');
+        if (switchContainer && !document.getElementById('btn-mode-notes')) {
+            const btn = document.createElement('button');
+            btn.className = 'm-btn small'; btn.id = 'btn-mode-notes';
+            btn.style.cssText = 'flex:1; background:#30336b; color:#ccc;';
+            btn.innerText = '📄 传纸条';
+            btn.onclick = () => window.setWitchMode('notes');
+            switchContainer.appendChild(btn);
+        }
+
+        // 惩罚输入面板
+        const setupPanel = document.getElementById('witch-setup-panel');
+        if (setupPanel && !document.getElementById('setup-notes')) {
+            setupPanel.insertAdjacentHTML('beforeend', `
+                <div id="setup-notes" class="morandi-card" style="display:none; background:rgba(255,255,255,0.1); border:1px solid #0984e3; color:#fff; padding:15px;">
+                    <h3 style="color:#0984e3; margin-bottom:10px;">📄 惩罚盲盒 (全天制)</h3>
+                    <p style="font-size:0.8rem; color:#ccc;">请写下 5 个<span style="color:#00cec9;font-weight:bold;">“可以全天执行的规则”</span><br>(例如：一天之内只能吃蔬菜、今天必须带猫耳、每句话带喵)。</p>
+                    <div class="notes-input-list" id="notes-punishment-list">
+                        <input type="text" class="editor-textarea" placeholder="纸条 1..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 2..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 3..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 4..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                        <input type="text" class="editor-textarea" placeholder="纸条 5..." style="background:rgba(0,0,0,0.3); color:white; border:1px solid #0984e3;">
+                    </div>
+                </div>
+            `);
+        }
+
+        // 选纸条区域
+        const gameView = document.getElementById('witch-game-view');
+        if (gameView && !document.getElementById('witch-notes-container')) {
+            const targetContainer = document.getElementById('witch-tangyuan-container') || document.getElementById('witch-board-container');
+            if (targetContainer) {
+                targetContainer.insertAdjacentHTML('afterend', `
+                    <div id="witch-notes-container" style="display:none; margin-top:20px;">
+                        <div style="text-align:center; color:#fff; margin-bottom:15px;">
+                            <span style="color:#0984e3; font-weight:bold;">这是 Ta 写的 5 张纸条：</span>请盲抽一张！
+                        </div>
+                        <div id="notes-board-area" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:15px;"></div>
+                        <button id="btn-notes-phase2" class="m-btn primary" onclick="window.startNotesPhase2Draw()" style="width:100%; margin-top:20px; background:#00b894; display:none;">
+                            🎲 看看今天 Ta 的状态 (二次抽牌结算)
+                        </button>
+                    </div>
+                `);
+            }
+        }
+    }, 500);
+
+    // ================= 3. 严格的 UI 视觉管理器 =================
+    window.enforceWitchUI = function(targetMode, isPlaying) {
+        // 按钮颜色
+        ['cookie', 'tangyuan', 'notes'].forEach(id => {
+            const btn = document.getElementById('btn-mode-' + id);
+            if(btn) {
+                btn.style.background = (targetMode === id) ? (id==='notes'?'#0984e3':(id==='tangyuan'?'#ff7675':'#6c5ce7')) : '#30336b';
+                btn.style.color = (targetMode === id) ? '#fff' : '#ccc';
+            }
+        });
+
+        // 顶部设置面板 (未开始游戏时才显示对应的)
+        document.getElementById('setup-cookie').style.display = (!isPlaying && targetMode === 'cookie') ? 'block' : 'none';
+        document.getElementById('setup-tangyuan').style.display = (!isPlaying && targetMode === 'tangyuan') ? 'block' : 'none';
+        document.getElementById('setup-notes').style.display = (!isPlaying && targetMode === 'notes') ? 'block' : 'none';
+
+        // 游戏容器控制 (游戏进行中才显示对应棋盘，饼干除外)
+        document.getElementById('witch-board-container').style.display = (targetMode === 'cookie') ? 'grid' : 'none';
+        document.getElementById('witch-tangyuan-container').style.display = (targetMode === 'tangyuan' && isPlaying) ? 'block' : 'none';
+        
+        const nBoard = document.getElementById('witch-notes-container');
+        if (nBoard) nBoard.style.display = (targetMode === 'notes' && isPlaying) ? 'block' : 'none';
+    };
+
+    window.setWitchMode = function(mode) {
+        if (typeof witchGameState !== 'undefined' && witchGameState.isPlaying) {
+            return alert("游戏进行中，请先重置/结束当前游戏！");
+        }
+        if (typeof witchGameState === 'undefined') window.witchGameState = {};
+        witchGameState.gameMode = mode;
+        window.enforceWitchUI(mode, false);
+        if (typeof window.initWitchBoard === 'function') window.initWitchBoard('new');
+    };
+
+    // ================= 4. 彻底重写抽牌发令员 (终结 if/else 导致的问题) =================
+    window.startWitchDraw = function() {
+        if (!witchGameState) return;
+
+        // 【安全隔离的校验逻辑】
+        if (witchGameState.gameMode === 'cookie') {
+            if (witchGameState.myTrap === -1) return alert("请先选择一个饼干作为你的陷阱！");
+            if (!document.getElementById('witch-user-punishment').value) return alert("请填写给Ta的惩罚内容！");
+        } 
+        else if (witchGameState.gameMode === 'tangyuan') {
+            const inputs = document.querySelectorAll('#ty-punishment-list input');
+            witchGameState.tyUserPunishments = [];
+            for(let input of inputs) {
+                if(!input.value.trim()) return alert("请填写完整的 6 个惩罚！(每行必填)");
+                witchGameState.tyUserPunishments.push(input.value.trim());
+            }
+        } 
+        else if (witchGameState.gameMode === 'notes') {
+            const inputs = document.querySelectorAll('#notes-punishment-list input');
+            witchGameState.notesUserPuns = [];
+            for(let input of inputs) {
+                if(!input.value.trim()) return alert("请写满 5 张惩罚纸条！(每张都要写)");
+                witchGameState.notesUserPuns.push(input.value.trim());
+            }
+        }
+
+        // 打开牌桌
+        const modal = document.getElementById('witch-card-table-modal');
+        const area = document.getElementById('witch-card-area');
+        const desk = document.getElementById('witch-card-table-desk');
+        
+        if(typeof idb !== 'undefined') {
+            idb.get('settings_heavy', 'tarot_table').then(res => {
+                if(res && res.data) desk.style.backgroundImage = `url(${res.data})`;
+            });
+        }
+
+        // 根据模式修改牌桌文字
+        const uiText = modal.querySelector('.card-table-ui div');
+        const uiBtn = modal.querySelector('.card-table-ui .primary');
+        if (witchGameState.gameMode === 'cookie') {
+            if(uiText) uiText.innerHTML = `抽取命运牌，决定Ta的策略与陷阱... (<span id="witch-flipped-count">0</span>)`;
+            if(uiBtn) uiBtn.innerText = "🍪 生成饼干剧本";
+        } else if (witchGameState.gameMode === 'tangyuan') {
+            if(uiText) uiText.innerHTML = `抽取命运牌，决定Ta的惩罚与预判... (<span id="witch-flipped-count">0</span>)`;
+            if(uiBtn) uiBtn.innerText = "🥣 开始煮元宵";
+        } else if (witchGameState.gameMode === 'notes') {
+            if(uiText) uiText.innerHTML = `抽取命运牌，探测 Ta 写的 5 张纸条... (<span id="witch-flipped-count">0</span>)`;
+            if(uiBtn) uiBtn.innerText = "📄 生成盲盒纸条";
+        }
+        
+        if(uiBtn) uiBtn.setAttribute('onclick', 'window.finishWitchDraw()');
+
+        // 洗牌逻辑 (独立，不污染原版)
+        area.innerHTML = '';
+        window.witchDeck = []; window.witchFlipped = [];
+        document.getElementById('witch-flipped-count').innerText = '0';
+
+        for(let i=0; i<=77; i++) witchDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+        for(let i=1; i<=36; i++) witchDeck.push({ type:'lenormand', id:i, isReversed:false });
+        witchDeck.sort(()=>Math.random()-0.5);
+
+        const deskW = window.innerWidth;
+        const cols = 4; const cardW=60, cardH=90, gap=10;
+        const startX = (deskW - (cols*(cardW+gap)))/2;
+
+        witchDeck.forEach((card, i) => {
+            const el = document.createElement('div');
+            el.className = 'playing-card';
+            const col = i % cols, row = Math.floor(i/cols);
+            el.style.left = (startX + col*(cardW+gap)) + 'px'; el.style.top = (60 + row*(cardH+gap)) + 'px'; el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+            const front = document.createElement('div'); front.className = 'playing-card-front'; el.appendChild(front);
+            
+            el.onclick = async () => {
+                if(el.classList.contains('flipped')) {
+                    el.classList.remove('flipped'); witchFlipped = witchFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+                } else {
+                    el.classList.add('flipped'); witchFlipped.push(card);
+                    const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                    if(typeof idb !== 'undefined') {
+                        idb.get(db, card.id).then(res=>{ if(res && res.data) front.style.backgroundImage=`url(${res.data})`; else { front.style.background="#fff"; front.innerText=card.id; } });
+                    }
+                    if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)"; else front.style.transform = "rotateY(180deg)";
+                }
+                document.getElementById('witch-flipped-count').innerText = witchFlipped.length;
+            };
+            area.appendChild(el);
+        });
+
+        modal.style.display = 'flex';
+    };
+
+    // ================= 5. API 拉取与自动保存功能 =================
+    function getApiConfig() {
+        let apiKey = document.getElementById('api-key')?.value;
+        let apiUrl = document.getElementById('api-url')?.value;
+        let model = document.getElementById('model-select')?.value;
+        if (!apiKey || !apiUrl || !model) {
+            try { 
+                const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+                if(!apiKey) apiKey = s.key; 
+                if(!apiUrl) apiUrl = s.url; 
+                if(!model) model = s.model; 
+            } catch(e){}
+        }
+        if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+        if(!model) model = "gpt-3.5-turbo";
+        return { apiKey, apiUrl, model };
+    }
+
+    window.silentSaveNotesProgress = function() {
+        if (!witchGameState || !witchGameState.isPlaying) return;
+        const list = window.getWitchData();
+        const historyItem = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            userPunish: "传纸条大挑战",
+            winner: '进行中/存档',
+            state: JSON.parse(JSON.stringify(witchGameState)) 
+        };
+        if(list.length > 0 && list[0].winner === '进行中/存档' && list[0].state.gameMode === 'notes') {
+            list[0] = historyItem; 
+        } else {
+            list.unshift(historyItem);
+        }
+        window.saveToBigDB('witch_data', list);
+    };
+
+    // 拦截开屏，自动恢复未打完的纸条局
+    const _origOpenWitchApp = window.openWitchApp;
+    window.openWitchApp = function() {
+        const list = window.getWitchData();
+        if (list.length > 0 && list[0].winner === '进行中/存档' && list[0].state.gameMode === 'notes') {
+            document.getElementById('witch-app-modal').style.display = 'flex';
+            window.switchWitchView('game');
+            // 自动重置到重玩状态
+            witchGameState = list[0].state;
+            window.enforceWitchUI('notes', true);
+            window.renderNotesSelection();
+            
+            // 恢复选中状态
+            if (witchGameState.notesUserPicked !== -1) {
+                const el = document.getElementById('notes-board-area').children[witchGameState.notesUserPicked];
+                if(el) {
+                    el.classList.remove('closed'); el.classList.add('picked');
+                    el.innerHTML = `<div style="font-size:0.75rem; color:#888;">你抽中了:</div><strong style="color:#0984e3;">${witchGameState.notesCharPuns[witchGameState.notesUserPicked]}</strong>`;
+                }
+                document.getElementById('btn-notes-phase2').style.display = 'block';
+            }
+            document.getElementById('witch-setup-panel').style.display = 'none';
+            document.getElementById('btn-witch-start').style.display = 'none';
+            document.getElementById('witch-log-panel').style.display = 'block';
+            return;
+        }
+        _origOpenWitchApp();
+    };
+
+    // ================= 6. 拦截：一阶段 API 判定 (纸条专属) =================
+    const _origFinishWitchDraw = window.finishWitchDraw;
+    window.finishWitchDraw = async function() {
+        // 如果不是纸条模式，交给原版
+        if (witchGameState.gameMode !== 'notes') return _origFinishWitchDraw();
+
+        if(typeof witchFlipped === 'undefined' || witchFlipped.length === 0) return alert("请至少抽一张牌！");
+        const btn = document.querySelector('#witch-card-table-modal .primary');
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "📄 正在书写惩罚纸条...";
+
+        const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const wb = window.BIG_MEMORY.world_book || {};
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        const apiConf = getApiConfig();
+        if(!apiConf.apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
+
+        const userNotes = JSON.stringify(witchGameState.notesUserPuns);
+        const prompt = `你现在正在和用户玩“传纸条”惩罚盲盒游戏。双方各写5张【全天候执行的限制级或惩罚规则】。
+【世界观/角色】：${globalCtx}
+【命运牌】：${cardsDesc}
+【用户写的5张纸条】：${userNotes}
+【任务】：
+1. 结合角色人设和牌意，写出 5 张由 Ta 构思的惩罚纸条。
+2. 从用户写的 5 张纸条中，随机帮 Ta 挑选一张（输出 0-4 的索引）。
+严格输出JSON：{"char_notes": ["惩罚1", "惩罚2", "惩罚3", "惩罚4", "惩罚5"], "char_pick_index": 2}`;
+
+        try {
+            const res = await fetch(`${apiConf.apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConf.apiKey}` },
+                body: JSON.stringify({ model: apiConf.model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
+            });
+            const json = await res.json();
+            let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+            const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+            if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+            const result = JSON.parse(raw);
+
+            witchGameState.notesCharPuns = result.char_notes;
+            witchGameState.notesCharPicked = result.char_pick_index;
+            witchGameState.isPlaying = true;
+            witchGameState.isMyTurn = true;
+            
+            window.enforceWitchUI('notes', true);
+            window.renderNotesSelection(); 
+            
+            const logEl = document.getElementById('witch-game-log');
+            if(logEl) logEl.innerHTML = `<div>📄 Ta 的 5 张纸条已写好，Ta 也抽走了你的纸条。现在轮到你抽了！</div>`;
+            document.getElementById('witch-reaction-text').innerText = "请从下方 5 张纸条中盲选一张！";
+            
+            document.getElementById('witch-card-table-modal').style.display = 'none';
+            document.getElementById('witch-log-panel').style.display = 'block';
+
+            // 自动存档
+            window.silentSaveNotesProgress();
+
+        } catch(e) {
+            alert("生成失败: " + e.message);
+        } finally {
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    };
+
+    // ================= 7. 纸条独占操作与第二阶段结算 =================
+    window.renderNotesSelection = function() {
+        const area = document.getElementById('notes-board-area');
+        if(!area) return;
+        area.innerHTML = '';
+        for(let i = 0; i < 5; i++) {
+            const paper = document.createElement('div');
+            paper.className = 'witch-note-paper closed';
+            paper.innerText = `纸条 ${i+1}`;
+            paper.onclick = () => window.pickCharNote(i, paper);
+            area.appendChild(paper);
+        }
+    };
+
+    window.pickCharNote = function(index, el) {
+        if (witchGameState.notesUserPicked !== -1) return; 
+        witchGameState.notesUserPicked = index;
+        el.classList.remove('closed'); el.classList.add('picked');
+        el.innerHTML = `<div style="font-size:0.75rem; color:#888;">你抽中了:</div><strong style="color:#0984e3;">${witchGameState.notesCharPuns[index]}</strong>`;
+        
+        document.getElementById('witch-reaction-text').innerText = "双方纸条已确认！请点击下方按钮进行今天的一日结算。";
+        const log = document.getElementById('witch-game-log');
+        if(log) {
+            log.innerHTML += `<div>💥 你抽到了：【${witchGameState.notesCharPuns[index]}】</div>`;
+            log.innerHTML += `<div>💥 Ta 抽到了你的：【${witchGameState.notesUserPuns[witchGameState.notesCharPicked]}】</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        document.getElementById('btn-notes-phase2').style.display = 'block';
+        window.silentSaveNotesProgress();
+    };
+
+    window.startNotesPhase2Draw = function() {
+        const modal = document.getElementById('witch-card-table-modal');
+        const uiText = modal.querySelector('.card-table-ui div');
+        const uiBtn = modal.querySelector('.card-table-ui .primary');
+        if(uiText) uiText.innerHTML = `抽取命运牌，看看这一天你们过得怎么样... (<span id="witch-flipped-count">0</span>)`;
+        if(uiBtn) {
+            uiBtn.innerText = "📖 生成全天日记与对话";
+            uiBtn.setAttribute('onclick', 'window.finishNotesPhase2Draw()');
+        }
+
+        // 调用刚刚重写过的、安全的开牌桌函数 (伪装成非纸条模式骗过校验，因为是第二阶段)
+        const oldMode = witchGameState.gameMode;
+        witchGameState.gameMode = 'fake_phase2'; // 临时骗一下
+        window.startWitchDraw(); 
+        witchGameState.gameMode = oldMode; // 骗完改回来
+    };
+
+    window.finishNotesPhase2Draw = async function() {
+        if(typeof witchFlipped === 'undefined' || witchFlipped.length === 0) return alert("请至少抽一张牌！");
+        
+        const btn = document.querySelector('#witch-card-table-modal .primary');
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "📖 正在快进时间...";
+
+        const cardsDesc = witchFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+        const wb = window.BIG_MEMORY.world_book || {};
+        const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        const apiConf = getApiConfig();
+        if(!apiConf.apiKey) { btn.innerText = oldText; btn.disabled = false; return alert("请配置 API Key"); }
+
+        const prompt = `你是一位极其擅长描写日常感与心理拉扯的小说家。这是“传纸条惩罚”游戏结束后的总结。
+【世界观/角色】：${globalCtx}
+【角色(Ta)今天遵守的惩罚】：${witchGameState.notesUserPuns[witchGameState.notesCharPicked]}
+【用户(我)今天遵守的惩罚】：${witchGameState.notesCharPuns[witchGameState.notesUserPicked]}
+【决定今天过得怎样的命运牌】：${cardsDesc}
+【任务要求】：
+1. 根据牌意判断角色因为惩罚有关的有趣的事件（如暴雨、停电）。
+2. 第一人称角色日记（不少于300字），记录遵守惩罚的趣事和观察。（根据牌意（如果牌意表示没有遵守惩罚也写出来判断他今天没有遵守惩罚的日记）
+3. 睡前对话（角色对今天自己和用户表现的总结吐槽（包含观察用户有没有遵守惩罚等等）。（根据牌意）。
+严格输出 JSON 格式：{"global_event": "...", "diary": "...", "dialogue": "..."}`;
+
+        try {
+            const res = await fetch(`${apiConf.apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConf.apiKey}` },
+                body: JSON.stringify({ model: apiConf.model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
+            });
+            const json = await res.json();
+            let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+            const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+            if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+            const result = JSON.parse(raw);
+
+            witchGameState.notesPhase2Result = result;
+            
+            const modal = document.getElementById('witch-story-modal');
+            document.getElementById('ws-title').innerText = "📖 惩罚日记结算";
+            
+            let htmlContent = `<div style="color:#ff7675; font-weight:bold; margin-bottom:10px;">⚡ 全局影响：${result.global_event}</div>`;
+            htmlContent += `<h4 style="color:#a29bfe; margin-top:15px; border-bottom:1px dashed #6c5ce7; padding-bottom:5px;">✍️ Ta的日记</h4>`;
+            htmlContent += `<div style="font-family:'Georgia', serif; line-height:1.6;">${result.diary.replace(/\n/g, '<br>')}</div>`;
+            htmlContent += `<h4 style="color:#00cec9; margin-top:20px; border-bottom:1px dashed #00cec9; padding-bottom:5px;">💬 睡前私语</h4>`;
+            htmlContent += `<div style="font-weight:bold;">“${result.dialogue}”</div>`;
+            
+            document.getElementById('ws-content').innerHTML = htmlContent;
+            document.getElementById('ws-date').innerText = new Date().toLocaleString();
+            
+            document.getElementById('witch-card-table-modal').style.display = 'none';
+            modal.style.zIndex = "30000";
+            modal.style.display = 'flex';
+            
+            witchGameState.isPlaying = false;
+            
+            // 🔴 真正结束，调用普通存档，把“进行中”状态洗掉
+            if(typeof window.manualSaveWitchGame === 'function') window.manualSaveWitchGame();
+
+        } catch(e) {
+            alert("结算失败: " + e.message);
+        } finally {
+            btn.innerText = oldText; btn.disabled = false;
+            btn.setAttribute('onclick', 'window.finishWitchDraw()');
+        }
+    };
+
+    // ================= 8. 拦截历史记录阅读 =================
+    const _origReadWitchStory = window.readWitchStory;
+    window.readWitchStory = function(index) {
+        const list = window.getWitchData();
+        const item = list[index];
+        if(!item || !item.state) return alert("该记录数据不完整");
+        
+        if (item.state.gameMode === 'notes') {
+            const res = item.state.notesPhase2Result;
+            if (!res) return alert("该局游戏仅存档了抽纸条阶段，尚未进行全天结算。你可以点击【🔄 重玩】继续游戏。");
+            
+            const modal = document.getElementById('witch-story-modal');
+            document.getElementById('ws-title').innerText = "📖 传纸条惩罚回顾";
+            
+            let htmlContent = `
+                <div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:5px; margin-bottom:15px; font-size:0.9rem;">
+                    <div><strong>你的惩罚:</strong> ${item.state.notesCharPuns[item.state.notesUserPicked]}</div>
+                    <div style="margin-top:5px;"><strong>Ta的惩罚:</strong> ${item.state.notesUserPuns[item.state.notesCharPicked]}</div>
+                </div>
+                <div style="color:#ff7675; font-weight:bold; margin-bottom:10px;">⚡ 全局影响：${res.global_event}</div>
+                <h4 style="color:#a29bfe; margin-top:15px; border-bottom:1px dashed #6c5ce7; padding-bottom:5px;">✍️ Ta的日记</h4>
+                <div style="font-family:'Georgia', serif; line-height:1.6;">${res.diary.replace(/\n/g, '<br>')}</div>
+                <h4 style="color:#00cec9; margin-top:20px; border-bottom:1px dashed #00cec9; padding-bottom:5px;">💬 睡前私语</h4>
+                <div style="font-weight:bold;">“${res.dialogue}”</div>
+            `;
+            
+            document.getElementById('ws-content').innerHTML = htmlContent;
+            document.getElementById('ws-date').innerText = item.date;
+            modal.style.zIndex = "30000";
+            modal.style.display = 'flex';
+            return;
+        }
+        
+        _origReadWitchStory(index);
+    };
+
+    console.log("✅ 传纸条 V4 终极版已成功植入，万无一失！");
+})();
+</script>
+
 </html> 
