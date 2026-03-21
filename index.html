@@ -4460,6 +4460,28 @@ canvas {
     background: #222; border-radius: 6px; padding: 8px 12px;
     font-size: 0.85rem; color: #b2bec3; line-height: 1.5;
 }
+/* 控制日记正文的预览文字 */
+#desktop-diary-preview {
+    display: -webkit-box !important;    /* 强制显示，无视是否有封面图 */
+    background: transparent !important; /* 去除之前可能加的白底和模糊 */
+    backdrop-filter: none !important; 
+    
+    mix-blend-mode: multiply !important; /* 核心：正片叠底效果 */
+    opacity: 0.3 !important;             /* 透明度设定（0.7代表30%透明，如果你想要极度透明可以改成 0.3） */
+    color: #111 !important;              /* 正片叠底必须用深色字体效果才好 */
+    font-weight: 600 !important;         /* 稍微加粗一点点，防止在花哨的背景上看不清 */
+    text-shadow: none !important;        /* 去除阴影，保持墨水感 */
+    z-index: 10 !important;
+}
+
+/* 顺便把顶部那个 "DIARY" 的小标题也做成正片叠底，视觉上更统一 */
+#diary-widget div:first-child {
+    mix-blend-mode: multiply !important;
+    opacity: 0.8 !important;
+    color: #111 !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
     </style>
 </head>
 <body>
@@ -4547,7 +4569,7 @@ canvas {
     <span class="app-name">记账</span>
 </div>
                     </div>
-<div class="newspaper-wrap" ondblclick="initCardTable()">
+<div class="newspaper-wrap" onclick="handleNewsWidgetClick()">
     <div class="news-header-section">
         <div class="news-brand">The Daily Post</div>
         <div class="news-meta-bar">
@@ -4890,6 +4912,28 @@ canvas {
             </div>
         </div>
     </div>
+<!-- ================= 📦 全量导出双模式选择弹窗 ================= -->
+<div id="export-result-modal" class="modal-overlay" style="background:rgba(0,0,0,0.8); z-index:99999; display:none; align-items:center; justify-content:center;">
+    <div class="morandi-card" style="width:90%; max-width:500px; padding:20px; display:flex; flex-direction:column; max-height:85vh;">
+        <h3 style="color:#2c3e50; margin-top:0;">📦 备份生成完毕</h3>
+        <p style="font-size:0.8rem; color:#666; margin-bottom:15px;">您的所有数据(含美化背景)已分块打包。请选择保存方式：</p>
+        
+        <!-- 模式一：原生分享/下载 -->
+        <button class="m-btn primary" onclick="triggerNativeShare()" style="background:#06c755; font-size:1.1rem; height:50px; margin-bottom:15px; box-shadow:0 4px 10px rgba(6,199,85,0.3);">
+            📲 唤起分享 / 保存为文件
+        </button>
+        
+        <!-- 模式二：手动复制文本 -->
+        <p style="font-size:0.8rem; color:#e17055; margin-bottom:5px; border-top:1px dashed #ccc; padding-top:15px;">
+            如果上方按钮无反应或报错，请点击下方按钮一键复制全部代码，然后手动粘贴到您自己创建的 .json 文件中：
+        </p>
+        <textarea id="export-json-textarea" class="editor-textarea" style="flex:1; width:100%; min-height:120px; font-family:monospace; font-size:0.7rem; word-break:break-all; background:#f9f9f9;" readonly></textarea>
+        
+        <button class="m-btn small" onclick="copyExportText()" style="margin-top:10px; background:#0984e3; color:white; height:45px; font-size:1rem;">📋 一键复制全部代码</button>
+        
+        <button class="m-btn secondary" onclick="closeExportModal()" style="margin-top:15px; border:1px solid #ccc;">关闭</button>
+    </div>
+</div>
     <div id="file-modal" class="modal-overlay">
         <div class="modal-header"><span>文件管理</span><button class="close-btn" onclick="document.getElementById('file-modal').style.display='none'">×</button></div>
         <div class="modal-body">
@@ -7467,7 +7511,19 @@ async function finishReadingAndGenerate() {
         const result = JSON.parse(cleanJson);
         
         renderNewspaperContent(result);
-
+        // --- 👇 保存到历史记录 👇 ---
+        if (!window.BIG_MEMORY.newspaper_history) window.BIG_MEMORY.newspaper_history = [];
+        window.BIG_MEMORY.newspaper_history.unshift({
+            id: Date.now(),
+            date: dateStr,
+            cards: cardsDesc,
+            data: result // 保存生成好的新闻内容
+        });
+        if (window.BIG_MEMORY.newspaper_history.length > 50) window.BIG_MEMORY.newspaper_history.pop();
+        if (typeof window.saveToBigDB === 'function') {
+            window.saveToBigDB('newspaper_history', window.BIG_MEMORY.newspaper_history);
+        }
+        // --- 👆 保存结束 👆 ---
     } catch(e) {
         console.error(e);
         alert("生成失败，请检查 API 设置或网络。\n" + e.message);
@@ -18041,105 +18097,59 @@ window.addEventListener('load', function() {
         console.log("✅ 无限容量系统已就绪！");
     });
 });
-// 全局变量用于存储打包好的文件 (保持不变)
-let pendingBackupBlob = null; // 修改：只存 Blob，不存 File 对象
-let pendingFileName = "";
+
+// ==================== 💾 终极分块导出与双模恢复系统 ====================
+
+let pendingExportBlob = null;
+let pendingExportText = ""; 
+let pendingExportFilename = "";
+
+// 1. 主导出函数 (流式分块，防闪退)
 async function exportFullBackup() {
-    const btn = event.target;
-    
-    // ============================================================
-    // 🟢 阶段二：用户点击绿色按钮，触发保存/下载
-    // ============================================================
-    if (pendingBackupBlob) {
-        const fileObj = new File([pendingBackupBlob], pendingFileName, { type: "application/json" });
-
-        // --- 方案 A: 优先尝试手机原生分享 (iOS/Android 最佳体验) ---
-        // 这会唤起底部的分享菜单，你可以选择 "存储到文件" 或者 发送给微信文件传输助手
-        if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
-            try {
-                await navigator.share({
-                    files: [fileObj],
-                    title: 'RetroOS 备份',
-                    text: '这是您的系统备份文件，请妥善保存。'
-                });
-                // 分享成功后重置按钮
-                setTimeout(() => resetExportBtn(btn), 1000);
-                return; 
-            } catch (e) {
-                // 如果用户取消了分享，或者不支持，就继续往下走执行方案 B
-                console.log("分享被取消或不支持，尝试直接下载...");
-            }
-        }
-
-        // --- 方案 B: 传统浏览器下载 (PC/不支持分享的设备) ---
-        try {
-            const url = URL.createObjectURL(pendingBackupBlob);
-            const a = document.createElement('a');
-            
-            // 🔥 iOS 兼容修正：不要用 display:none，改用透明度
-            a.style.opacity = '0';
-            a.style.position = 'fixed';
-            a.style.pointerEvents = 'none';
-            
-            a.href = url;
-            a.download = pendingFileName;
-            
-            // 🔥 iOS 兼容修正：如果 download 属性失效，强制在新窗口打开让用户手动存
-            a.target = '_blank'; 
-
-            document.body.appendChild(a);
-            a.click();
-            
-            // 延迟清理
-            setTimeout(() => {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                resetExportBtn(btn);
-            }, 3000); // 延长时间以适应 iOS 动画
-            
-        } catch (e) { 
-            alert("保存失败: " + e.message + "\n请尝试使用其他浏览器或截图联系作者。"); 
-        }
-        return;
-    }
-
-    // ============================================================
-    // 🟡 阶段一：分块打包数据 (保持原样，无需修改)
-    // ============================================================
+    const btn = event.target || document.querySelector('button[onclick="exportFullBackup()"]');
     if(btn.getAttribute('data-processing')) return;
+    
     btn.setAttribute('data-processing', 'true');
-    btn.innerText = "📦 正在扫描并打包...";
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ 正在分块提取 (切勿退出)...";
     btn.style.opacity = "0.7";
 
     try {
-        const jsonChunks = []; 
-
-        // 1. 写入头部
-        jsonChunks.push('{"meta":{"version":"5.0_iOS_Fix","date":"' + new Date().toLocaleString() + '"},');
-
-        // 2. 获取 Big Memory
-        const allUniversal = await idb.getAll('universal_store');
-        const universalObj = {};
-        allUniversal.forEach(item => { universalObj[item.id] = item.data; });
-        const finalMemory = { ...window.BIG_MEMORY, ...universalObj };
+        const jsonChunks = [];
+        // A. 写入头部信息
+        jsonChunks.push('{"meta":{"version":"RetroOS_Ultimate","date":"' + new Date().toLocaleString() + '"},');
         
-        jsonChunks.push('"big_memory":' + JSON.stringify(finalMemory) + ',');
+        // B. 写入全局小体积数据
+        jsonChunks.push('"big_memory":' + JSON.stringify(window.BIG_MEMORY || {}) + ',');
 
-        // 3. 处理大型独立仓库 (确保论坛和小剧场都在)
-        async function streamStore(keyName, storeName) {
-            jsonChunks.push(`"${keyName}": [`);
-            let count = 0;
+        // C. 游标分块读取 IndexedDB 数据库 (解决内存爆炸的核心)
+        jsonChunks.push('"idb_stores": {');
+        
+        const storeNames = Array.from(idb.db.objectStoreNames);
+        // 🔥 在这里排除塔罗牌和雷诺曼的图片库！不导出它们！
+        const excludeStores = ['tarot_deck', 'lenormand_deck'];
+        const targetStores = storeNames.filter(name => !excludeStores.includes(name));
+
+        for (let i = 0; i < targetStores.length; i++) {
+            const storeName = targetStores[i];
+            btn.innerText = `⏳ 提取中: ${storeName} (${i+1}/${targetStores.length})`;
+            
+            jsonChunks.push(`"${storeName}": [`);
+            
             const tx = idb.db.transaction(storeName, 'readonly');
             const store = tx.objectStore(storeName);
-            let cursorReq = store.openCursor();
-
+            const cursorReq = store.openCursor();
+            
+            let isFirstItem = true;
+            
+            // 使用游标逐条读取并立即转字符串，不把整个数组塞进内存
             await new Promise((resolve, reject) => {
                 cursorReq.onsuccess = (e) => {
                     const cursor = e.target.result;
                     if (cursor) {
-                        if (count > 0) jsonChunks.push(','); 
-                        jsonChunks.push(JSON.stringify(cursor.value)); 
-                        count++;
+                        if (!isFirstItem) jsonChunks.push(',');
+                        jsonChunks.push(JSON.stringify(cursor.value));
+                        isFirstItem = false;
                         cursor.continue();
                     } else {
                         resolve();
@@ -18147,175 +18157,269 @@ async function exportFullBackup() {
                 };
                 cursorReq.onerror = reject;
             });
-            jsonChunks.push('],');
+            
+            jsonChunks.push(']');
+            if (i < targetStores.length - 1) jsonChunks.push(',');
         }
-
-        await streamStore('chat_history', 'chat_history');
-        await streamStore('pickup_data', 'pickup_data');
-        await streamStore('forum_data', 'forum_data');
-        await streamStore('theater_data', 'theater_data');
-
-        // 4. 图片库 (已排除塔罗牌)
-        jsonChunks.push('"image_stores": {');
-        const imageStoresToBackup = [
-            'album_data',       
-            'settings_heavy',   
-            'chat_stickers',    
-            'anniversary_data', 
-            'tv'
-        ];
-
-        for (let i = 0; i < imageStoresToBackup.length; i++) {
-            const storeName = imageStoresToBackup[i];
-            jsonChunks.push(`"${storeName}":`);
-            const items = await idb.getAll(storeName);
-            jsonChunks.push(JSON.stringify(items));
-            if (i < imageStoresToBackup.length - 1) jsonChunks.push(',');
-        }
-
-        jsonChunks.push('}}'); 
-
-        // 5. 生成 Blob (强制使用 application/json)
-        const blob = new Blob(jsonChunks, { type: "application/json" });
-        const sizeMB = blob.size / 1024 / 1024;
         
-        pendingBackupBlob = blob;
-        // 文件名去掉特殊字符，防止 iOS 报错
-        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
-        pendingFileName = `RetroOS_${dateStr}.json`;
+        jsonChunks.push('}}'); // 闭合整个 JSON
 
-        // 6. 按钮变绿
-        btn.removeAttribute('data-processing');
-        btn.setAttribute('data-ready', 'true');
-        btn.innerText = `✅ 准备就绪 (${sizeMB.toFixed(1)}MB) 点击保存`;
-        btn.style.background = "#06c755";
-        btn.style.color = "white";
-        btn.style.fontWeight = "bold";
-        btn.style.opacity = "1";
+        // D. 组装最终数据
+        btn.innerText = "⏳ 正在生成文件...";
+        
+        // 合并所有的分块字符串
+        pendingExportText = jsonChunks.join("");
+        
+        // 生成最终的 Blob 文件
+        pendingExportBlob = new Blob([pendingExportText], { type: "application/json" });
+        const sizeMB = pendingExportBlob.size / 1024 / 1024;
+        
+        // 构造安全的文件名
+        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
+        pendingExportFilename = `RetroOS_Backup_${dateStr}.json`;
+
+        // 弹出双模选择 UI
+        showExportModal(sizeMB.toFixed(2));
 
     } catch (e) {
         console.error(e);
-        alert("打包失败: " + e.message);
-        resetExportBtn(btn);
+        alert("备份生成失败，内存或权限不足: " + e.message);
+    } finally {
+        btn.removeAttribute('data-processing');
+        btn.innerText = originalText;
+        btn.style.opacity = "1";
     }
 }
-function resetExportBtn(btn) {
-    btn.innerText = "📤 导出备份 (.json)";
-    btn.style.background = "";
-    btn.style.color = "";
-    btn.style.opacity = "1";
-    btn.removeAttribute('data-ready');
-    btn.removeAttribute('data-processing');
+
+// 2. 控制弹窗的 UI 函数
+function showExportModal(sizeStr) {
+    const modal = document.getElementById('export-result-modal');
+    const textArea = document.getElementById('export-json-textarea');
+    modal.style.display = 'flex';
     
-    // 修改点：清理新的 Blob 变量，而不是原来的 File 变量
-    pendingBackupBlob = null; 
-    pendingFileName = "";
+    // ⚠️ 移动端防卡死保护：如果数据大于 3MB，放入 textarea 会卡死手机浏览器
+    if (pendingExportText.length > 3000000) { 
+        textArea.value = `⚠️ 数据量极大 (${sizeStr}MB)。\n直接在此显示会导致手机严重卡顿闪退。\n👉 请直接点击下方的【一键复制全部代码】按钮，然后在您的备忘录或文本编辑器中粘贴。`;
+    } else {
+        textArea.value = pendingExportText;
+    }
 }
+
+function closeExportModal() {
+    document.getElementById('export-result-modal').style.display = 'none';
+    pendingExportBlob = null;
+    pendingExportText = ""; // 立即释放内存
+}
+
+// 3. 模式一：唤起原生分享 / 下载
+async function triggerNativeShare() {
+    if (!pendingExportBlob) return;
+    const fileObj = new File([pendingExportBlob], pendingExportFilename, { type: "application/json" });
+
+    // 优先尝试 iOS / 安卓 原生分享菜单
+    if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+        try {
+            await navigator.share({
+                files: [fileObj],
+                title: 'RetroOS 备份',
+                text: '这是您的系统完全备份文件（含所有美化设定）。'
+            });
+            return; 
+        } catch (e) {
+            console.log("分享被取消或环境受限，转为浏览器下载");
+        }
+    }
+
+    // 降级：强制浏览器下载
+    try {
+        const url = URL.createObjectURL(pendingExportBlob);
+        const a = document.createElement('a');
+        a.style.opacity = '0';
+        a.style.position = 'fixed';
+        a.href = url;
+        a.download = pendingExportFilename;
+        a.target = '_blank'; 
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 3000);
+    } catch(e) {
+        alert("下载受阻，请使用复制文本的方式。报错: " + e.message);
+    }
+}
+
+// 4. 模式二：一键复制超大文本
+function copyExportText() {
+    if (!pendingExportText) return alert("没有可复制的数据");
+    
+    // 现代 API 尝试复制
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pendingExportText).then(() => {
+            alert("✅ 已成功复制全部代码！\n去新建一个 .json文件并粘贴进去即可。");
+        }).catch(err => {
+            fallbackCopyText(pendingExportText);
+        });
+    } else {
+        fallbackCopyText(pendingExportText);
+    }
+}
+
+// 降级复制方案
+function fallbackCopyText(text) {
+    const tempTextArea = document.createElement("textarea");
+    tempTextArea.value = text;
+    tempTextArea.style.position = "fixed";
+    tempTextArea.style.top = "0";
+    tempTextArea.style.left = "0";
+    tempTextArea.style.opacity = '0';
+    document.body.appendChild(tempTextArea);
+    tempTextArea.focus();
+    tempTextArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) alert("✅ 已成功复制全部代码！\n去新建一个 .json 或 .txt 文件并粘贴进去即可。");
+        else alert("❌ 复制失败，您的手机浏览器限制了复制量过大的操作。");
+    } catch (err) {
+        alert("❌ 复制失败。");
+    }
+    document.body.removeChild(tempTextArea);
+}
+// 5. 极限防闪退分块导入函数
 async function importFullRestore(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (!confirm(`⚠️ 警告：恢复备份将【覆盖】当前数据！\n(塔罗牌和雷诺曼文件不受影响)\n\n确定继续吗？`)) {
+    if (!confirm(`⚠️ 警告：恢复全量备份将【覆盖】当前系统的所有记录和美化！\n(塔罗牌和雷诺曼文件不受影响)\n\n确定继续吗？`)) {
         input.value = '';
         return;
     }
 
     const statusEl = document.querySelector('.modal-header span'); 
     const originalTitle = statusEl.innerText;
-    statusEl.innerText = "⏳ 正在恢复数据...";
+    statusEl.innerText = "⏳ 读取文件中 (请耐心等待)...";
 
     const reader = new FileReader();
+    // 读成纯文本字符串（手机容纳几百MB的字符串毫无压力，压力主要在 JSON.parse）
     reader.readAsText(file);
 
     reader.onload = async (e) => {
         const rawText = e.target.result;
         
         try {
-            console.log("开始恢复...");
-            
-            // 辅助解析函数
-            async function extractAndSave(keyName, storeName, isArray = true) {
-                statusEl.innerText = `⏳ 恢复中: ${keyName}...`;
-                
-                const keyIndex = rawText.indexOf(`"${keyName}":`);
-                if (keyIndex === -1) return; 
+            console.log("启动流式解析引擎...");
 
-                let startSearch = keyIndex + keyName.length + 2; 
-                let startIndex = -1;
-                let openChar = isArray ? '[' : '{';
+            // ==========================================
+            // 工具函数：在长文本中安全提取并解析独立对象
+            // ==========================================
+            const parseSingleObject = (startIdx) => {
+                let braceCount = 0;
+                let inString = false;
+                let objEnd = -1;
                 
-                for(let i = startSearch; i < startSearch + 100; i++) {
-                    if (rawText[i] === openChar) { startIndex = i; break; }
+                for (let i = startIdx; i < rawText.length; i++) {
+                    let char = rawText[i];
+                    // 处理字符串里的转义双引号，防止提前闭合
+                    if (char === '"') {
+                        let bsCount = 0; let j = i - 1;
+                        while(j >= startIdx && rawText[j] === '\\') { bsCount++; j--; }
+                        if (bsCount % 2 === 0) inString = !inString;
+                    }
+                    if (!inString) {
+                        if (char === '{') braceCount++;
+                        else if (char === '}') braceCount--;
+                    }
+                    if (braceCount === 0) { 
+                        objEnd = i + 1; 
+                        break; 
+                    }
                 }
-                if (startIndex === -1) return;
-
-                let balance = 0;
-                let endIndex = -1;
-                let inQuote = false;
-                let open = isArray ? '[' : '{';
-                let close = isArray ? ']' : '}';
                 
-                for (let i = startIndex; i < rawText.length; i++) {
-                    const char = rawText[i];
-                    if (char === '"' && rawText[i-1] !== '\\') inQuote = !inQuote;
-                    if (!inQuote) {
-                        if (char === open) balance++;
-                        else if (char === close) balance--;
-                    }
-                    if (balance === 0) { endIndex = i + 1; break; }
+                if (objEnd !== -1) {
+                    const objStr = rawText.substring(startIdx, objEnd);
+                    return { obj: JSON.parse(objStr), nextIdx: objEnd };
                 }
+                return null;
+            };
 
-                if (endIndex === -1) return;
-
-                const jsonChunk = rawText.substring(startIndex, endIndex);
-                const dataChunk = JSON.parse(jsonChunk);
-
-                if (isArray && storeName) {
-                    await idb.clear(storeName); // 清空旧数据
-                    const tx = idb.db.transaction([storeName], 'readwrite');
-                    const store = tx.objectStore(storeName);
-                    for (let item of dataChunk) {
-                        store.put(item); // 写入新数据
-                    }
-                    await new Promise(resolve => tx.oncomplete = resolve);
-                } else if (keyName === 'big_memory') {
-                    window.BIG_MEMORY = dataChunk;
-                    for (let k in dataChunk) {
-                        await idb.put('universal_store', { id: k, data: dataChunk[k] });
-                    }
-                } else if (keyName === 'image_stores') {
-                    for (let subKey in dataChunk) {
-                        if (dataChunk[subKey] && Array.isArray(dataChunk[subKey])) {
-                            await idb.clear(subKey);
-                            const tx = idb.db.transaction([subKey], 'readwrite');
-                            const store = tx.objectStore(subKey);
-                            dataChunk[subKey].forEach(item => store.put(item));
-                            await new Promise(resolve => tx.oncomplete = resolve);
+            // ==========================================
+            // 步骤1：恢复核心设置 (big_memory)
+            // ==========================================
+            statusEl.innerText = "⏳ 正在恢复核心设定...";
+            const bmStart = rawText.indexOf('"big_memory":');
+            if (bmStart !== -1) {
+                let objStart = rawText.indexOf('{', bmStart);
+                if (objStart !== -1) {
+                    const parsed = parseSingleObject(objStart);
+                    if (parsed && parsed.obj) {
+                        window.BIG_MEMORY = parsed.obj;
+                        for (let k in parsed.obj) {
+                            await idb.put('universal_store', { id: k, data: parsed.obj[k] });
                         }
                     }
                 }
             }
 
-            // === 🔥 按顺序恢复所有模块 🔥 ===
-            
-            // 1. 核心通用数据 (日记、宠物、设置)
-            await extractAndSave('big_memory', null, false);
-            
-            // 2. 聊天类 (这是你之前丢失的部分)
-            await extractAndSave('chat_history', 'chat_history', true);
-            await extractAndSave('pickup_data', 'pickup_data', true);
-            await extractAndSave('forum_data', 'forum_data', true);     // ✅ 新增
-            await extractAndSave('theater_data', 'theater_data', true); // ✅ 新增
-            
-            // 3. 图片资源 (不含塔罗)
-            await extractAndSave('image_stores', null, false);
+            // ==========================================
+            // 步骤2：流式解析巨型数组 (防闪退核心)
+            // ==========================================
+            // 定义需要恢复的表（严禁包含塔罗牌等底层文件表）
+            const storesToRestore = [
+                'chat_history', 'pickup_data', 'forum_data', 'theater_data',
+                'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
+            ];
 
-            alert("🎉 数据恢复成功！\n论坛、小剧场、聊天记录已全部归位。\n页面即将刷新...");
+            for (let storeName of storesToRestore) {
+                statusEl.innerText = `⏳ 正在逐条写入: ${storeName}...`;
+
+                const searchKey = `"${storeName}"`;
+                const keyIdx = rawText.indexOf(searchKey);
+                if (keyIdx === -1) continue; // 没找到这个表则跳过
+
+                const arrStart = rawText.indexOf('[', keyIdx + searchKey.length);
+                if (arrStart === -1) continue;
+
+                // 找到表了，先清空数据库里的旧数据
+                await idb.clear(storeName); 
+                const tx = idb.db.transaction([storeName], 'readwrite');
+                const store = tx.objectStore(storeName);
+
+                let i = arrStart + 1;
+                let count = 0;
+
+                // 开始像流水线一样，每次只抠出一个 {...} 对象进行解析写入
+                while (i < rawText.length) {
+                    // 跳过空白符和逗号
+                    while (i < rawText.length && (rawText[i] === ' ' || rawText[i] === '\n' || rawText[i] === '\r' || rawText[i] === ',')) {
+                        i++;
+                    }
+
+                    if (rawText[i] === ']') break; // 遇到 ] 说明当前数组结束了
+                    if (rawText[i] !== '{') { i++; continue; } // 如果不是 {，说明有脏字符，跳过
+
+                    const parsed = parseSingleObject(i);
+                    if (parsed && parsed.obj) {
+                        store.put(parsed.obj); // 写入 IndexedDB
+                        count++;
+                        i = parsed.nextIdx;    // 游标移动到下一个对象
+                    } else {
+                        break; // 提取失败，强制退出当前表
+                    }
+                }
+
+                // 等待当前表完全落盘
+                await new Promise(resolve => tx.oncomplete = resolve);
+                console.log(`✅ [${storeName}] 成功流式导入 ${count} 条记录`);
+            }
+
+            alert("🎉 完美分块恢复成功！\n系统将自动刷新页面以应用新数据。");
             location.reload();
 
         } catch (err) {
             console.error(err);
-            alert("❌ 恢复失败 (文件可能已损坏):\n" + err.message);
+            alert("❌ 恢复失败 (文件损坏或不完整):\n" + err.message);
             statusEl.innerText = originalTitle;
         }
     };
@@ -18436,7 +18540,18 @@ window.deleteStudyPlan = function() {
     </div>
 </div>
 <div id="newspaper-modal" class="modal-overlay" onclick="closeNewspaper()">
+    
+    <!-- 新增：报纸的历史记录侧边栏 -->
+    <div id="newspaper-history-panel" class="chat-settings-panel" style="z-index: 3100; right: 0; background: #fdf6e3; box-shadow: -5px 0 20px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
+        <h3 style="color:#2b2626; border-bottom: 2px solid #2b2626; padding-bottom: 10px; margin-top:0;">📰 往期报纸档案</h3>
+        <button class="m-btn small" onclick="toggleNewspaperHistory()" style="margin-bottom:15px; background:#ddd; color:#333;">关闭档案室</button>
+        <div id="newspaper-history-list" style="display:flex; flex-direction:column; gap:15px; padding-bottom:50px;"></div>
+    </div>
+
     <div class="paper-full-view" onclick="event.stopPropagation()">
+        <!-- 新增：历史记录打开按钮 -->
+        <button class="m-btn small" onclick="toggleNewspaperHistory()" style="position:absolute; top:10px; right:10px; z-index:100; background:rgba(0,0,0,0.1); border:1px solid #333; color:#333;">📜 往期档案</button>
+        
         <div class="paper-full-head">
             <div class="paper-brand">The Daily Prophecy</div> 
             <div class="paper-meta-row">
@@ -19034,7 +19149,7 @@ window.deleteStudyPlan = function() {
                 <div class="photo-pin">📍</div>
             </div>
 
-            <div id="diary-text-content" class="diary-text-body">
+            <div id="diary-text-content" class="diary-text-body" style="padding-top: 15px;">
                 <div class="skeleton-text" style="margin-top:50px;">点击右下角按钮，抽取命运牌生成今日记录...</div>
             </div>
         </div>
@@ -29306,7 +29421,7 @@ body, #screen {
 .diary-book-container {
     width: 95%; max-width: 800px; height: 75vh;
     background: #fdfbf7;
-    margin: auto; margin-top: 60px;
+    margin: auto; margin-top: calc(var(--safe-top) + 80px);
     display: flex;
     box-shadow: 0 20px 50px rgba(0,0,0,0.5);
     border-radius: 4px;
@@ -37870,5 +37985,284 @@ ${previousContext}
     console.log("✅ 传纸条 V4 终极版已成功植入，万无一失！");
 })();
 </script>
+<script>
+// ================= 📝 日记封面文字同步 & 💰 记账词库备注恢复 =================
 
+// 1. 记账 APP：恢复从词库中随机抽取“支出/收入”金句作为备注的逻辑
+window.addFinanceRecord = function(category, type) {
+    const amountIn = document.getElementById('finance-amount');
+    const val = parseFloat(amountIn.value);
+    if (!val || val <= 0) return alert("请输入金额");
+    
+    // 💡 核心修复：从词库(Thesaurus)里随机抽一条对应类型的文案作为小备注
+    const thesaurus = (typeof getThesaurusData === 'function') ? getThesaurusData() : (window.BIG_MEMORY.thesaurus_data || {});
+    const dictKey = type === 'expense' ? 'expense' : 'income';
+    const words = thesaurus[dictKey] || [];
+    
+    // 如果词库有词，就随机抽一条；如果没词，就用默认的
+    const desc = words.length > 0 
+        ? words[Math.floor(Math.random() * words.length)] 
+        : (type === 'expense' ? '今日支出' : '今日入账');
+    
+    const record = { id: Date.now(), date: new Date().toISOString(), category, type, amount: val, desc };
+    
+    const data = window.getFinanceData();
+    data.unshift(record);
+    window.saveToBigDB('finance', data); // 保存到数据库
+    
+    amountIn.value = '';
+    if(typeof renderFinanceUI === 'function') renderFinanceUI();
+};
+
+// 2. 日记组件：动态读取最新的一篇日记，显示在封面上
+window.updateDiaryWidgetPreview = function() {
+    const list = window.BIG_MEMORY.diary_history || [];
+    const previewEl = document.getElementById('desktop-diary-preview');
+    if (previewEl) {
+        if (list.length > 0 && list[0].diary_text) {
+            // 如果历史记录里有日记，拿出最新的一条，截取前 60 个字显示
+            previewEl.innerText = list[0].diary_text.substring(0, 10) + "...";
+        } else {
+            // 如果历史被删光了，恢复默认提示语
+            previewEl.innerText = "点击生成今日日记...";
+        }
+    }
+};
+
+// 3. 拦截系统的开关机和删除操作，确保封面文字自动刷新
+setTimeout(() => {
+    // 拦截开机加载，一打开APP就显示最新日记内容
+    if (typeof refreshAllUI === 'function') {
+        const _origRefresh = window.refreshAllUI;
+        window.refreshAllUI = function() {
+            _origRefresh();
+            window.updateDiaryWidgetPreview(); // 刷新封面文字
+        };
+    }
+
+    // 拦截删除日记操作，删完自动更新桌面封面
+    if (typeof window.deleteDiaryEntry === 'function') {
+        const _origDeleteDiary = window.deleteDiaryEntry;
+        window.deleteDiaryEntry = function(index) {
+            _origDeleteDiary(index); // 先执行原来的删除逻辑
+            window.updateDiaryWidgetPreview(); // 删除后马上刷新封面文字
+        };
+    }
+}, 1000);
+// ================= 📰 报纸历史记录系统 =================
+window.toggleNewspaperHistory = function() {
+    const panel = document.getElementById('newspaper-history-panel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        renderNewspaperHistory();
+    }
+};
+
+window.renderNewspaperHistory = function() {
+    const list = window.BIG_MEMORY.newspaper_history || [];
+    const container = document.getElementById('newspaper-history-list');
+    container.innerHTML = '';
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#999; margin-top:30px;">暂无往期报纸</div>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.style.cssText = "background: #fff; padding: 15px; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); cursor: pointer; position: relative;";
+        
+        // 提取标题，如果右侧没有就去左侧拿
+        const title = item.data.real_world?.headline || item.data.dream_world?.headline || "神秘新闻";
+
+        div.innerHTML = `
+            <div style="font-weight:bold; font-size:1rem; color:#111; margin-bottom:5px; padding-right:40px; font-family: 'Times New Roman', serif;">
+                ${title}
+            </div>
+            <div style="font-size:0.8rem; color:#666; margin-bottom:10px;">📅 ${item.date}</div>
+            <div style="font-size:0.75rem; color:#888; max-height:40px; overflow:hidden;">🔮 能量: ${item.cards}</div>
+            
+            <button class="m-btn small" onclick="event.stopPropagation(); deleteNewspaperHistory(${index})" 
+                style="position:absolute; top:10px; right:10px; background:#ffcdd2; color:#c62828; padding:2px 8px; font-size:0.7rem;">销毁</button>
+        `;
+        
+        div.onclick = () => {
+            // 点击查看往期报纸
+            document.getElementById('news-date-display').innerText = `DATE: ${item.date}`;
+            renderNewspaperContent(item.data);
+            
+            // 恢复卡牌文字显示
+            const cardStrip = document.getElementById('news-cards-display');
+            cardStrip.innerHTML = `<div style="font-size:0.85rem; font-weight:bold; color:#333; padding:5px 10px; background:rgba(0,0,0,0.05); border:1px dashed #333;">🔮 命运指引：${item.cards}</div>`;
+            
+            document.getElementById('newspaper-history-panel').classList.remove('open');
+        };
+        
+        container.appendChild(div);
+    });
+};
+
+window.deleteNewspaperHistory = function(index) {
+    if (!confirm("🔥 确定要烧毁这份旧报纸吗？(不可恢复)")) return;
+    window.BIG_MEMORY.newspaper_history.splice(index, 1);
+    if (typeof window.saveToBigDB === 'function') {
+        window.saveToBigDB('newspaper_history', window.BIG_MEMORY.newspaper_history);
+    }
+    renderNewspaperHistory();
+};
+
+// 确保初始开机时加载报纸历史数据
+if (typeof loadAllBigData === 'function') {
+    const _origLoadNews = window.loadAllBigData;
+    window.loadAllBigData = async function() {
+        await _origLoadNews();
+        try {
+            if (typeof idb !== 'undefined') {
+                const res = await idb.get('universal_store', 'newspaper_history');
+                if (res) window.BIG_MEMORY.newspaper_history = res.data;
+                else window.BIG_MEMORY.newspaper_history = [];
+            }
+        } catch(e) {}
+    }
+}
+// ================= 📰 报纸组件：单击与双击智能判定 =================
+let newsClickTimer = null;
+
+window.handleNewsWidgetClick = function() {
+    if (newsClickTimer) {
+        // 如果 300 毫秒内点了第二次 -> 触发【双击】（抽牌生成新报纸）
+        clearTimeout(newsClickTimer);
+        newsClickTimer = null;
+        initCardTable(); 
+    } else {
+        // 如果是第一次点击 -> 等待 300 毫秒，看有没有第二下
+        newsClickTimer = setTimeout(() => {
+            newsClickTimer = null;
+            
+            // 触发【单击】逻辑：打开报纸弹窗，并自动滑出历史档案室
+            document.getElementById('newspaper-modal').style.display = 'flex';
+            
+            const panel = document.getElementById('newspaper-history-panel');
+            if (panel) panel.classList.add('open'); // 自动打开侧边历史抽屉
+            
+            if(typeof renderNewspaperHistory === 'function') renderNewspaperHistory();
+            
+            // 顺便把最新的一期报纸铺在下面（如果有历史记录的话）
+            const list = window.BIG_MEMORY.newspaper_history || [];
+            if(list.length > 0) {
+                const item = list[0];
+                document.getElementById('news-date-display').innerText = `DATE: ${item.date}`;
+                renderNewspaperContent(item.data);
+                
+                const cardStrip = document.getElementById('news-cards-display');
+                if (cardStrip) {
+                    cardStrip.innerHTML = `<div style="font-size:0.85rem; font-weight:bold; color:#333; padding:5px 10px; background:rgba(0,0,0,0.05); border:1px dashed #333;">🔮 命运指引：${item.cards}</div>`;
+                }
+            } else {
+                document.getElementById('dream-news-content').innerHTML = "<div style='color:#888; text-align:center;'>暂无往期报纸，<br>请双击桌面组件生成第一期吧！</div>";
+                document.getElementById('real-news-content').innerHTML = "";
+            }
+            
+        }, 300); // 300毫秒的判定窗口，手速慢可以把 300 改成 400
+    }
+};
+(function initSmartPeriodReminder() {
+    console.log("🌺 智能经期推算系统已加载...");
+
+    // 1. 核心检测与推算逻辑
+    window.checkPeriodReminder = function() {
+        const data = window.getPeriodData();
+        
+        // 如果数据为空、没记录、正在经期中、或者本周期已经提醒过了，就不打扰
+        if (!data || !data.records || data.records.length === 0 || data.isBleeding || data.reminded_this_cycle) {
+            return;
+        }
+
+        // 按时间倒序排列：最新的在最前面 [0]
+        const sortedRecords = [...data.records].sort((a, b) => new Date(b.start) - new Date(a.start));
+        const lastStart = new Date(sortedRecords[0].start);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 抹平具体时间差异
+        
+        // --- 核心算法：计算个人专属平均周期 ---
+        let avgCycle = 28; // 默认兜底 28 天
+        
+        if (sortedRecords.length >= 2) {
+            let totalDays = 0;
+            let validCycles = 0;
+
+            // 遍历历史记录计算每次的间隔
+            for (let i = 0; i < sortedRecords.length - 1; i++) {
+                const currentStart = new Date(sortedRecords[i].start);
+                const prevStart = new Date(sortedRecords[i+1].start);
+                const diff = Math.round((currentStart - prevStart) / (1000 * 60 * 60 * 24));
+
+                // 异常值过滤：只采纳间隔在 20 到 50 天之间的正常周期
+                // (防止用户漏记了一个月，导致平均值被严重拉高)
+                if (diff >= 20 && diff <= 50) {
+                    totalDays += diff;
+                    validCycles++;
+                }
+            }
+
+            if (validCycles > 0) {
+                avgCycle = Math.round(totalDays / validCycles);
+            }
+        }
+
+        // 计算距离上次来过了多少天
+        const diffDays = Math.floor((today - lastStart) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // 目标提醒日 = 专属平均周期 - 1 天 (提前一天)
+        const targetDay = avgCycle - 1;
+
+        // 如果达到了提醒时间
+        if (diffDays >= targetDay) {
+            setTimeout(() => {
+                const msg = `🌺 贴心提醒：\n\n根据您过去的记录，您的平均生理周期为 ${avgCycle} 天。\n今天已经是第 ${diffDays} 天，大姨妈可能马上就要到了。\n\n请提前准备好用品，注意保暖和休息哦！\n\n(点击“确定”后，本次周期内不再重复打扰)`;
+                
+                if(confirm(msg)) {
+                    // 打上已提醒标记
+                    data.reminded_this_cycle = true;
+                    window.savePeriodData(data);
+                }
+            }, 3000); 
+        }
+    };
+
+    // 2. 拦截并改造状态切换按钮 (用于重置提醒)
+    if (typeof window.togglePeriodStatus === 'function') {
+        const _origTogglePeriod = window.togglePeriodStatus;
+        window.togglePeriodStatus = function() {
+            _origTogglePeriod(); // 执行原逻辑
+            const data = window.getPeriodData();
+            
+            // 点击结束经期时，清空提醒标记，为下个月做准备
+            if (!data.isBleeding) {
+                data.reminded_this_cycle = false;
+                window.savePeriodData(data);
+            }
+        };
+    }
+
+    // 3. 手动记录时也重置提醒
+    if (typeof window.addPeriodRecord === 'function') {
+        const _origAddPeriod = window.addPeriodRecord;
+        window.addPeriodRecord = function() {
+            _origAddPeriod();
+            const data = window.getPeriodData();
+            if (!data.isBleeding) {
+                data.reminded_this_cycle = false;
+                window.savePeriodData(data);
+            }
+        };
+    }
+
+    // 4. 开机自动检测
+    setTimeout(() => {
+        window.checkPeriodReminder();
+    }, 4000);
+
+})();
+</script>
 </html> 
