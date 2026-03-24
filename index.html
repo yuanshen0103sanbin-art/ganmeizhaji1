@@ -4469,7 +4469,7 @@ canvas {
     mix-blend-mode: multiply !important; /* 核心：正片叠底效果 */
     opacity: 0.3 !important;             /* 透明度设定（0.7代表30%透明，如果你想要极度透明可以改成 0.3） */
     color: #111 !important;              /* 正片叠底必须用深色字体效果才好 */
-    font-weight: 600 !important;         /* 稍微加粗一点点，防止在花哨的背景上看不清 */
+    font-weight: 60 !important;         /* 稍微加粗一点点，防止在花哨的背景上看不清 */
     text-shadow: none !important;        /* 去除阴影，保持墨水感 */
     z-index: 10 !important;
 }
@@ -4482,6 +4482,25 @@ canvas {
     position: relative !important;
     z-index: 10 !important;
 }
+/* ================= 互换日记 (Swap Diary) 专属样式 ================= */
+#swap-diary-modal { background: #fdfbf7; z-index: 10000; }
+.sd-header { background: #8d6e63; color: white; display: flex; justify-content: space-between; padding: 15px; padding-top: max(20px, env(safe-area-inset-top)); align-items: flex-end; }
+.sd-tab-bar { display: flex; background: #eee; border-bottom: 1px solid #ccc; }
+.sd-tab { flex: 1; text-align: center; padding: 12px; color: #666; cursor: pointer; font-weight: bold; }
+.sd-tab.active { background: #fff; color: #8d6e63; border-bottom: 3px solid #8d6e63; }
+.sd-content-area { flex: 1; overflow-y: auto; padding: 20px; font-family: "Georgia", "Songti SC", serif; line-height: 1.8; color: #333; background: #fff; }
+
+/* 句子与批注样式 */
+.sd-sentence { cursor: pointer; border-radius: 4px; transition: 0.2s; border-bottom: 1px dashed transparent; }
+.sd-sentence:hover { background: rgba(141, 110, 99, 0.1); border-bottom: 1px dashed #8d6e63; }
+.sd-comment-box { margin: 5px 0 15px 20px; padding: 10px; border-left: 3px solid #ccc; background: #fafafa; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+.sd-comment { margin-bottom: 5px; padding: 5px 10px; border-radius: 6px; }
+.sd-comment.char { background: rgba(162, 155, 254, 0.1); color: #6c5ce7; font-weight: bold; } /* 角色的批注颜色 */
+.sd-comment.user { background: rgba(0, 206, 201, 0.1); color: #00b894; } /* 用户的批注颜色 */
+
+/* 侧边历史栏 */
+#swap-history-panel { position: absolute; right: 0; top: 0; width: 85%; max-width: 300px; height: 100%; background: #fdfbf7; z-index: 10001; transform: translateX(100%); transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+#swap-history-panel.open { transform: translateX(0); }
     </style>
 </head>
 <body>
@@ -4625,7 +4644,7 @@ canvas {
         <span class="app-name">纪念日</span>
     </div>
     <!-- 修改：日记组件 (已修复) -->
-<div id="diary-widget" class="memo-widget-wide" onclick="openDiaryApp()" style="grid-column: span 2; grid-row: span 2; background: linear-gradient(135deg, #fdfbf7 0%, #ebedee 100%); border: 1px solid #ccc;">
+<div id="diary-widget" class="memo-widget-wide" onclick="handleDiaryWidgetClick()" style="grid-column: span 2; grid-row: span 2; background: linear-gradient(135deg, #fdfbf7 0%, #ebedee 100%); border: 1px solid #ccc;">
     <div style="font-size:0.7rem; color:#888; margin-bottom:4px; font-weight:bold; letter-spacing:1px;">DIARY</div>
     <div id="desktop-diary-preview" style="font-family: 'Georgia', serif; font-size: 0.75rem; color:#555; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical;">
         点击生成今日日记...
@@ -13357,7 +13376,7 @@ async function finishDiaryDrawing() {
         currentDiaryIndex = 0; 
         
         // 更新桌面预览文字
-        document.getElementById('desktop-diary-preview').innerText = result.diary_text.substring(0, 100) + "...";
+        document.getElementById('desktop-diary-preview').innerText = result.diary_text.substring(0, 10) + "...";
 
     } catch(e) {
         console.error(e);
@@ -19197,6 +19216,59 @@ window.deleteStudyPlan = function() {
         </div>
     </div>
 </div>
+</div>
+<!-- ================= 互换日记 (Swap Diary) UI ================= -->
+<div id="swap-diary-modal" class="modal-overlay" style="display:none;">
+    <div class="sd-header">
+        <span style="font-weight:bold; font-size:1.1rem;">📖 交换日记</span>
+        <div style="display:flex; gap:10px;">
+            <button class="m-btn small" onclick="toggleSwapHistory()" style="background:rgba(255,255,255,0.2); color:#fff;">📜 历史</button>
+            <button class="close-btn" onclick="document.getElementById('swap-diary-modal').style.display='none'" style="color:#fff; padding:0;">×</button>
+        </div>
+    </div>
+
+    <!-- 阶段 1：用户输入阶段 -->
+    <div id="sd-write-view" style="display:block; padding:20px; height:100%; display:flex; flex-direction:column;">
+        <h3 style="color:#8d6e63; margin-top:0;">写下你的今日日记</h3>
+        <textarea id="sd-user-input" class="editor-textarea" style="flex:1; border:2px solid #8d6e63; font-size:1rem; padding:15px; margin-bottom:15px;" placeholder="今天发生了什么？写完后点击下方按钮与 Ta 交换日记..."></textarea>
+        <button class="m-btn primary" onclick="startSwapDraw('init')" style="background:#8d6e63; height:50px; font-size:1.1rem;">🎲 抽牌并交换日记</button>
+    </div>
+
+    <!-- 阶段 2：阅读与批注阶段 -->
+    <div id="sd-read-view" style="display:none; flex-direction:column; height:100%;">
+        <div class="sd-tab-bar">
+            <div class="sd-tab active" id="sd-tab-my" onclick="switchSdTab('my')">我的日记 (被批注)</div>
+            <div class="sd-tab" id="sd-tab-his" onclick="switchSdTab('his')">Ta 的日记</div>
+        </div>
+        
+        <div id="sd-content-my" class="sd-content-area" style="display:block;"></div>
+        <div id="sd-content-his" class="sd-content-area" style="display:none;"></div>
+
+        <div style="padding:15px; background:#fff; border-top:1px solid #eee; display:flex; gap:10px;">
+            <button class="m-btn secondary" onclick="saveSwapDiary()" style="flex:1;">💾 暂存/存档</button>
+            <button class="m-btn primary" onclick="startSwapDraw('re_comment')" style="flex:2; background:#6c5ce7;">🎲 抽牌获取 Ta 的回复</button>
+        </div>
+    </div>
+
+    <!-- 侧边历史记录 -->
+    <div id="swap-history-panel">
+        <h3 style="padding:20px; margin:0; border-bottom:1px solid #eee; color:#8d6e63;">历史日记本</h3>
+        <button class="m-btn small" onclick="toggleSwapHistory()" style="margin:10px;">关闭</button>
+        <button class="m-btn small" onclick="createNewSwap()" style="margin:0 10px 10px 10px; background:#8d6e63; color:white;">+ 新建交换</button>
+        <div id="swap-history-list" style="flex:1; overflow-y:auto; padding:10px;"></div>
+    </div>
+</div>
+
+<!-- 互换日记专用牌桌 -->
+<div id="swap-card-table-modal" class="modal-overlay" style="background:rgba(20,10,10,0.95); z-index:10005; display:none;">
+    <div id="swap-card-table-desk" style="width:100%; height:100%; position:relative; overflow-y:auto; padding-bottom:100px;">
+        <div id="swap-card-area" style="width:100%; height:100%; position:relative; transform-style:preserve-3d; perspective:1000px;"></div>
+        <div class="card-table-ui">
+            <div style="color:#dcdde1; font-weight:bold;">抽取命运牌，探测 Ta 的情绪... (<span id="swap-flipped-count">0</span>)</div>
+            <button class="m-btn primary" onclick="finishSwapDraw()" style="background:#8d6e63; border:1px solid #fff; color:white;">✨ 确认牌意</button>
+            <button class="m-btn secondary" onclick="document.getElementById('swap-card-table-modal').style.display='none'">取消</button>
+        </div>
+    </div>
 </div>
 <div id="photo-viewer-modal" class="modal-overlay" onclick="closePhotoViewer()">
     <div id="held-photo" class="held-photo-card" onclick="event.stopPropagation()">
@@ -38020,7 +38092,7 @@ window.updateDiaryWidgetPreview = function() {
     const previewEl = document.getElementById('desktop-diary-preview');
     if (previewEl) {
         if (list.length > 0 && list[0].diary_text) {
-            // 如果历史记录里有日记，拿出最新的一条，截取前 60 个字显示
+            // 如果历史记录里有日记，拿出最新的一条，截取前 10 个字显示
             previewEl.innerText = list[0].diary_text.substring(0, 10) + "...";
         } else {
             // 如果历史被删光了，恢复默认提示语
@@ -38264,5 +38336,462 @@ window.handleNewsWidgetClick = function() {
     }, 4000);
 
 })();
+// ==================== 互换日记 (Swap Diary) 核心逻辑 ====================
+
+// 1. 单双击判定器
+let mainDiaryClickTimer = null;
+window.handleDiaryWidgetClick = function() {
+    if (mainDiaryClickTimer) {
+        clearTimeout(mainDiaryClickTimer);
+        mainDiaryClickTimer = null;
+        // 双击：打开互换日记
+        openSwapDiaryApp(); 
+    } else {
+        mainDiaryClickTimer = setTimeout(() => {
+            mainDiaryClickTimer = null;
+            // 单击：打开原版日记
+            if(typeof openDiaryApp === 'function') openDiaryApp();
+        }, 300); // 300ms 判定窗口
+    }
+};
+
+// 2. 状态与无限存储
+let sdDeck = [], sdFlipped = [];
+let pendingSdType = 'init'; // 'init'(初次互换) 或 're_comment'(二次批注)
+let currentSwapData = null; 
+/* 数据结构:
+{
+  id: timestamp, date: string,
+  my_diary: [ { text: "句子", comments: [{role:"char", text:"批注"}, {role:"user", text:"回复"}] } ],
+  his_diary: [ 同上结构 ]
+}
+*/
+
+if (!window.BIG_MEMORY) window.BIG_MEMORY = {};
+if (!window.BIG_MEMORY.swap_diary_history) window.BIG_MEMORY.swap_diary_history = [];
+
+function getSwapHistory() { return window.BIG_MEMORY.swap_diary_history || []; }
+window.saveSwapDiary = function() {
+    if(!currentSwapData) return;
+    const list = getSwapHistory();
+    const idx = list.findIndex(i => i.id === currentSwapData.id);
+    if(idx > -1) list[idx] = currentSwapData;
+    else list.unshift(currentSwapData);
+    
+    window.BIG_MEMORY.swap_diary_history = list;
+    if(typeof idb !== 'undefined') idb.put('universal_store', { id: 'swap_diary_history', data: list });
+    renderSwapHistory();
+};
+
+// 3. 界面控制
+window.openSwapDiaryApp = function() {
+    document.getElementById('swap-diary-modal').style.display = 'flex';
+    if(currentSwapData) {
+        document.getElementById('sd-write-view').style.display = 'none';
+        document.getElementById('sd-read-view').style.display = 'flex';
+        renderSwapContent();
+    } else {
+        createNewSwap();
+    }
+    renderSwapHistory();
+};
+
+window.createNewSwap = function() {
+    currentSwapData = null;
+    document.getElementById('sd-write-view').style.display = 'flex';
+    document.getElementById('sd-read-view').style.display = 'none';
+    document.getElementById('sd-user-input').value = '';
+    document.getElementById('swap-history-panel').classList.remove('open');
+};
+
+window.switchSdTab = function(tab) {
+    document.getElementById('sd-tab-my').classList.toggle('active', tab === 'my');
+    document.getElementById('sd-tab-his').classList.toggle('active', tab === 'his');
+    document.getElementById('sd-content-my').style.display = tab === 'my' ? 'block' : 'none';
+    document.getElementById('sd-content-his').style.display = tab === 'his' ? 'block' : 'none';
+};
+
+// 4. 拆分句子工具 (核心：把段落拆成数组，保留标点)
+function splitIntoSentences(text) {
+    const reg = /[^。！？.!?\n]+[。！？.!?\n]*/g;
+    const matches = text.match(reg) || [text];
+    return matches.map(s => ({ text: s.trim(), comments: [] })).filter(s => s.text);
+}
+
+// 5. 抽牌逻辑
+window.startSwapDraw = function(type) {
+    pendingSdType = type;
+    if (type === 'init' && !document.getElementById('sd-user-input').value.trim()) {
+        return alert("请先写下你的日记！");
+    }
+
+    const modal = document.getElementById('swap-card-table-modal');
+    const area = document.getElementById('swap-card-area');
+    const desk = document.getElementById('swap-card-table-desk');
+    
+    if(typeof idb !== 'undefined') {
+        idb.get('settings_heavy', 'tarot_table').then(res => { if(res && res.data) desk.style.backgroundImage = `url(${res.data})`; });
+    }
+
+    area.innerHTML = ''; sdDeck = []; sdFlipped = [];
+    document.getElementById('swap-flipped-count').innerText = '0';
+
+    for(let i=0; i<=77; i++) sdDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) sdDeck.push({ type:'lenormand', id:i, isReversed:false });
+    sdDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    sdDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        const col = i % cols, row = Math.floor(i/cols);
+        el.style.left = (startX + col*(cardW+gap)) + 'px'; el.style.top = (60 + row*(cardH+gap)) + 'px'; el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div'); front.className = 'playing-card-front'; el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped'); sdFlipped = sdFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+            } else {
+                el.classList.add('flipped'); sdFlipped.push(card);
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                idb.get(db, card.id).then(res=>{ if(res && res.data) front.style.backgroundImage=`url(${res.data})`; else {front.style.background="#fff"; front.innerText=card.id;} });
+                if(card.isReversed) front.style.transform = "rotateY(180deg) rotate(180deg)"; else front.style.transform = "rotateY(180deg)";
+            }
+            document.getElementById('swap-flipped-count').innerText = sdFlipped.length;
+        };
+        area.appendChild(el);
+    });
+    modal.style.display = 'flex';
+};
+
+// 6. API 交互
+window.finishSwapDraw = async function() {
+    if(sdFlipped.length === 0) return alert("请至少抽一张牌！");
+    
+    const btn = document.querySelector('#swap-card-table-modal .primary');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "⏳ 正在连接 Ta 的笔迹...";
+
+    const cardsDesc = sdFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta";
+
+    let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+    if(!apiKey) { btn.disabled=false; btn.innerText=oldText; return alert("请配置 API Key"); }
+
+    let prompt = "";
+    
+    // === 阶段 A: 初次互换 (生成角色日记 + 角色对用户日记的批注) ===
+    if (pendingSdType === 'init') {
+        const userText = document.getElementById('sd-user-input').value.trim();
+        currentSwapData = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            my_diary: splitIntoSentences(userText),
+            his_diary: []
+        };
+        
+        // 提取带索引的用户句子，方便 AI 批注
+        const myDiaryIndexed = currentSwapData.my_diary.map((s, i) => `[ID:${i}] ${s.text}`).join("\n");
+
+        prompt = `
+你现在是世界书中的角色【${charName}】。你和用户正在玩“交换日记”。
+【世界观/角色】：${globalCtx}
+【今天的命运牌（决定你今天经历了什么，以及你的情绪）】：${cardsDesc}
+
+【用户的日记】：
+${myDiaryIndexed}
+
+【任务】：
+1. **写你的日记**：根据牌意，写下你今天发生的事情、心声（拆分成一句句的数组）。内容都要根据牌意。但不能直白表现出牌意更不能把牌名牌意放在日记正文里，应该像正常写日记一样的语句。将牌意融入句子。
+2. **批注用户的日记**：阅读用户的日记，根据牌意挑选你想回复或吐槽的句子，留下你的批注。语气要符合人设。批注的情绪内容（选择被批注的内容）都要根据牌意。但不能直白表现出牌意更不能把牌名牌意放在回复正文里，应该像正常对话（正常批注恋人的日记）一样的语句。将牌意融入句子。
+
+【严格 JSON 输出格式】：
+{
+  "his_diary": [
+    "第一句话...", 
+    "第二句话..."
+  ],
+  "my_diary_comments": [
+    { "target_id": 0, "comment": "你对用户第0句话的批注" },
+    { "target_id": 2, "comment": "对用户第2句话的批注" }
+  ]
+}`;
+    } 
+    // === 阶段 B: 二次批注 (角色回应用户的批注，并可添加新批注) ===
+    else {
+        // 构建完整的当前状态发给 AI
+        const currentState = JSON.stringify({
+            my_diary: currentSwapData.my_diary,
+            his_diary: currentSwapData.his_diary
+        });
+
+        prompt = `
+你是角色【${charName}】。你拿回了交换日记本，发现用户在日记本上写了新的批注/回复。
+【世界观】：${globalCtx}
+【用户抽到的牌】：${cardsDesc}
+
+【当前日记本的状态 (包含双方的日记和目前的批注)】：
+${currentState}
+(注意：在 JSON 中，"role":"user" 代表用户写的批注，"role":"char" 代表你写的批注)
+
+【任务】：
+请阅读目前的日记本状态。
+1. 根据牌意对于用户回复了你的地方，你可以继续回复（追加 comment）。
+2. 根据牌意你也可以对用户或你自己的日记句子添加**新的批注**。
+3. 批注的情绪内容（选择被批注的内容）都要根据牌意。但不能直白表现出牌意更不能把牌名牌意放在回复正文里，应该像正常对话（正常批注恋人的日记）一样的语句。要符合人设不可以ooc。将牌意融入句子。
+
+【严格 JSON 输出格式】：
+{
+  "new_comments_on_my_diary": [
+    { "target_id": 0, "comment": "你想对用户日记第0句追加的新回复/批注" }
+  ],
+  "new_comments_on_his_diary": [
+    { "target_id": 1, "comment": "你想对你自己日记第1句追加的回复/批注（可能是回答用户的问题）" }
+  ]
+}`;
+    }
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}`},
+            body: JSON.stringify({ model: model, messages: [{role:"system", content:"Output JSON only."}, {role:"user", content:prompt}], temperature: 0.85 })
+        });
+        const json = await res.json();
+        let raw = json.choices[0].message.content.replace(/```json/g,"").replace(/```/g,"").trim();
+        const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
+        if(start!==-1 && end!==-1) raw = raw.substring(start, end+1);
+        const result = JSON.parse(raw);
+
+        // 处理数据合并
+        if (pendingSdType === 'init') {
+            // 装载角色的日记
+            currentSwapData.his_diary = result.his_diary.map(text => ({ text: text, comments: [] }));
+            // 装载角色对用户日记的批注
+            if (result.my_diary_comments) {
+                result.my_diary_comments.forEach(c => {
+                    if (currentSwapData.my_diary[c.target_id]) {
+                        currentSwapData.my_diary[c.target_id].comments.push({ role: 'char', text: c.comment });
+                    }
+                });
+            }
+            // 切换视图
+            document.getElementById('sd-write-view').style.display = 'none';
+            document.getElementById('sd-read-view').style.display = 'flex';
+        } else {
+            // 二次批注装载
+            if (result.new_comments_on_my_diary) {
+                result.new_comments_on_my_diary.forEach(c => {
+                    if (currentSwapData.my_diary[c.target_id]) {
+                        currentSwapData.my_diary[c.target_id].comments.push({ role: 'char', text: c.comment });
+                    }
+                });
+            }
+            if (result.new_comments_on_his_diary) {
+                result.new_comments_on_his_diary.forEach(c => {
+                    if (currentSwapData.his_diary[c.target_id]) {
+                        currentSwapData.his_diary[c.target_id].comments.push({ role: 'char', text: c.comment });
+                    }
+                });
+            }
+        }
+
+        window.saveSwapDiary(); // 自动保存
+        renderSwapContent();
+        document.getElementById('swap-card-table-modal').style.display = 'none';
+
+    } catch(e) {
+        console.error(e);
+        alert("生成失败: " + e.message);
+    } finally {
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+// 7. 渲染日记内容与交互 (修改版：支持读取 Line 备注名)
+window.renderSwapContent = function() {
+    if (!currentSwapData) return;
+    
+    // 获取 Line 里的备注名
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta";
+
+    const renderSection = (containerId, diaryArray, diaryType) => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        diaryArray.forEach((item, index) => {
+            const wrap = document.createElement('div');
+            
+            // 句子本体 (点击触发用户批注)
+            const sentence = document.createElement('span');
+            sentence.className = 'sd-sentence';
+            sentence.innerText = item.text;
+            sentence.onclick = () => window.addUserComment(diaryType, index);
+            wrap.appendChild(sentence);
+
+            // 批注框
+            if (item.comments && item.comments.length > 0) {
+                const cBox = document.createElement('div');
+                cBox.className = 'sd-comment-box';
+                item.comments.forEach(c => {
+                    const cDiv = document.createElement('div');
+                    cDiv.className = `sd-comment ${c.role}`;
+                    // 🔥 这里修改了：如果是角色，显示 Line 备注名
+                    cDiv.innerText = (c.role === 'char' ? `【${charName}】` : '【我】') + c.text;
+                    cDiv.onclick = () => window.addUserComment(diaryType, index); // 点击批注也能追加
+                    cBox.appendChild(cDiv);
+                });
+                wrap.appendChild(cBox);
+            }
+            
+            container.appendChild(wrap);
+        });
+    };
+
+    renderSection('sd-content-my', currentSwapData.my_diary, 'my');
+    renderSection('sd-content-his', currentSwapData.his_diary, 'his');
+};
+// 7. 渲染日记内容与交互 (支持 Line 备注名 + 独立删除按钮)
+window.renderSwapContent = function() {
+    if (!currentSwapData) return;
+    
+    // 获取 Line 里的备注名
+    const chatSettings = JSON.parse(localStorage.getItem('chat_settings') || '{}');
+    const charName = chatSettings.title || "Ta";
+
+    const renderSection = (containerId, diaryArray, diaryType) => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        diaryArray.forEach((item, index) => {
+            const wrap = document.createElement('div');
+            
+            // 句子本体 (点击触发用户追加批注)
+            const sentence = document.createElement('span');
+            sentence.className = 'sd-sentence';
+            sentence.innerText = item.text;
+            sentence.onclick = () => window.addUserComment(diaryType, index);
+            wrap.appendChild(sentence);
+
+            // 批注框
+            if (item.comments && item.comments.length > 0) {
+                const cBox = document.createElement('div');
+                cBox.className = 'sd-comment-box';
+                
+                item.comments.forEach((c, cIndex) => {
+                    const cDiv = document.createElement('div');
+                    cDiv.className = `sd-comment ${c.role}`;
+                    cDiv.style.position = 'relative'; 
+                    cDiv.style.paddingRight = '35px'; // 给右侧的删除按钮留出空间
+
+                    const prefix = c.role === 'char' ? `【${charName}】` : '【我】';
+                    
+                    // 将追加事件绑在文字上，删除事件绑在右侧的 × 上
+                    cDiv.innerHTML = `
+                        <span onclick="window.addUserComment('${diaryType}', ${index})" style="cursor:pointer; display:block;">${prefix}${c.text}</span>
+                        <div onclick="window.deleteSwapComment('${diaryType}', ${index}, ${cIndex})" 
+                             style="position:absolute; right:5px; top:50%; transform:translateY(-50%); cursor:pointer; color:#ff7675; font-size:1.2rem; font-weight:bold; padding:0 5px;" 
+                             title="删除此批注">×</div>
+                    `;
+                    cBox.appendChild(cDiv);
+                });
+                wrap.appendChild(cBox);
+            }
+            
+            container.appendChild(wrap);
+        });
+    };
+
+    renderSection('sd-content-my', currentSwapData.my_diary, 'my');
+    renderSection('sd-content-his', currentSwapData.his_diary, 'his');
+};
+// 8. 用户手动添加批注
+window.addUserComment = function(diaryType, index) {
+    const text = prompt("你想在旁边写下什么批注/回复？");
+    if (!text) return;
+    
+    const targetArr = (diaryType === 'my') ? currentSwapData.my_diary : currentSwapData.his_diary;
+    if (targetArr[index]) {
+        targetArr[index].comments.push({ role: 'user', text: text });
+        window.saveSwapDiary(); // 自动保存
+        renderSwapContent();
+    }
+};
+// 8.5 用户删除单条批注
+window.deleteSwapComment = function(diaryType, sentenceIndex, commentIndex) {
+    if (!confirm("确定要擦除这条批注吗？")) return;
+    
+    // 找到对应的日记数组
+    const targetArr = (diaryType === 'my') ? currentSwapData.my_diary : currentSwapData.his_diary;
+    
+    // 删掉这句日记底下的特定批注
+    if (targetArr[sentenceIndex] && targetArr[sentenceIndex].comments) {
+        targetArr[sentenceIndex].comments.splice(commentIndex, 1);
+        
+        window.saveSwapDiary(); // 自动保存到历史
+        window.renderSwapContent(); // 重新刷新界面
+    }
+};
+// 9. 历史记录侧边栏
+window.toggleSwapHistory = function() {
+    document.getElementById('swap-history-panel').classList.toggle('open');
+};
+
+window.renderSwapHistory = function() {
+    const list = getSwapHistory();
+    const container = document.getElementById('swap-history-list');
+    container.innerHTML = '';
+    
+    list.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.style.cssText = "background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:10px; cursor:pointer;";
+        const preview = item.my_diary[0] ? item.my_diary[0].text.substring(0,15) : "空白日记";
+        
+        div.innerHTML = `
+            <div style="font-size:0.8rem; color:#888; display:flex; justify-content:space-between; margin-bottom:8px;">
+                <span>${item.date}</span>
+                <span style="color:#ff7675;" onclick="event.stopPropagation(); deleteSwapHistory(${index})">删除</span>
+            </div>
+            <div style="color:#8d6e63; font-weight:bold;">${preview}...</div>
+        `;
+        div.onclick = () => {
+            currentSwapData = item;
+            document.getElementById('sd-write-view').style.display = 'none';
+            document.getElementById('sd-read-view').style.display = 'flex';
+            renderSwapContent();
+            document.getElementById('swap-history-panel').classList.remove('open');
+        };
+        container.appendChild(div);
+    });
+};
+
+window.deleteSwapHistory = function(index) {
+    if(!confirm("确定销毁这本交换日记吗？")) return;
+    const list = getSwapHistory();
+    list.splice(index, 1);
+    window.BIG_MEMORY.swap_diary_history = list;
+    if(typeof idb !== 'undefined') idb.put('universal_store', { id: 'swap_diary_history', data: list });
+    renderSwapHistory();
+    
+    // 如果删除了当前正在看的
+    if(currentSwapData && list.findIndex(i => i.id === currentSwapData.id) === -1) {
+        createNewSwap();
+    }
+};
+
+// 注册到系统的全量加载中
+if (typeof REQUIRED_KEYS !== 'undefined' && !REQUIRED_KEYS.includes('swap_diary_history')) {
+    REQUIRED_KEYS.push('swap_diary_history');
+}
+</script>
 </script>
 </html> 
