@@ -4898,7 +4898,16 @@ canvas {
             <div class="input-group"><label>API Address</label><input type="text" id="api-url" placeholder="https://api.openai.com/v1" oninput="autoSaveApiSettings()"></div>
            <div class="input-group"><label>API Key</label><input type="password" id="api-key" placeholder="sk-..." oninput="autoSaveApiSettings()"></div>
             
-            <div class="input-group"><label>模型</label><select id="model-select" onchange="autoSaveApiSettings()"><option value="" disabled selected>请拉取...</option></select></div>
+           <div class="input-group">
+    <label style="display:flex; justify-content:space-between; align-items:center;">
+        <span>模型</span>
+        <span onclick="window.toggleModelInputMode()" style="color:#0984e3; cursor:pointer; font-size:0.8rem; font-weight:bold; text-decoration:underline;">🔄 切换手填模式</span>
+    </label>
+    <select id="model-select" onchange="autoSaveApiSettings(); syncInputToSelect()" style="width:100%;">
+        <option value="" disabled selected>请拉取...</option>
+    </select>
+    <input type="text" id="model-input" placeholder="在此手填模型名，填完自动生效..." style="display:none; width:100%; border:2px solid #0984e3;" oninput="window.syncCustomModel(this.value)">
+</div>
                       <div class="input-group">
                 <label style="display:flex; justify-content:space-between; align-items:center;">
                     <span>温度（打勾使用默认）: <span id="temp-display">0.7</span></span>
@@ -38792,6 +38801,85 @@ window.deleteSwapHistory = function(index) {
 if (typeof REQUIRED_KEYS !== 'undefined' && !REQUIRED_KEYS.includes('swap_diary_history')) {
     REQUIRED_KEYS.push('swap_diary_history');
 }
+// ==================== 🛠️ 模型手填与下拉切换补丁 ====================
+
+// 1. 切换显示状态
+window.toggleModelInputMode = function() {
+    const sel = document.getElementById('model-select');
+    const inp = document.getElementById('model-input');
+    if (!sel || !inp) return;
+    
+    if (sel.style.display !== 'none') {
+        // 切换到手动输入模式：隐藏下拉框，显示输入框，并继承当前值
+        sel.style.display = 'none';
+        inp.style.display = 'block';
+        inp.value = sel.value || ''; 
+    } else {
+        // 切换回下拉模式：隐藏输入框，显示下拉框
+        inp.style.display = 'none';
+        sel.style.display = 'block';
+    }
+};
+
+// 2. 魔法同步：将用户手填的内容自动塞进下拉框中
+window.syncCustomModel = function(val) {
+    const sel = document.getElementById('model-select');
+    if (!sel) return;
+    
+    if (val) {
+        // 检查下拉列表里有没有这个选项
+        let exists = false;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === val) {
+                exists = true;
+                break;
+            }
+        }
+        // 如果下拉框没有，就创建一个虚拟选项塞进去
+        if (!exists) {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.innerText = val + " (手动)";
+            sel.appendChild(opt);
+        }
+        // 强制下拉框选中这个新值
+        sel.value = val;
+    }
+    
+    // 触发系统原有的自动保存草稿机制
+    if (typeof autoSaveApiSettings === 'function') {
+        autoSaveApiSettings();
+    }
+};
+
+// 3. 辅助：当下拉框改变时，也更新输入框
+window.syncInputToSelect = function() {
+    const sel = document.getElementById('model-select');
+    const inp = document.getElementById('model-input');
+    if (sel && inp) {
+        inp.value = sel.value;
+    }
+};
+
+// 4. 拦截原系统切换方案时的动作，保证界面一致性
+setTimeout(() => {
+    // 拦截方案加载
+    if (typeof window.loadProfile === 'function') {
+        const _origLoadProfile = window.loadProfile;
+        window.loadProfile = function(i) {
+            _origLoadProfile(i);
+            setTimeout(window.syncInputToSelect, 100);
+        };
+    }
+    // 拦截设置打开
+    if (typeof window.openSettings === 'function') {
+        const _origOpenSettings = window.openSettings;
+        window.openSettings = function() {
+            _origOpenSettings();
+            setTimeout(window.syncInputToSelect, 100);
+        };
+    }
+}, 1000);
 </script>
 </script>
 </html> 
