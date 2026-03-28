@@ -4501,6 +4501,14 @@ canvas {
 /* 侧边历史栏 */
 #swap-history-panel { position: absolute; right: 0; top: 0; width: 85%; max-width: 300px; height: 100%; background: #fdfbf7; z-index: 10001; transform: translateX(100%); transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
 #swap-history-panel.open { transform: translateX(0); }
+/* 词库多选样式 */
+.word-item { display: flex; align-items: center; gap: 10px; border-bottom: 1px dotted #e0e0e0; padding: 8px 0; }
+.word-checkbox { width: 18px; height: 18px; accent-color: #555; }
+.word-text { flex: 1; font-size: 0.9rem; word-break: break-all; }
+.batch-tool-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 15px; background: #f9f9f9; border-top: 1px dashed #ccc;
+}
     </style>
 </head>
 <body>
@@ -5016,6 +5024,17 @@ canvas {
                 <button class="m-btn small" onclick="document.getElementById('sticker-modal').style.display='none'">🔽</button>
             </div>
         </div>
+<!-- === 新增：同化模式选词面板 === -->
+<div id="assimilation-modal" style="display:none; position:absolute; bottom:0; left:0; width:100%; height:60%; background:#f2f2f5; z-index:120; flex-direction:column; border-top:1px solid #ddd; box-shadow:0 -5px 20px rgba(0,0,0,0.15); animation: slideUp 0.3s;">
+    <div style="padding:15px; background:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee;">
+        <span onclick="closeAssimilationModal()" style="color:#888; cursor:pointer; font-size:0.9rem;">取消</span>
+        <span style="font-weight:bold; color:#2c3e50;">请选择要发送的词条</span>
+        <button class="m-btn small" onclick="sendAssimilationCards()" style="background:#06c755; color:#fff; border:none; padding:5px 15px; border-radius:20px;">发送 (<span id="ass-count">0</span>)</button>
+    </div>
+    <div id="assimilation-list" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px;">
+        <!-- 卡片由JS动态生成 -->
+    </div>
+</div>
         <div class="chat-footer" id="chat-footer-bar">
             <div id="normal-footer-content" style="width:100%; display:flex; flex-direction:column;">
                 
@@ -5070,6 +5089,16 @@ canvas {
             <div class="input-group"><label>我的头像框 (URL)</label><input type="text" id="set-my-frame" onblur="saveChatSettings()"></div>
             <div class="input-group"><label>对方头像</label><input type="file" onchange="handleFileToInput(this, 'botAvatar')"></div>
             <div class="input-group"><label>对方头像框 (URL)</label><input type="text" id="set-bot-frame" onblur="saveChatSettings()"></div>
+<div class="input-group" style="display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-weight:bold; color:#8e44ad;">🔄 同化模式 (仅能发送词库)</span>
+    <label class="switch" style="position:relative; display:inline-block; width:50px; height:24px;">
+        <!-- 注意这里换成了专门的触发函数 -->
+        <input type="checkbox" id="set-assimilation-mode" onchange="toggleAssimilationMode(this)" style="opacity:0; width:0; height:0;">
+        <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:34px;"></span>
+        <!-- 增加了 id="assimilation-slider" -->
+        <span id="assimilation-slider" style="position:absolute; height:16px; width:16px; left:4px; bottom:4px; background-color:white; transition:.4s; border-radius:50%;"></span>
+    </label>
+</div>
             <h4 style="margin-top:15px">💬 气泡样式 (支持 CSS)</h4>
             <div class="input-group"><label>我的气泡 CSS (支持 } .class::before { )</label><textarea id="set-my-css" class="editor-textarea" style="height:80px" onblur="saveChatSettings()"></textarea></div>
             <div class="input-group"><label>对方气泡 CSS (支持 } .class::before { )</label><textarea id="set-bot-css" class="editor-textarea" style="height:80px" onblur="saveChatSettings()"></textarea></div>
@@ -5728,6 +5757,7 @@ async function openChatApp() {
 
         function getChatSettings() {
             const def = {
+assimilationMode: false,
                 myFrame: '', botFrame: '',
                 myCss: '', botCss: '', delayMin: 1, delayMax: 5, countMin: 1, countMax: 3,
                 passiveMin: 1, passiveMax: 60, title: "私密聊天", isOnline: false,
@@ -5809,10 +5839,24 @@ async function openChatApp() {
                 .msg-row.me .msg-bubble { ${s.myCss} }
                 .msg-row.other .msg-bubble { ${s.botCss} }
             `;
+    // === 同化模式拦截器 ===
+    const inputEl = document.getElementById('chat-input-text');
+    if (inputEl) {
+        if (s.assimilationMode) {
+            inputEl.readOnly = true; // 禁止弹出键盘
+            inputEl.placeholder = "🔄 同化模式开启，点击选词";
+            inputEl.onclick = window.openAssimilationModal;
+        } else {
+            inputEl.readOnly = false; // 恢复正常
+            inputEl.placeholder = "Aa";
+            inputEl.onclick = null;
+        }
+    }
         }
         function loadSettingsToUI() {
             const s = getChatSettings();
             document.getElementById('set-my-frame').value = s.myFrame || '';
+
             document.getElementById('set-bot-frame').value = s.botFrame || '';
             document.getElementById('set-my-css').value = s.myCss || '';
             document.getElementById('set-bot-css').value = s.botCss || '';
@@ -5830,6 +5874,19 @@ async function openChatApp() {
         const prob = (s.kaomojiProb !== undefined) ? Math.floor(s.kaomojiProb * 100) : 60;
         document.getElementById('set-kaomoji-prob').value = prob;
         document.getElementById('kaomoji-prob-display').innerText = prob;
+    // === 同化模式面板回显 ===
+    const assToggle = document.getElementById('set-assimilation-mode');
+    const assSlider = document.getElementById('assimilation-slider');
+    if (assToggle && assSlider) {
+        assToggle.checked = !!s.assimilationMode;
+        if (assToggle.checked) {
+            assToggle.nextElementSibling.style.backgroundColor = "#8e44ad";
+            assSlider.style.transform = "translateX(26px)";
+        } else {
+            assToggle.nextElementSibling.style.backgroundColor = "#ccc";
+            assSlider.style.transform = "translateX(0)";
+        }
+    }
     }
         }
 function handleFileToInput(inputEl, type) {
@@ -6280,13 +6337,98 @@ function saveThesaurusData(data) {
 }
         function openThesaurus() { document.getElementById('thesaurus-modal').style.display = 'flex'; renderThesaurusList(); }
         function closeThesaurus() { document.getElementById('thesaurus-modal').style.display = 'none'; }
-        function switchThesaurusTab(tab) { currentThesaurusTab = tab; thesaurusCats.forEach(t => document.getElementById(`tab-${t}`).classList.toggle('active', t===tab)); renderThesaurusList(); }
-        function renderThesaurusList() {
-            const listEl = document.getElementById('thesaurus-list'); listEl.innerHTML = '';
-            (getThesaurusData()[currentThesaurusTab] || []).forEach((text, index) => {
-                listEl.innerHTML += `<div class="word-item"><span class="word-text">${text}</span><span style="color:red;cursor:pointer" onclick="deleteWord(${index})">×</span></div>`;
-            });
-        }
+        // 全局变量记录选中的索引
+let selectedThesaurusIndices = new Set();
+
+window.renderThesaurusList = function() {
+    const listEl = document.getElementById('thesaurus-list');
+    listEl.innerHTML = '';
+    const data = getThesaurusData()[currentThesaurusTab] || [];
+    
+    if (data.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">词库为空</div>';
+        return;
+    }
+
+    data.forEach((text, index) => {
+        const div = document.createElement('div');
+        div.className = 'word-item';
+        const isChecked = selectedThesaurusIndices.has(index) ? 'checked' : '';
+        
+        div.innerHTML = `
+            <input type="checkbox" class="word-checkbox" ${isChecked} onchange="toggleWordSelection(${index})">
+            <span class="word-text">${text}</span>
+            <span style="color:#ff7675; cursor:pointer; font-weight:bold; padding:0 10px;" onclick="deleteWord(${index})">×</span>
+        `;
+        listEl.appendChild(div);
+    });
+
+    // 动态添加批量操作栏
+    renderBatchBar();
+};
+
+function toggleWordSelection(index) {
+    if (selectedThesaurusIndices.has(index)) selectedThesaurusIndices.delete(index);
+    else selectedThesaurusIndices.add(index);
+    renderBatchBar();
+}
+
+function renderBatchBar() {
+    let bar = document.getElementById('thesaurus-batch-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'thesaurus-batch-bar';
+        bar.className = 'batch-tool-bar';
+        // 插入在列表之后，导入导出按钮之前
+        const list = document.getElementById('thesaurus-list');
+        list.parentNode.insertBefore(bar, list.nextSibling);
+    }
+
+    const selectedCount = selectedThesaurusIndices.size;
+    bar.innerHTML = `
+        <label style="font-size:0.8rem; color:#666; cursor:pointer;">
+            <input type="checkbox" id="scent-all-check" onchange="thesaurusSelectAll(this.checked)" ${selectedCount > 0 && selectedCount === getThesaurusData()[currentThesaurusTab].length ? 'checked' : ''}> 全选
+        </label>
+        <span style="font-size:0.8rem; color:#888;">已选 ${selectedCount} 条</span>
+        <button class="m-btn small" onclick="batchDeleteWords()" style="background:#ff7675; color:white; border:none; display:${selectedCount > 0 ? 'block' : 'none'}">批量删除</button>
+    `;
+}
+
+window.thesaurusSelectAll = function(isChecked) {
+    const data = getThesaurusData()[currentThesaurusTab] || [];
+    if (isChecked) {
+        data.forEach((_, i) => selectedThesaurusIndices.add(i));
+    } else {
+        selectedThesaurusIndices.clear();
+    }
+    renderThesaurusList();
+};
+
+window.batchDeleteWords = function() {
+    const count = selectedThesaurusIndices.size;
+    if (count === 0) return;
+    if (!confirm(`确定要删除选中的 ${count} 条词条吗？`)) return;
+
+    let data = getThesaurusData();
+    let currentList = data[currentThesaurusTab];
+    
+    // 从大到小排序索引，防止删除时索引错位
+    const sortedIndices = Array.from(selectedThesaurusIndices).sort((a, b) => b - a);
+    sortedIndices.forEach(idx => {
+        currentList.splice(idx, 1);
+    });
+
+    selectedThesaurusIndices.clear();
+    saveThesaurusData(data);
+    renderThesaurusList();
+};
+
+// 修改切换标签时清空选择
+const _origSwitchThesaurusTab = window.switchThesaurusTab;
+window.switchThesaurusTab = function(tab) {
+    selectedThesaurusIndices.clear();
+    _origSwitchThesaurusTab(tab);
+};
         function addWord() { const val = prompt("输入内容:"); if(val) { const d = getThesaurusData(); d[currentThesaurusTab].push(val); saveThesaurusData(d); renderThesaurusList(); } }
         function deleteWord(idx) { if(confirm("删除?")) { const d = getThesaurusData(); d[currentThesaurusTab].splice(idx,1); saveThesaurusData(d); renderThesaurusList(); } }
         function exportWords() {
@@ -18132,7 +18274,7 @@ let pendingExportBlob = null;
 let pendingExportText = ""; 
 let pendingExportFilename = "";
 
-// 1. 主导出函数 (流式分块，防闪退)
+// 1. 主导出函数 (纯纯流式分块，包含 universal_store)
 async function exportFullBackup() {
     const btn = event.target || document.querySelector('button[onclick="exportFullBackup()"]');
     if(btn.getAttribute('data-processing')) return;
@@ -18145,18 +18287,21 @@ async function exportFullBackup() {
     try {
         const jsonChunks = [];
         // A. 写入头部信息
-        jsonChunks.push('{"meta":{"version":"RetroOS_Ultimate","date":"' + new Date().toLocaleString() + '"},');
+        jsonChunks.push('{"meta":{"version":"RetroOS_Ultimate_V2","date":"' + new Date().toLocaleString() + '"},');
         
-        // B. 写入全局小体积数据
-        jsonChunks.push('"big_memory":' + JSON.stringify(window.BIG_MEMORY || {}) + ',');
+        // 🔥【核心修复1】：删除原版企图把 BIG_MEMORY 整体塞进字符串的危险代码，
+        // 所有数据全部走 IndexedDB 的游标分块流式读取！
 
-        // C. 游标分块读取 IndexedDB 数据库 (解决内存爆炸的核心)
+        // B. 游标分块读取 IndexedDB 数据库
         jsonChunks.push('"idb_stores": {');
         
         const storeNames = Array.from(idb.db.objectStoreNames);
-        // 🔥 在这里排除塔罗牌和雷诺曼的图片库！不导出它们！
+        // 排除塔罗牌等图片库，不要把几百MB的图片导出来卡死手机
         const excludeStores = ['tarot_deck', 'lenormand_deck'];
         const targetStores = storeNames.filter(name => !excludeStores.includes(name));
+
+        // 确保包含 50+ 个功能的核心表 universal_store
+        if (!targetStores.includes('universal_store')) targetStores.push('universal_store');
 
         for (let i = 0; i < targetStores.length; i++) {
             const storeName = targetStores[i];
@@ -18170,7 +18315,7 @@ async function exportFullBackup() {
             
             let isFirstItem = true;
             
-            // 使用游标逐条读取并立即转字符串，不把整个数组塞进内存
+            // 使用游标逐条读取并立即转字符串，绝不把整个数组塞进内存
             await new Promise((resolve, reject) => {
                 cursorReq.onsuccess = (e) => {
                     const cursor = e.target.result;
@@ -18192,7 +18337,7 @@ async function exportFullBackup() {
         
         jsonChunks.push('}}'); // 闭合整个 JSON
 
-        // D. 组装最终数据
+        // C. 组装最终数据
         btn.innerText = "⏳ 正在生成文件...";
         
         // 合并所有的分块字符串
@@ -18206,7 +18351,7 @@ async function exportFullBackup() {
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
         pendingExportFilename = `RetroOS_Backup_${dateStr}.json`;
 
-        // 弹出双模选择 UI
+        // 弹出双模选择 UI (复用你原本的弹窗逻辑)
         showExportModal(sizeMB.toFixed(2));
 
     } catch (e) {
@@ -18218,6 +18363,7 @@ async function exportFullBackup() {
         btn.style.opacity = "1";
     }
 }
+
 
 // 2. 控制弹窗的 UI 函数
 function showExportModal(sizeStr) {
@@ -18315,7 +18461,9 @@ function fallbackCopyText(text) {
     }
     document.body.removeChild(tempTextArea);
 }
-// 5. 极限防闪退分块导入函数
+
+
+// 2. 极限防闪退分块导入函数 (修复文游等历史无法加载)
 async function importFullRestore(input) {
     const file = input.files[0];
     if (!file) return;
@@ -18325,7 +18473,7 @@ async function importFullRestore(input) {
         return;
     }
 
-    const statusEl = document.querySelector('.modal-header span'); 
+    const statusEl = document.querySelector('.modal-header span') || document.createElement('span'); 
     const originalTitle = statusEl.innerText;
     statusEl.innerText = "⏳ 读取文件中 (请耐心等待)...";
 
@@ -18373,28 +18521,12 @@ async function importFullRestore(input) {
             };
 
             // ==========================================
-            // 步骤1：恢复核心设置 (big_memory)
+            // 流式解析巨型数组 (防闪退核心)
             // ==========================================
-            statusEl.innerText = "⏳ 正在恢复核心设定...";
-            const bmStart = rawText.indexOf('"big_memory":');
-            if (bmStart !== -1) {
-                let objStart = rawText.indexOf('{', bmStart);
-                if (objStart !== -1) {
-                    const parsed = parseSingleObject(objStart);
-                    if (parsed && parsed.obj) {
-                        window.BIG_MEMORY = parsed.obj;
-                        for (let k in parsed.obj) {
-                            await idb.put('universal_store', { id: k, data: parsed.obj[k] });
-                        }
-                    }
-                }
-            }
-
-            // ==========================================
-            // 步骤2：流式解析巨型数组 (防闪退核心)
-            // ==========================================
-            // 定义需要恢复的表（严禁包含塔罗牌等底层文件表）
+            // 🔥【核心修复2】：将 universal_store 加入流式处理列表
+            // 它是存放 文游/日记/RPG/抽卡 等 50 多个功能的数据库，以前没放进来导致解析崩溃
             const storesToRestore = [
+                'universal_store', 
                 'chat_history', 'pickup_data', 'forum_data', 'theater_data',
                 'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
             ];
@@ -18442,7 +18574,7 @@ async function importFullRestore(input) {
                 console.log(`✅ [${storeName}] 成功流式导入 ${count} 条记录`);
             }
 
-            alert("🎉 完美分块恢复成功！\n系统将自动刷新页面以应用新数据。");
+            alert("🎉 完美分块恢复成功！包含文游在内的所有历史已找回。\n系统将自动刷新页面以应用新数据。");
             location.reload();
 
         } catch (err) {
@@ -18933,6 +19065,7 @@ window.deleteStudyPlan = function() {
                 <option value="normal">💬 匿名论坛</option>
                 <option value="xhs">📕 小红书</option>
                 <option value="moments">💭 友友圈</option>
+<option value="campus">🏫 校园墙</option>
             </select>
             <div style="display:flex; align-items:center; gap:10px;">
     <label style="display:flex; align-items:center; font-size:0.85rem; color:#a29bfe; font-weight:bold; cursor:pointer; background:rgba(162,155,254,0.1); padding:4px 8px; border-radius:12px;">
@@ -18965,7 +19098,35 @@ window.deleteStudyPlan = function() {
         <div id="forum-moments-view" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background:#191919; -webkit-overflow-scrolling: touch; position: relative;">
             <!-- 内容由 JS 动态生成 -->
         </div>
+<!-- 🏫 校园墙视图容器 (QQ空间风格) -->
+<div id="forum-campus-view" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background:#f2f2f2; -webkit-overflow-scrolling: touch;">
+    <!-- 这里会被 JS 动态填充：封面、头像、动态列表 -->
+</div>
 
+<!-- 👥 校园墙好友列表弹窗 -->
+<div id="campus-friends-modal" class="modal-overlay" style="display:none; background:rgba(0,0,0,0.8); z-index:25000; align-items:center; justify-content:center;">
+    <div class="morandi-card" style="width:85%; max-width:400px; height:70vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        <div style="padding:15px; background:#0099ff; color:white; font-weight:bold; display:flex; justify-content:space-between;">
+            <span>投稿人列表</span>
+            <span onclick="document.getElementById('campus-friends-modal').style.display='none'" style="cursor:pointer;">×</span>
+        </div>
+        <div id="campus-friends-list" style="flex:1; overflow-y:auto; padding:10px;">
+            <!-- 好友列表 -->
+        </div>
+    </div>
+</div>
+
+<!-- 📝 个人投稿查看弹窗 -->
+<div id="campus-submission-modal" class="modal-overlay" style="display:none; background:#fff; z-index:26000; flex-direction:column;">
+    <div class="modal-header" style="background:#f2f2f2; color:#333; border-bottom:1px solid #ddd;">
+        <button class="m-btn small" onclick="document.getElementById('campus-submission-modal').style.display='none'">🔙 返回</button>
+        <span id="submission-user-name" style="font-weight:bold;">Ta的投稿</span>
+        <div style="width:40px;"></div>
+    </div>
+    <div id="campus-submission-content" style="flex:1; overflow-y:auto; padding:15px;">
+        <!-- 投稿动态列表 -->
+    </div>
+</div>
                 <!-- 👇 点击NPC头像弹出的私聊窗口 (已修复退出按钮) -->
         <div id="moments-npc-chat-modal" class="modal-overlay" style="display:none; background:#f2f2f2; z-index:20000; flex-direction:column; animation: slideUp 0.3s;">
             <div class="modal-header" style="background:#fff; color:#333; border-bottom:1px solid #ddd; justify-content: space-between;">
@@ -20090,6 +20251,7 @@ window.saveChatSettings = function(extraData = {}) {
     
     // 2. 尝试从界面获取新值 (使用了 ?. 防止报错)
     const uiData = {
+assimilationMode: document.getElementById('set-assimilation-mode') ? document.getElementById('set-assimilation-mode').checked : s.assimilationMode,
         myFrame: document.getElementById('set-my-frame')?.value,
         botFrame: document.getElementById('set-bot-frame')?.value,
         myCss: document.getElementById('set-my-css')?.value,
@@ -24612,6 +24774,34 @@ window.generateGalgameEndingAPI = async function() {
             50% { transform: scale(1.03) translateY(-1%); } /* 吸气：变大且微上浮 */
             100% { transform: scale(1) translateY(0); }
         }
+/* 🏫 校园墙空间风格 */
+.campus-header { width: 100%; height: 180px; background: #0099ff; position: relative; margin-bottom: 50px; background-size: cover; background-position: center; }
+.campus-avatar { 
+    position: absolute; left: 20px; bottom: -60px; width: 80px; height: 80px; 
+    border: 3px solid #fff; border-radius: 8px; background: #eee; cursor: pointer;
+    background-size: cover; background-position: center; z-index: 10;
+}
+/* 🏫 校园墙空间风格 */
+.campus-header { width: 100%; height: 180px; background: #0099ff; position: relative; margin-bottom: 60px; background-size: cover; background-position: center; }
+.campus-avatar { 
+    position: absolute; left: 20px; bottom: -60px; width: 85px; height: 85px; 
+    border: 4px solid #fff; border-radius: 12px; background: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 2.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 10;
+}
+.campus-official-icon {
+    width: 38px; height: 38px; background: #0099ff; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;
+}
+.campus-info { position: absolute; left: 110px; bottom: 5px; color: #fff; text-shadow: 0 1px 3px #000; }
+.campus-post { background: #fff; margin: 10px; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.campus-post-user { color: #576b95; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.campus-post-content { font-size: 1rem; color: #333; line-height: 1.5; margin-bottom: 10px; }
+.campus-cmt-box { background: #f8f8f8; border-radius: 4px; padding: 10px; margin-top: 10px; font-size: 0.85rem; }
+.campus-cmt-line { margin-bottom: 5px; border-bottom: 1px solid #f0f0f0; padding-bottom: 3px; }
+.campus-friend-item { display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
+.campus-friend-avatar { width: 45px; height: 45px; border-radius: 50%; background: #ddd; background-size: cover; }
     </style>
 
     <!-- 底层立绘 (已添加 animation 属性) -->
@@ -34085,6 +34275,7 @@ function switchForumMode(mode) {
     document.getElementById('forum-scroll-area').style.display = mode === 'normal' ? 'block' : 'none';
     document.getElementById('forum-xhs-view').style.display = mode === 'xhs' ? 'flex' : 'none';
     document.getElementById('forum-moments-view').style.display = mode === 'moments' ? 'block' : 'none';
+document.getElementById('forum-campus-view').style.display = mode === 'campus' ? 'flex' : 'none';
 }
 
 // === 2. 统一生成入口 ===
@@ -34095,6 +34286,7 @@ function handleForumGenerate() {
         generateXHSThread();   // 调用新的 XHS 生成函数
     }
 }
+
 // === 3. XHS 模式生成逻辑 (修正版：传递 Line 名字) ===
 async function generateXHSThread() {
     const inputEl = document.getElementById('forum-input');
@@ -34457,6 +34649,10 @@ window.handleForumGenerate = function() {
         generateMomentsThread();
         return;
     }    
+if (currentForumMode === 'campus') {
+        generateCampusWall();
+        return;
+    }
     // XHS 模式
     const inputEl = document.getElementById('forum-input');
     const userText = inputEl.value.trim();
@@ -38880,6 +39076,341 @@ setTimeout(() => {
         };
     }
 }, 1000);
+// ==================== 🏫 校园墙 (Campus Wall) 核心逻辑 ====================
+
+let currentCampusData = null; // 存储当前墙的所有数据
+
+window.generateCampusWall = async function() {
+    const inputEl = document.getElementById('forum-input');
+    const userText = inputEl.value.trim();
+    if (!userText) return alert("请先输入一些梗概或关键词！");
+
+    const btn = document.getElementById('btn-forum-gen');
+    const oldText = btn.innerText;
+    btn.disabled = true; btn.innerText = "⏳ 正在采集投稿...";
+
+    // 1. 获取梦占/世界书上下文 
+    const wb = window.getWBData ? window.getWBData() : {};
+    const isDream = document.getElementById('forum-dream-switch') && document.getElementById('forum-dream-switch').checked;
+    const cards = window.currentForumCardsDesc || "";
+    let context = (wb[isDream ? '占卜向全局' : '无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+
+    // 2. 读取 API 密钥 (适配你的系统)
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { 
+        try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} 
+    }
+    if(!apiKey) { btn.disabled = false; btn.innerText = oldText; return alert("请先配置 API Key"); }
+
+  // ... 在 generateCampusWall 函数内部 ...
+const prompt = `
+你是一个校园表白墙(类似QQ空间)的数据生成器。
+【世界观设定】：${context}
+【用户输入的关键词/情境】：${userText}
+【梦占牌意】：${isDream ? cards : "无"}
+
+【任务要求】：
+1. **判定皮下人**：根据用户输入判定校园墙的皮下人是谁（npc/用户/角色，默认用户）。输出在 wall_owner.sub_name。
+2. **生成墙上动态**：至少生成 5 条匿名投稿。每条投稿最前面写类似于【1003条投稿】这种无意义数字序号加投稿。每条投稿的这个序号不能重复。
+   - 键名必须叫 "content"，内容是匿名同学的投稿。
+   - 每条投稿不少于 7 条评论，语气要像同一个学校的学生在吃瓜。
+3. **生成投稿好友**：至少生成 5 个具体的活跃好友（NPC或世界书主角）。
+   - 为每个好友至少生成 5 条详细的投稿内容（如果很长的投稿可以只写一条）发送给墙的【原始投稿私信内容】。
+
+【输出格式】：严格 JSON 格式
+{
+  "wall_owner": { "name": "校园表白墙", "sub_name": "皮下：xxx", "avatar_desc": "校园图标" },
+  "feeds": [
+    {
+      "content": "投稿：今天在...",
+      "time": "3小时前",
+      "comments": [ {"user": "路人A", "text": "内容"}, ... ]
+    }
+  ],
+  "friends": [
+    {
+      "name": "名字",
+      "submissions": [ "投稿内容1", "投稿内容2", ... ]
+    }
+  ]
+}
+`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{role:"system", content:"Output compressed JSON only."}, {role:"user", content:prompt}],
+                temperature: 0.85,
+                max_tokens: 30000
+            })
+        });
+        
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+
+        let raw = json.choices[0].message.content.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const startIdx = raw.indexOf('{');
+        const endIdx = raw.lastIndexOf('}');
+        if (startIdx !== -1 && endIdx !== -1) raw = raw.substring(startIdx, endIdx + 1);
+
+        currentCampusData = JSON.parse(raw);
+
+        // 渲染界面
+        window.renderCampusView(currentCampusData);
+        
+        // 保存到历史记录 (复用论坛体历史)
+        const saveId = Date.now().toString();
+        const historyItem = { id: saveId, title: "🏫 [校园墙] " + userText.substring(0, 15), date: Date.now(), isCampus: true, data: currentCampusData };
+
+        if (typeof saveForumContent === 'function') await saveForumContent(saveId, historyItem);
+        else await idb.put('forum_data', { id: `thread_${saveId}`, data: historyItem });
+
+        let historyList = [];
+        try { const r = await idb.get('forum_data', 'history_list'); if (r) historyList = r.data; } catch(e) {}
+        historyList.unshift({ id: saveId, title: historyItem.title, date: historyItem.date });
+        if (typeof saveForumHistory === 'function') await saveForumHistory(historyList);
+        else await idb.put('forum_data', { id: 'history_list', data: historyList });
+
+        inputEl.value = '';
+    } catch(e) {
+        console.error(e);
+        alert("校园墙生成失败：" + e.message);
+    } finally {
+        btn.disabled = false; btn.innerText = oldText;
+    }
+};
+function renderCampusView(data) {
+    const container = document.getElementById('forum-campus-view');
+    // 清空并初始化头部
+    container.innerHTML = `
+        <div class="campus-header" style="background-image: url('https://i.postimg.cc/BQtvjmdG/IMG-1934.jpg');">
+            <div class="campus-avatar" onclick="showCampusFriends()">🏫</div>
+            <div class="campus-info">
+                <div style="font-size:1.3rem; font-weight:bold; letter-spacing:1px;">${data.wall_owner.name}</div>
+                <div style="font-size:0.85rem; opacity:0.9;">${data.wall_owner.sub_name}</div>
+            </div>
+        </div>
+    `;
+
+    // 渲染动态列表
+    if (data.feeds && Array.isArray(data.feeds)) {
+        data.feeds.forEach(feed => {
+            const post = document.createElement('div');
+            post.className = 'campus-post';
+            
+            // 渲染评论
+            let cmtsHtml = "";
+            if (feed.comments && feed.comments.length > 0) {
+                cmtsHtml = `<div class="campus-cmt-box">`;
+                feed.comments.forEach(c => {
+                    cmtsHtml += `<div class="campus-cmt-line"><span style="color:#576b95;font-weight:bold;">${c.user}</span>: ${c.text}</div>`;
+                });
+                cmtsHtml += `</div>`;
+            }
+
+            // 统一发帖人为“校园表白墙”
+            post.innerHTML = `
+                <div class="campus-post-user">
+                    <div class="campus-official-icon">墙</div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:1rem; color:#333;">校园表白墙</span>
+                        <span style="font-size:0.7rem; color:#999; font-weight:normal;">${feed.time || '刚刚'} · 网页版</span>
+                    </div>
+                </div>
+                <!-- 这里的 feed.content 对应 API 输出的键名 -->
+                <div class="campus-post-content">${feed.content || "投稿内容加载失败"}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f0f0f0; padding-top:10px; margin-top:10px;">
+                    <span style="font-size:0.75rem; color:#999;">浏览1.2万次</span>
+                    <div style="display:flex; gap:15px; color:#666; font-size:0.8rem;">
+                        <span>👍 赞</span><span>💬 评论</span><span>🔄 转发</span>
+                    </div>
+                </div>
+                ${cmtsHtml}
+            `;
+            container.appendChild(post);
+        });
+    }
+}
+// 弹出好友（投稿人）列表
+window.showCampusFriends = function() {
+    if(!currentCampusData) return alert("请先点击生成内容！");
+    const modal = document.getElementById('campus-friends-modal');
+    const list = document.getElementById('campus-friends-list');
+    list.innerHTML = '';
+
+    currentCampusData.friends.forEach((f, idx) => {
+        const item = document.createElement('div');
+        item.className = 'campus-friend-item';
+        // 使用一个简单的背景色或随机颜色
+        const color = stringToColor ? stringToColor(f.name) : '#ccc';
+        item.innerHTML = `
+            <div class="campus-friend-avatar" style="background-color:${color}; display:flex; align-items:center; justify-content:center; color:white;">${f.name[0]}</div>
+            <div style="font-weight:bold; color:#333;">${f.name}</div>
+        `;
+        item.onclick = () => showSubmissions(idx);
+        list.appendChild(item);
+    });
+    modal.style.display = 'flex';
+};
+
+// 显示该好友的 5 条具体投稿
+function showSubmissions(friendIdx) {
+    const friend = currentCampusData.friends[friendIdx];
+    const modal = document.getElementById('campus-submission-modal');
+    document.getElementById('submission-user-name').innerText = friend.name + " 的投稿历史";
+    const content = document.getElementById('campus-submission-content');
+    content.innerHTML = '';
+
+    friend.submissions.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'campus-post';
+        card.innerHTML = `
+            <div class="campus-post-user"><div class="campus-official-icon">稿</div><span>原始投稿私信</span></div>
+            <div class="campus-post-content">“${sub}”</div>
+            <div style="font-size:0.7rem; color:#999; margin-top:10px;">发送于 2026年 · 私信记录</div>
+        `;
+        content.appendChild(card);
+    });
+    modal.style.display = 'flex';
+}
+window.showSubmissions = function(friendIdx) {
+    const friend = currentCampusData.friends[friendIdx];
+    const modal = document.getElementById('campus-submission-modal');
+    document.getElementById('submission-user-name').innerText = friend.name + " 的投稿箱";
+    const content = document.getElementById('campus-submission-content');
+    content.innerHTML = '';
+
+    (friend.submissions || []).forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'campus-post';
+        card.style.borderLeft = "4px solid #0099ff";
+        card.innerHTML = `
+            <div class="campus-post-content" style="font-style:italic;">“${sub}”</div>
+            <div style="font-size:0.7rem; color:#999; text-align:right;">私信投稿记录</div>
+        `;
+        content.appendChild(card);
+    });
+    modal.style.display = 'flex';
+};
+
+// 补丁：让历史记录支持加载校园墙
+const _origLoadForumForCampus = window.loadForum;
+window.loadForum = async function(id) {
+    const thread = await getForumContent(id);
+    if (thread && thread.isCampus) {
+        document.getElementById('forum-mode-select').value = 'campus';
+        switchForumMode('campus');
+        currentCampusData = thread.data;
+        renderCampusView(thread.data);
+        document.getElementById('forum-history-panel').classList.remove('open');
+    } else {
+        if(_origLoadForumForCampus) _origLoadForumForCampus(id);
+    }
+};
+// ==================== 校园墙结束 ====================
+// ==================== 🔄 同化模式核心逻辑 ====================
+let selectedAssimilationTexts = [];
+
+window.openAssimilationModal = function() {
+    const s = getChatSettings();
+    if (!s.assimilationMode) return;
+
+    document.getElementById('assimilation-modal').style.display = 'flex';
+    selectedAssimilationTexts = []; // 清空选中
+    document.getElementById('ass-count').innerText = '0';
+
+    const listEl = document.getElementById('assimilation-list');
+    listEl.innerHTML = '';
+    
+    // 获取词库里的回复数据
+    const thesaurus = (typeof getThesaurusData === 'function') ? getThesaurusData() : window.BIG_MEMORY.thesaurus_data;
+    const replies = thesaurus['reply'] || [];
+    
+    if (replies.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">词库为空！<br>请先去主屏幕的【词库 -> 回复】里添加词条。</div>';
+        return;
+    }
+
+    // 渲染词条卡片
+    replies.forEach((text) => {
+        const card = document.createElement('div');
+        card.className = 'morandi-card';
+        card.style.cssText = "padding: 15px; cursor: pointer; border: 2px solid transparent; background: #fff; transition: 0.2s; font-size:0.95rem; line-height:1.4;";
+        card.innerText = text;
+        
+        // 点击选择/取消选择逻辑
+        card.onclick = () => {
+            const existingIdx = selectedAssimilationTexts.indexOf(text);
+            if (existingIdx > -1) {
+                // 取消选中
+                selectedAssimilationTexts.splice(existingIdx, 1);
+                card.style.borderColor = 'transparent';
+                card.style.background = '#fff';
+            } else {
+                // 选中
+                selectedAssimilationTexts.push(text);
+                card.style.borderColor = '#06c755';
+                card.style.background = '#e8f5e9'; // 选中的淡淡绿色
+            }
+            document.getElementById('ass-count').innerText = selectedAssimilationTexts.length;
+        };
+        listEl.appendChild(card);
+    });
+};
+
+window.closeAssimilationModal = function() {
+    document.getElementById('assimilation-modal').style.display = 'none';
+};
+
+window.sendAssimilationCards = function() {
+    if (selectedAssimilationTexts.length === 0) return alert("请至少选择一个词条！");
+    
+    closeAssimilationModal();
+    
+    // 像机关枪一样，每隔 600 毫秒发出一条你选中的词条
+    selectedAssimilationTexts.forEach((text, index) => {
+        setTimeout(() => {
+            // 调用全局发消息函数
+            appendMessage(text, true, 'text');
+            
+            // 如果是最后一条，触发对方 AI 回复
+            if (index === selectedAssimilationTexts.length - 1) {
+                triggerBotReply();
+                
+                // 确保滚动条滚到底部
+                setTimeout(() => {
+                    const history = document.getElementById('chat-history');
+                    history.scrollTop = history.scrollHeight;
+                }, 100);
+            }
+        }, index * 600); // 这里的 600 是发送间隔，可自己改
+    });
+};
+// ==================== 🔄 同化模式 UI 秒切逻辑 ====================
+window.toggleAssimilationMode = function(checkbox) {
+    const slider = document.getElementById('assimilation-slider');
+    
+    // 1. 改变开关的视觉效果（颜色和滑动动画）
+    if (checkbox.checked) {
+        checkbox.nextElementSibling.style.backgroundColor = "#8e44ad"; // 开启变紫
+        slider.style.transform = "translateX(26px)";
+    } else {
+        checkbox.nextElementSibling.style.backgroundColor = "#ccc"; // 关闭变灰
+        slider.style.transform = "translateX(0)";
+    }
+    
+    // 2. 立即保存设置，并让聊天框瞬间刷新生效
+    if (typeof window.saveChatSettings === 'function') {
+        window.saveChatSettings();
+    }
+};
+
 </script>
 </script>
 </html> 
