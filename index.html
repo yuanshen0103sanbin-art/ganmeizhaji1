@@ -8155,26 +8155,41 @@ function updatePickedUI() {
     const btn = document.getElementById('btn-tarot-finish');
     if(btn) btn.style.display = count > 0 ? 'block' : 'none';
 }
+// === 修复后的打乱函数 ===
 function confirmShuffle() {
-    tarotState.picked = [];
+    tarotState.picked = []; // 清空已选
     
     const container = document.getElementById('tarot-card-spread');
     container.style.opacity = '0.5';
     
     setTimeout(() => {
+        // 1. 传统的洗牌算法：打乱顺序
         for (let i = tarotState.deck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [tarotState.deck[i], tarotState.deck[j]] = [tarotState.deck[j], tarotState.deck[i]];
         }
         
-        tarotState.deck.forEach(card => card.visualRot = Math.random() * 6 - 3);
+        // 2. 核心修复：遍历牌组，重新随机正逆位和视觉角度
+        tarotState.deck.forEach(card => {
+            card.visualRot = Math.random() * 6 - 3; // 随机摆放角度
+            
+            // 如果是塔罗牌模式，打乱时重新决定正逆位 (50%概率)
+            if (tarotState.mode === 'tarot') {
+                card.isReversed = Math.random() < 0.5; 
+            } else {
+                // 雷诺曼等其他牌种通常不分逆位
+                card.isReversed = false;
+            }
+        });
 
+        // 3. 重新渲染界面
         renderTarotCards();
         
         container.style.opacity = '1';
         container.scrollTop = 0; 
         backToDesk();
         
+        // 重置输出区
         document.getElementById('divine-question').value = '';
         document.getElementById('output-content').innerHTML = '';
         document.getElementById('divination-output').style.display = 'none';
