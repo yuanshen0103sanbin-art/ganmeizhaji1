@@ -18477,13 +18477,14 @@ function fallbackCopyText(text) {
     document.body.removeChild(tempTextArea);
 }
 
-
-// 2. 极限防闪退分块导入函数 (修复文游等历史无法加载)
+// ==========================================
+// 🛠️ 终极防闪退 & 兼容旧版备份的导入引擎 (极限安全版)
+// ==========================================
 async function importFullRestore(input) {
     const file = input.files[0];
     if (!file) return;
 
-    if (!confirm(`⚠️ 警告：恢复全量备份将【覆盖】当前系统的所有记录和美化！\n(塔罗牌和雷诺曼文件不受影响)\n\n确定继续吗？`)) {
+    if (!confirm(`⚠️ 警告：恢复全量备份将【完全覆盖】当前系统的所有记录和美化设定！\n(塔罗牌和雷诺曼图片包不受影响)\n\n确定继续吗？`)) {
         input.value = '';
         return;
     }
@@ -18493,114 +18494,103 @@ async function importFullRestore(input) {
     statusEl.innerText = "⏳ 读取文件中 (请耐心等待)...";
 
     const reader = new FileReader();
-    // 读成纯文本字符串（手机容纳几百MB的字符串毫无压力，压力主要在 JSON.parse）
     reader.readAsText(file);
 
     reader.onload = async (e) => {
-        const rawText = e.target.result;
-        
         try {
-            console.log("启动流式解析引擎...");
+            statusEl.innerText = "⏳ 正在解析数据 (大文件可能需要几秒)...";
+            
+            const rawText = e.target.result;
+            const backupData = JSON.parse(rawText);
 
-            // ==========================================
-            // 工具函数：在长文本中安全提取并解析独立对象
-            // ==========================================
-            const parseSingleObject = (startIdx) => {
-                let braceCount = 0;
-                let inString = false;
-                let objEnd = -1;
-                
-                for (let i = startIdx; i < rawText.length; i++) {
-                    let char = rawText[i];
-                    // 处理字符串里的转义双引号，防止提前闭合
-                    if (char === '"') {
-                        let bsCount = 0; let j = i - 1;
-                        while(j >= startIdx && rawText[j] === '\\') { bsCount++; j--; }
-                        if (bsCount % 2 === 0) inString = !inString;
-                    }
-                    if (!inString) {
-                        if (char === '{') braceCount++;
-                        else if (char === '}') braceCount--;
-                    }
-                    if (braceCount === 0) { 
-                        objEnd = i + 1; 
-                        break; 
+            let storesData = {};
+
+            // 🌟 核心兼容逻辑：判断是新版还是旧版备份
+            if (backupData.idb_stores) {
+                storesData = backupData.idb_stores;
+            } else if (backupData.big_memory || backupData.image_stores) {
+                // 旧版格式动态转换
+                storesData['universal_store'] = [];
+                if (backupData.big_memory) {
+                    for (let key in backupData.big_memory) {
+                        storesData['universal_store'].push({ id: key, data: backupData.big_memory[key] });
                     }
                 }
-                
-                if (objEnd !== -1) {
-                    const objStr = rawText.substring(startIdx, objEnd);
-                    return { obj: JSON.parse(objStr), nextIdx: objEnd };
+                if (backupData.chat_history) storesData['chat_history'] = backupData.chat_history;
+                if (backupData.pickup_data) storesData['pickup_data'] = backupData.pickup_data;
+                if (backupData.forum_history) storesData['forum_data'] = backupData.forum_history; 
+                if (backupData.image_stores) {
+                    for (let storeName in backupData.image_stores) {
+                        storesData[storeName] = backupData.image_stores[storeName];
+                    }
                 }
-                return null;
-            };
+            } else {
+                throw new Error("无法识别备份文件的结构。");
+            }
 
-            // ==========================================
-            // 流式解析巨型数组 (防闪退核心)
-            // ==========================================
-            // 🔥【核心修复2】：将 universal_store 加入流式处理列表
-            // 它是存放 文游/日记/RPG/抽卡 等 50 多个功能的数据库，以前没放进来导致解析崩溃
+            // 🚀 清理僵尸缓存
+            statusEl.innerText = "⏳ 正在清理缓存...";
+            const legacyKeys = [
+                'world_book_data', 'letter_history', 'thesaurus_data', 'finance_data', 'period_data',
+                'forum_history_list', 'theater_list', 'study_plan_data', 'desktop_memo', 'game_history_log',
+                'game_stats', 'tarot_history', 'his_phone_history', 'dream_history', 'pickup_data_history',
+                'diary_history', 'pet_data', 'lofter_data', 'pain_data', 'shadow_data', 'gashapon_history',
+                'rpg_data', 'chat_settings', 'summary_data', 'teaching_data', 'companion_data', 'galgame_data',
+                'witch_data', 'tacit_data'
+            ];
+            legacyKeys.forEach(k => localStorage.removeItem(k));
+
+            // 需要恢复的表清单
             const storesToRestore = [
                 'universal_store', 
                 'chat_history', 'pickup_data', 'forum_data', 'theater_data',
                 'album_data', 'settings_heavy', 'chat_stickers', 'anniversary_data', 'tv'
             ];
 
+            // 🛡️ 核心修复：逐条写入，彻底防止大体积 Base64 导致 IndexedDB 事务崩溃
             for (let storeName of storesToRestore) {
-                statusEl.innerText = `⏳ 正在逐条写入: ${storeName}...`;
+                if (storesData[storeName] && Array.isArray(storesData[storeName])) {
+                    const items = storesData[storeName];
+                    
+                    // 1. 先清空数据库里的旧数据
+                    await idb.clear(storeName); 
 
-                const searchKey = `"${storeName}"`;
-                const keyIdx = rawText.indexOf(searchKey);
-                if (keyIdx === -1) continue; // 没找到这个表则跳过
-
-                const arrStart = rawText.indexOf('[', keyIdx + searchKey.length);
-                if (arrStart === -1) continue;
-
-                // 找到表了，先清空数据库里的旧数据
-                await idb.clear(storeName); 
-                const tx = idb.db.transaction([storeName], 'readwrite');
-                const store = tx.objectStore(storeName);
-
-                let i = arrStart + 1;
-                let count = 0;
-
-                // 开始像流水线一样，每次只抠出一个 {...} 对象进行解析写入
-                while (i < rawText.length) {
-                    // 跳过空白符和逗号
-                    while (i < rawText.length && (rawText[i] === ' ' || rawText[i] === '\n' || rawText[i] === '\r' || rawText[i] === ',')) {
-                        i++;
+                    // 2. 放弃批量事务，改为极度安全的逐条 `await idb.put`
+                    if (items.length > 0) {
+                        for (let i = 0; i < items.length; i++) {
+                            // 每 10 条更新一次 UI 进度，主动释放主线程压力，防止浏览器假死
+                            if (i % 10 === 0) {
+                                statusEl.innerText = `⏳ 正在恢复 [${storeName}] (${i}/${items.length})...`;
+                                await new Promise(r => setTimeout(r, 0));
+                            }
+                            
+                            // 逐条安全写入
+                            await idb.put(storeName, items[i]);
+                        }
                     }
-
-                    if (rawText[i] === ']') break; // 遇到 ] 说明当前数组结束了
-                    if (rawText[i] !== '{') { i++; continue; } // 如果不是 {，说明有脏字符，跳过
-
-                    const parsed = parseSingleObject(i);
-                    if (parsed && parsed.obj) {
-                        store.put(parsed.obj); // 写入 IndexedDB
-                        count++;
-                        i = parsed.nextIdx;    // 游标移动到下一个对象
-                    } else {
-                        break; // 提取失败，强制退出当前表
-                    }
+                    console.log(`✅ [${storeName}] 成功导入 ${items.length} 条记录`);
                 }
-
-                // 等待当前表完全落盘
-                await new Promise(resolve => tx.oncomplete = resolve);
-                console.log(`✅ [${storeName}] 成功流式导入 ${count} 条记录`);
             }
 
-            alert("🎉 完美分块恢复成功！包含文游在内的所有历史已找回。\n系统将自动刷新页面以应用新数据。");
-            location.reload();
+            statusEl.innerText = "✅ 恢复完成！正在重启...";
+            alert("🎉 全量备份恢复成功！\n包含美化图片、Line记录、文游立绘在内的所有数据已安全写入。\n\n系统将自动刷新...");
+            location.reload(); 
 
         } catch (err) {
-            console.error(err);
-            alert("❌ 恢复失败 (文件损坏或不完整):\n" + err.message);
+            console.error("导入报错: ", err);
+            alert("❌ 恢复失败:\n" + err.message);
             statusEl.innerText = originalTitle;
         }
     };
     
+    reader.onerror = () => {
+        alert("❌ 读取文件失败，请检查文件权限。");
+        statusEl.innerText = originalTitle;
+    };
+
     input.value = ''; 
 }
+
 const NotificationManager = {
     requestPermission: function() {
         // 修改：增加提示，告知用户 APK 环境可能仅支持应用内通知
