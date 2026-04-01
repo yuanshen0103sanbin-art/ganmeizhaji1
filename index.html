@@ -4509,6 +4509,118 @@ canvas {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 15px; background: #f9f9f9; border-top: 1px dashed #ccc;
 }
+/* === 小剧场：重新生成与滑动多页样式 === */
+.th-carousel-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: 25px; /* 给底部按钮留空间 */
+}
+.th-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* 隐藏滚动条 */
+}
+.th-carousel::-webkit-scrollbar { display: none; }
+.th-page {
+    flex: 0 0 100%;
+    min-width: 100%;
+    scroll-snap-align: start;
+    padding: 0 5px;
+    box-sizing: border-box;
+}
+.th-page-indicator {
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--th-accent);
+    font-family: monospace;
+    font-weight: bold;
+}
+.th-regen-btn {
+    position: absolute;
+    bottom: 0; right: 5px;
+    background: var(--th-accent);
+    color: #fff; border: none;
+    padding: 3px 10px; border-radius: 12px;
+    font-size: 0.75rem; cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.th-regen-btn:active { transform: scale(0.95); }
+
+/* === 日语模式：句子解析样式 === */
+.jp-sentence {
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px dashed rgba(142, 68, 173, 0.4);
+}
+.jp-sentence:hover, .jp-sentence:active {
+    background: rgba(142, 68, 173, 0.15);
+    border-radius: 4px;
+}
+
+#jp-analysis-modal .morandi-card {
+    background: #fdfbf7;
+    border: 2px solid #8e44ad;
+    color: #2c3e50;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+.jp-vocab-item {
+    display: flex; flex-direction: column; 
+    background: #fff; padding: 8px; border-radius: 6px; 
+    border: 1px solid #eee; margin-bottom: 8px;
+}
+.jp-vocab-word { font-weight: bold; color: #8e44ad; font-size: 1.1rem; }
+.jp-vocab-kana { font-size: 0.75rem; color: #7f8c8d; }
+.jp-grammar-item {
+    background: #f3e5f5; padding: 8px; border-radius: 6px;
+    border-left: 4px solid #8e44ad; margin-bottom: 8px;
+}
+/* === 修复小剧场多分支高度与按钮布局 === */
+.th-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    align-items: flex-start; /* 核心修复：防止较短的分支被拉伸 */
+    transition: height 0.3s ease; /* 高度变化动画 */
+}
+.th-carousel::-webkit-scrollbar { display: none; }
+
+.th-page {
+    flex: 0 0 100%;
+    min-width: 100%;
+    scroll-snap-align: start;
+    padding: 0 5px;
+    box-sizing: border-box;
+    height: max-content; /* 自身内容决定高度 */
+}
+
+.th-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(128,128,128,0.2);
+}
+
+.th-action-btn {
+    background: transparent;
+    color: var(--th-accent);
+    border: 1px solid var(--th-accent);
+    padding: 4px 10px; border-radius: 12px;
+    font-size: 0.75rem; cursor: pointer;
+}
+.th-action-btn.del {
+    color: #ff6b6b; border-color: #ff6b6b;
+}
     </style>
 </head>
 <body>
@@ -6339,7 +6451,24 @@ function saveThesaurusData(data) {
         function closeThesaurus() { document.getElementById('thesaurus-modal').style.display = 'none'; }
         // 全局变量记录选中的索引
 let selectedThesaurusIndices = new Set();
-
+// ================= 修复：词库标签切换功能 =================
+window.switchThesaurusTab = function(tabId) {
+    // 1. 更改当前激活的标签变量
+    currentThesaurusTab = tabId;
+    
+    // 2. 移除所有标签的 active 样式
+    document.getElementById('tab-reply').classList.remove('active');
+    document.getElementById('tab-note').classList.remove('active');
+    document.getElementById('tab-expense').classList.remove('active');
+    document.getElementById('tab-income').classList.remove('active');
+    
+    // 3. 给点击的标签加上 active 样式
+    document.getElementById('tab-' + tabId).classList.add('active');
+    
+    // 4. 清空多选状态并重新渲染列表
+    selectedThesaurusIndices.clear();
+    renderThesaurusList();
+};
 window.renderThesaurusList = function() {
     const listEl = document.getElementById('thesaurus-list');
     listEl.innerHTML = '';
@@ -18976,7 +19105,7 @@ window.deleteStudyPlan = function() {
     <div id="theater-container">
         <div class="theater-header">
             <button class="m-btn small" onclick="closeTheaterApp()" style="background:transparent; font-size:1.2rem;">🔙</button>
-            <div class="th-title">小剧场 · Light Novel</div>
+            <div class="th-title" id="th-main-title" onclick="handleTheaterTitleTap()">小剧场 · Light Novel</div>
             <div style="display:flex; gap:10px;">
                 <button class="m-btn small" onclick="toggleTheaterTheme()" style="background:rgba(0,0,0,0.1);">🌓</button>
                 <button class="m-btn small" onclick="toggleTheaterHistory()" style="background:rgba(0,0,0,0.1);">📜 历史</button>
@@ -19009,6 +19138,18 @@ window.deleteStudyPlan = function() {
             <button class="m-btn small" onclick="startNewTheater()" style="background:var(--th-accent); color:white;">+ 新剧本</button>
         </div>
         <div id="theater-history-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+</div>
+<!-- 日语单句解析弹窗 -->
+<div id="jp-analysis-modal" class="modal-overlay" style="background:rgba(0,0,0,0.8); z-index: 35000; display:none; align-items:center; justify-content:center;">
+    <div class="morandi-card" style="width: 90%; max-width: 500px; padding: 0; overflow: hidden; animation: popIn 0.3s;">
+        <div style="background:#8e44ad; color:#fff; padding:15px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+            <span>📚 日文结构解析</span>
+            <span onclick="document.getElementById('jp-analysis-modal').style.display='none'" style="cursor:pointer; font-size:1.2rem;">×</span>
+        </div>
+        <div id="jp-analysis-content" style="padding: 20px; overflow-y: auto; flex: 1;">
+            <!-- 解析内容由 JS 填充 -->
+        </div>
     </div>
 </div>
 <div id="period-modal" class="modal-overlay period-theme">
@@ -19825,6 +19966,16 @@ window.deleteStudyPlan = function() {
 <!-- 新增：全局 CSS 设置页 -->
 <div id="theme-tab-css" class="theme-tab-content" style="display:none;">
     <div class="morandi-card">
+        <!-- 美化方案保存区 -->
+        <div class="morandi-card" style="margin-top: 15px;">
+            <h3>📁 主题方案管理</h3>
+            <p style="font-size:0.8rem; color:#888;">保存当前的全局美化设定（含背景、图标、CSS等）</p>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="theme-profile-name" class="editor-textarea" placeholder="给当前方案起个名字..." style="flex:1; height:40px;">
+                <button class="m-btn primary" onclick="saveThemeProfile()" style="background:#8e44ad;">💾 保存当前</button>
+            </div>
+            <div id="theme-profile-list" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
         <h3>全局自定义 CSS</h3>
         <p style="font-size:0.8rem; color:#888;">高级玩家专用。可修改字体颜色、隐藏元素等。</p>
         <textarea id="global-css-input" class="editor-textarea" style="height:200px; font-family:monospace;" placeholder="/* 在此输入 CSS 代码 */ body { ... }"></textarea>
@@ -20098,6 +20249,7 @@ window.deleteStudyPlan = function() {
         </div>
     </div>
 </div>
+
 <script>
 window.BIG_MEMORY = window.BIG_MEMORY || {};
 Object.assign(window.BIG_MEMORY, {
@@ -39415,7 +39567,533 @@ window.toggleAssimilationMode = function(checkbox) {
         window.saveChatSettings();
     }
 };
+// ================= 美化主题方案管理 =================
+window.saveThemeProfile = async function() {
+    const name = document.getElementById('theme-profile-name').value.trim();
+    if (!name) return alert("请先输入方案名称！");
 
+    // 1. 获取当前所有的 settings_heavy 数据
+    const allSettings = await idb.getAll('settings_heavy');
+    const profileData = {};
+    allSettings.forEach(item => {
+        // 过滤：只保存美化相关的 (图片、CSS等)，不保存头像等私密数据
+        if (item.key !== 'myAvatar' && item.key !== 'botAvatar') {
+            profileData[item.key] = item.data;
+        }
+    });
+
+    // 2. 获取现有的方案列表
+    let profiles = window.BIG_MEMORY.theme_profiles || [];
+    try {
+        const res = await idb.get('universal_store', 'theme_profiles');
+        if (res) profiles = res.data;
+    } catch(e){}
+
+    // 3. 存入新方案
+    const existingIdx = profiles.findIndex(p => p.name === name);
+    if (existingIdx > -1) {
+        if(!confirm("该名称已存在，是否覆盖？")) return;
+        profiles[existingIdx] = { name: name, data: profileData };
+    } else {
+        profiles.push({ name: name, data: profileData });
+    }
+
+    // 4. 保存并刷新
+    await idb.put('universal_store', { id: 'theme_profiles', data: profiles });
+    window.BIG_MEMORY.theme_profiles = profiles;
+    document.getElementById('theme-profile-name').value = '';
+    alert("✅ 方案保存成功！");
+    renderThemeProfiles();
+};
+
+window.renderThemeProfiles = async function() {
+    const listEl = document.getElementById('theme-profile-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    
+    let profiles = window.BIG_MEMORY.theme_profiles || [];
+    try {
+        const res = await idb.get('universal_store', 'theme_profiles');
+        if (res) profiles = res.data;
+    } catch(e){}
+
+    if (profiles.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.8rem; color:#aaa; text-align:center;">暂无保存的方案</div>';
+        return;
+    }
+
+    profiles.forEach((p, idx) => {
+        listEl.innerHTML += `
+            <div style="background:#f5f6fa; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; color:#2c3e50;">🎨 ${p.name}</span>
+                <div style="display:flex; gap:5px;">
+                    <button class="m-btn small" onclick="applyThemeProfile(${idx})" style="background:#00cec9; color:white;">应用</button>
+                    <button class="m-btn small" onclick="deleteThemeProfile(${idx})" style="background:#ff7675; color:white;">删除</button>
+                </div>
+            </div>
+        `;
+    });
+};
+
+window.applyThemeProfile = async function(idx) {
+    if (!confirm("⚠️ 应用新方案将覆盖当前的图标、背景和CSS，确认继续吗？")) return;
+    const profiles = window.BIG_MEMORY.theme_profiles || [];
+    const target = profiles[idx];
+    if (!target) return;
+
+    // 遍历方案里的数据，覆盖回 settings_heavy
+    for (let key in target.data) {
+        await idb.put('settings_heavy', { key: key, data: target.data[key] });
+    }
+    
+    alert("✅ 方案已应用，正在刷新界面...");
+    applyAllThemeSettings(); // 调用你原本写好的全量刷新函数
+};
+
+window.deleteThemeProfile = async function(idx) {
+    if (!confirm("确定删除这个方案吗？")) return;
+    let profiles = window.BIG_MEMORY.theme_profiles || [];
+    profiles.splice(idx, 1);
+    await idb.put('universal_store', { id: 'theme_profiles', data: profiles });
+    window.BIG_MEMORY.theme_profiles = profiles;
+    renderThemeProfiles();
+};
+
+// 记得在打开美化中心时渲染列表
+const _origOpenThemeApp = window.openThemeApp;
+window.openThemeApp = function() {
+    if(_origOpenThemeApp) _origOpenThemeApp();
+    renderThemeProfiles();
+};
+// ============================================================
+// 🎭 小剧场 3.0 终极版：独立高度 + 分支删除 + 日语预生成
+// ============================================================
+
+window.theaterJpMode = false;
+
+// 1. 标题双击触发器
+let thTitleTapCount = 0;
+let thTitleTapTimer = null;
+window.handleTheaterTitleTap = function() {
+    thTitleTapCount++;
+    if (thTitleTapTimer) clearTimeout(thTitleTapTimer);
+    thTitleTapTimer = setTimeout(() => { thTitleTapCount = 0; }, 400);
+
+    if (thTitleTapCount >= 2) {
+        thTitleTapCount = 0;
+        const pwd = prompt("🔒 检测到隐藏功能触发，请输入密码：");
+        if (pwd === "jlpt") {
+            window.theaterJpMode = !window.theaterJpMode;
+            const titleEl = document.getElementById('th-main-title');
+            if (window.theaterJpMode) {
+                titleEl.innerText = "小剧场 · 日语学习模式 (N2)";
+                titleEl.style.color = "#d63031";
+                alert("🌸 已切换至【日语模式】。\nAI 将一次性生成日语正文及全句解析！生成稍慢请耐心等待。");
+            } else {
+                titleEl.innerText = "小剧场 · Light Novel";
+                titleEl.style.color = "";
+                alert("已恢复普通小剧场模式。");
+            }
+        } else if (pwd !== null) alert("密码错误。");
+    }
+};
+
+// 2. 动态高度同步函数
+window.syncThCarouselHeight = function(carousel, pageIndex) {
+    const activePage = carousel.children[pageIndex];
+    if (activePage) {
+        carousel.style.height = activePage.offsetHeight + 'px';
+    }
+};
+
+// 3. 滑动监听 (更新页码并同步高度)
+let thScrollTimer = null;
+window.handleThSwipe = function(el, aiIndex) {
+    if (thScrollTimer) clearTimeout(thScrollTimer);
+    thScrollTimer = setTimeout(async () => {
+        const pageIndex = Math.round(el.scrollLeft / el.clientWidth);
+        document.getElementById(`th-ind-${aiIndex}`).innerText = `${pageIndex + 1} / ${el.children.length}`;
+        
+        // 动态调整高度
+        window.syncThCarouselHeight(el, pageIndex);
+        
+        // 自动保存用户停在的页码
+        const content = await getTheaterContent(currentTheaterId);
+        if (content[aiIndex]) {
+            content[aiIndex].currentPage = pageIndex;
+            await saveTheaterContent(currentTheaterId, content);
+        }
+    }, 100);
+};
+
+// 4. 渲染引擎
+window.renderTheaterContent = async function() {
+    if (!currentTheaterId) return;
+    const content = await getTheaterContent(currentTheaterId);
+    const container = document.getElementById('theater-content-list');
+    container.innerHTML = '';
+
+    if (content.length === 0) {
+        container.innerHTML = `<div style="text-align:center; margin-top:50vh; transform:translateY(-50%); opacity:0.6;"><div style="font-size:3rem; margin-bottom:10px;">✒️</div><p>输入指引，开始故事</p></div>`;
+        return;
+    }
+
+    content.forEach((segment, index) => {
+        const div = document.createElement('div');
+        div.className = 'novel-segment';
+        
+        if (segment.role === 'user') {
+            // 用户指令段落 (保留整段删除)
+            div.style.borderLeft = "3px solid var(--th-accent)";
+            div.style.paddingLeft = "10px"; div.style.fontSize = "0.95rem"; div.style.opacity = "0.8";
+            let htmlText = segment.text.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('');
+            div.innerHTML = `<strong>[指令]</strong> ${htmlText}`;
+            
+            const delBtn = document.createElement('div');
+            delBtn.className = 'segment-del-btn'; delBtn.innerText = '🗑️ 撤销此指令';
+            delBtn.onclick = () => deleteTheaterSegment(index);
+            div.appendChild(delBtn);
+        } 
+        else {
+            // AI 故事段落 (多分支)
+            if (!segment.pages) { segment.pages = [segment.text]; segment.currentPage = 0; }
+
+            const pagesHtml = segment.pages.map((pageData, pIndex) => {
+                let displayText = "";
+                // 判定是否是预生成的 JSON 对象 (日语模式)
+                if (typeof pageData === 'object' && pageData.analysis) {
+                    displayText = pageData.analysis.map((s, sIndex) => {
+                        // 将 \n 替换为 <br> 以保留分段
+                        let sentenceHtml = s.jp.replace(/\n/g, '<br>');
+                        return `<span class="jp-sentence" onclick="showPreGenJpAnalysis(${index}, ${pIndex}, ${sIndex})">${sentenceHtml}</span>`;
+                    }).join('');
+                } else {
+                    // 普通模式
+                    displayText = (typeof pageData === 'string' ? pageData : pageData.text || "").replace(/\n/g, '<br>');
+                }
+                return `<div class="th-page">${displayText}</div>`;
+            }).join('');
+
+            div.innerHTML = `
+                <div class="th-carousel-container">
+                    <div class="th-carousel" id="carousel-${index}" onscroll="handleThSwipe(this, ${index})">
+                        ${pagesHtml}
+                    </div>
+                </div>
+                <div class="th-action-bar">
+                    <button class="th-action-btn del" onclick="deleteTheaterBranch(${index})">🗑️ 删除当前分支</button>
+                    <div class="th-page-indicator" id="th-ind-${index}">${segment.currentPage + 1} / ${segment.pages.length}</div>
+                    <button class="th-action-btn" onclick="regenerateTheater(${index})">🔄 重刷分支</button>
+                </div>
+            `;
+        }
+        container.appendChild(div);
+    });
+
+    // 恢复位置和高度
+    setTimeout(() => {
+        content.forEach((segment, index) => {
+            if (segment.role === 'ai' && segment.pages) {
+                const carousel = document.getElementById(`carousel-${index}`);
+                if(carousel) {
+                    carousel.scrollLeft = carousel.clientWidth * segment.currentPage;
+                    window.syncThCarouselHeight(carousel, segment.currentPage);
+                }
+            }
+        });
+        const area = document.getElementById('theater-scroll-area');
+        area.scrollTop = area.scrollHeight;
+    }, 150);
+};
+
+// 5. 【新增】删除当前分支逻辑
+window.deleteTheaterBranch = async function(aiIndex) {
+    const content = await getTheaterContent(currentTheaterId);
+    const segment = content[aiIndex];
+    if (!segment) return;
+
+    if (!confirm(`确定删除当前正在看的这条分支 (第 ${segment.currentPage + 1} 页) 吗？`)) return;
+
+    // 从数组中删掉这一页
+    segment.pages.splice(segment.currentPage, 1);
+
+    // 如果所有分支都被删光了，连带用户上一条的指令一起删掉
+    if (segment.pages.length === 0) {
+        content.splice(aiIndex - 1, 2); 
+    } else {
+        // 如果删的是最后一页，页码往前退一格
+        if (segment.currentPage >= segment.pages.length) {
+            segment.currentPage = segment.pages.length - 1;
+        }
+    }
+    
+    await saveTheaterContent(currentTheaterId, content);
+    await renderTheaterContent();
+};
+
+// ============================================================
+// 🎭 小剧场核心生成引擎 (完美恢复原版 Prompt + 预生成解析)
+// ============================================================
+
+window.generateTheaterSegment = async function() {
+    const inputEl = document.getElementById('th-input');
+    const userText = inputEl.value.trim();
+    const currentContent = await getTheaterContent(currentTheaterId);
+
+    if (!userText && currentContent.length === 0) return alert("请先输入第一句话。");
+
+    const btn = document.getElementById('btn-th-gen');
+    const originalBtnText = btn.innerText;
+    btn.disabled = true; btn.innerText = "生成中...";
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'th-loading';
+    loadingDiv.innerText = window.theaterJpMode ? "日语剧本生成中 (含全句解析，预计较长请稍等)..." : "正在构思剧情 (Hidden CoT running)...";
+    document.getElementById('theater-content-list').appendChild(loadingDiv);
+
+    // 构建历史上下文
+    const recentHistory = currentContent.slice(-15).map(h => {
+        if (h.role === 'user') return `[用户指令]: ${h.text}`;
+        const pageData = h.pages[h.currentPage];
+        const pageText = typeof pageData === 'string' ? pageData : (pageData.story_text || "");
+        return `[正文]: ${pageText}`; 
+    }).join("\n\n");
+
+    const wb = getWBData();
+    const globalContext = window.theaterJpMode ? 
+        (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : 
+        (document.getElementById('th-use-global').checked ? (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : "");
+
+    // ================= 核心 Prompt 区域 =================
+    let systemPrompt = "";
+    let userPrompt = "";
+
+    if (window.theaterJpMode) {
+        // 日语模式：使用第一次生成的文风设定 + JSON 结构强制要求
+        systemPrompt = `你是一位日本轻小说作家。
+【世界设定】：${globalContext}
+
+【核心规则】：
+1. 语言：**必须通篇使用纯正的日语（N2级别水平）**，禁止输出中文。
+2. 语法词汇：语法必须准确，用词贴近日本轻小说文风，**严禁编造不存在的日语单词或乱凑汉字**。
+3. 视角：对用户使用第二人称。
+4. 字数：写一段 400 字左右的日文剧情。
+
+【输出要求】：
+为了配合系统解析，请严格输出 JSON 格式，不要包含 Markdown 代码块：
+{
+  "story_text": "此处合并存放完整日文，用于给AI自己提供后续上下文...",
+  "analysis": [
+    {
+      "jp": "第一句话。\\n",
+      "cn": "中文翻译",
+      "vocab": [ {"word":"単語", "kana":"たんご", "meaning":"单词"} ],
+      "grammar": [ {"pattern":"...", "meaning":"..."} ]
+    }
+  ]
+}
+注意：如果句子意味着段落结束，请在 jp 字段的结尾加上换行符 \\n。`;
+
+        userPrompt = `【前文回顾】\n${recentHistory}\n\n【最新指令】\n${userText}`;
+        
+    } else {
+        // 普通模式：完全恢复你最原始代码里的 Prompt
+        systemPrompt = `你是一位顶级的轻小说作家。
+你正在与用户共同创作一部小说。
+
+【世界设定】
+${globalContext}
+
+【核心规则】
+1. **视角严格限制**：
+   - 对用户（User）必须使用**第二人称“你”**。
+   - 对其他所有角色使用**第三人称有限视角**。
+2. **绝对禁令**：
+   - **绝对禁止**描写“你”（用户）没有明确输入的语言、动作、心理活动。
+   - 如果用户没有输入动作，请描写环境变化、NPC的主动行为、或者突发事件，然后**停下来等待用户的反应**。
+3. **写作风格**：
+   - 轻小说风格（Light Novel）。
+   - 注重环境描写、NPC的微表情、氛围渲染。
+   - **长文输出**：请尽可能详细，每次输出不少于3000汉字。
+4. **思维链**：
+   - 在生成正文前，你可以先在内心思考剧情走向，但这部分不需要输出给用户。`;
+
+        userPrompt = `【前文回顾】\n${recentHistory}\n\n【当前用户指令】\n${userText || "（用户示意继续剧情，请根据上下文自然续写）"}`;
+    }
+    // ====================================================
+
+    let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+    if (!apiKey) { loadingDiv.remove(); btn.disabled=false; btn.innerText=originalBtnText; return alert("请配置 API Key"); }
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.8,
+                max_tokens: window.theaterJpMode ? 30000 : 3000 // 日语解析很长，需要大Token
+            })
+        });
+
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+        
+        let aiText = json.choices[0].message.content.trim();
+        
+        // 只有日语模式才去解析 JSON
+        if (window.theaterJpMode) {
+            aiText = aiText.replace(/```json/g, "").replace(/```/g, "").trim();
+            const startIdx = aiText.indexOf('{'); const endIdx = aiText.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1) aiText = aiText.substring(startIdx, endIdx+1);
+            aiText = JSON.parse(aiText); // 变成对象存入
+        }
+
+        if (userText) currentContent.push({ role: 'user', text: userText });
+        
+        // 存入新的多页结构
+        currentContent.push({ role: 'ai', pages: [aiText], currentPage: 0 });
+        
+        await saveTheaterContent(currentTheaterId, currentContent);
+        
+        loadingDiv.remove();
+        await renderTheaterContent();
+        inputEl.value = '';
+
+    } catch (e) {
+        loadingDiv.innerText = "生成失败: " + e.message; loadingDiv.style.color = "red";
+    } finally {
+        btn.disabled = false; btn.innerText = originalBtnText;
+    }
+};
+
+// ============================================================
+// 🎭 重刷分支 (重置宇宙)
+// ============================================================
+
+window.regenerateTheater = async function(aiIndex) {
+    const content = await getTheaterContent(currentTheaterId);
+    
+    // 找到这一段对应的 User Prompt
+    const userSegment = content[aiIndex - 1];
+    if (!userSegment || userSegment.role !== 'user') return alert("无法找到原指令，无法重新生成。");
+    const userText = userSegment.text;
+
+    // 提取一直到这条之前的历史记录
+    const recentHistory = content.slice(Math.max(0, aiIndex - 15), aiIndex - 1).map(h => {
+        if (h.role === 'user') return `[用户指令]: ${h.text}`;
+        const pageData = h.pages[h.currentPage];
+        return `[正文]: ${typeof pageData === 'string' ? pageData : (pageData.story_text || "")}`; 
+    }).join("\n\n");
+
+    const loadingToast = document.createElement('div');
+    loadingToast.innerHTML = "⏳ 正在生成新的平行宇宙分支...";
+    loadingToast.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:8px; z-index:100;";
+    document.getElementById('theater-container').appendChild(loadingToast);
+
+    const wb = getWBData();
+    const globalContext = window.theaterJpMode ? 
+        (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : 
+        (document.getElementById('th-use-global').checked ? (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n") : "");
+
+    // ================= 核心 Prompt 区域 =================
+    let systemPrompt = "";
+    let userPrompt = "";
+
+    if (window.theaterJpMode) {
+        systemPrompt = `你是一位日本轻小说作家。
+【世界设定】：${globalContext}
+【核心规则】：必须通篇使用纯正的日语（N2级别水平）。严禁编造单词。
+严格输出 JSON 格式：{"story_text":"...","analysis":[{"jp":"...\\n","cn":"...","vocab":[{"word":"...","kana":"...","meaning":"..."}],"grammar":[{"pattern":"...","meaning":"..."}]}]}`;
+        userPrompt = `【前文回顾】\n${recentHistory}\n\n【用户指令】\n${userText}\n\n请换一种完全不同的描写思路或剧情细节，重新生成这段回应。`;
+    } else {
+        systemPrompt = `你是一位顶级的轻小说作家。\n【世界设定】：${globalContext}\n【核心规则】：对用户使用第二人称“你”。绝对禁止描写用户没有明确输入的动作心理。每次输出不少于3000汉字。`;
+        userPrompt = `【前文回顾】\n${recentHistory}\n\n【当前用户指令】\n${userText}\n\n请换一种完全不同的描写思路或剧情细节，重新生成这段剧情。`;
+    }
+    // ====================================================
+
+    let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
+    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: model,
+                messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+                temperature: 0.9, max_tokens: window.theaterJpMode ? 30000 : 3000
+            })
+        });
+        const json = await res.json();
+        let aiText = json.choices[0].message.content.trim();
+
+        if (window.theaterJpMode) {
+            aiText = aiText.replace(/```json/g, "").replace(/```/g, "").trim();
+            const startIdx = aiText.indexOf('{'); const endIdx = aiText.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1) aiText = aiText.substring(startIdx, endIdx+1);
+            aiText = JSON.parse(aiText);
+        }
+
+        // 核心：追加到 pages 数组中，并把指针指到最后
+        content[aiIndex].pages.push(aiText);
+        content[aiIndex].currentPage = content[aiIndex].pages.length - 1;
+        
+        await saveTheaterContent(currentTheaterId, content);
+        await renderTheaterContent();
+    } catch (e) {
+        alert("重新生成失败：" + e.message);
+    } finally {
+        loadingToast.remove();
+        document.getElementById('th-input').value = ""; 
+    }
+};
+
+// 8. 读取预生成的日语解析 (秒开，无需等待 API)
+window.showPreGenJpAnalysis = async function(aiIndex, pageIndex, sentenceIndex) {
+    const content = await getTheaterContent(currentTheaterId);
+    const pageData = content[aiIndex].pages[pageIndex];
+    if (!pageData || !pageData.analysis) return;
+
+    const result = pageData.analysis[sentenceIndex];
+    
+    const modal = document.getElementById('jp-analysis-modal');
+    const contentEl = document.getElementById('jp-analysis-content');
+    
+    let html = `<div style="font-size:1.1rem; color:#2c3e50; font-weight:bold; margin-bottom:10px;">🇯🇵 ${result.jp}</div>`;
+    html += `<div style="background:#f9f9f9; border-left:3px solid #8e44ad; padding:10px; font-size:1rem; color:#555; margin-bottom:20px;">🇨🇳 ${result.cn}</div>`;
+    
+    if (result.vocab && result.vocab.length > 0) {
+        html += `<h4 style="color:#8e44ad; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">📝 单词拆解</h4>`;
+        result.vocab.forEach(v => {
+            html += `<div class="jp-vocab-item">
+                        <div class="jp-vocab-word">${v.word}</div>
+                        <div class="jp-vocab-kana">${v.kana}</div>
+                        <div style="font-size:0.9rem; color:#333; margin-top:3px;">${v.meaning}</div>
+                     </div>`;
+        });
+    }
+
+    if (result.grammar && result.grammar.length > 0) {
+        html += `<h4 style="color:#8e44ad; margin-top:20px; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">📐 语法解析</h4>`;
+        result.grammar.forEach(g => {
+            html += `<div class="jp-grammar-item">
+                        <strong style="color:#6c3483;">${g.pattern}</strong>
+                        <div style="font-size:0.9rem; margin-top:3px; color:#444;">${g.meaning}</div>
+                     </div>`;
+        });
+    }
+
+    contentEl.innerHTML = html;
+    modal.style.display = 'flex';
+};
 </script>
 </script>
 </html> 
