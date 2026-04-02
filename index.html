@@ -9339,10 +9339,11 @@ async function renderTheaterHistoryList() {
         div.style.cursor = 'pointer';
         if (item.id === currentTheaterId) div.style.border = "2px solid var(--th-accent)";
         
-        div.innerHTML = `
+                div.innerHTML = `
             <div style="font-weight:bold; font-size:1rem;">${item.title}</div>
             <div style="font-size:0.8rem; color:#888; margin-top:5px;">${new Date(item.date).toLocaleDateString()}</div>
-            <div style="display:flex; justify-content:flex-end; margin-top:5px;">
+            <div style="display:flex; justify-content:flex-end; margin-top:5px; gap: 10px;">
+                <button class="m-btn small" onclick="event.stopPropagation(); renameTheaterBook(${index})" style="background:#0984e3; color:white;">重命名</button>
                 <button class="m-btn small" onclick="event.stopPropagation(); deleteTheaterBook(${index})" style="background:#ff6b6b; color:white;">删除</button>
             </div>
         `;
@@ -9478,7 +9479,26 @@ ${userText || "（用户示意继续剧情，请根据上下文自然续写）"}
         btn.innerText = originalBtnText;
     }
 }
-
+window.renameTheaterBook = async function(index) {
+    // 1. 获取当前所有的历史记录
+    const list = await getTheaterHistory();
+    const currentTitle = list[index].title;
+    
+    // 2. 弹窗让用户输入新名字，默认显示老名字
+    const newTitle = prompt("请输入新的篇章位置/名称：", currentTitle);
+    
+    // 3. 如果用户点了确定，并且输入的内容不是空的
+    if (newTitle !== null && newTitle.trim() !== "") {
+        // 更新这一条的标题
+        list[index].title = newTitle.trim();
+        
+        // 保存回大容量数据库
+        await saveTheaterHistory(list);
+        
+        // 重新渲染侧边栏列表，让你立刻看到变化
+        await renderTheaterHistoryList();
+    }
+};
 let currentForumId = null; 
 async function openForumApp() {
     document.getElementById('forum-modal').style.display = 'flex';
