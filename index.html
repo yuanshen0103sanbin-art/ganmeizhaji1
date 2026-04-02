@@ -4621,6 +4621,17 @@ canvas {
 .th-action-btn.del {
     color: #ff6b6b; border-color: #ff6b6b;
 }
+/* === 小剧场：固定排版，取消横向滑动 === */
+.th-carousel {
+    display: block !important; 
+    overflow-x: hidden !important; 
+    scroll-snap-type: none !important;
+    transition: none !important;
+}
+.th-page {
+    min-width: 0 !important;
+    scroll-snap-align: none !important;
+}
     </style>
 </head>
 <body>
@@ -39741,8 +39752,7 @@ window.handleThSwipe = function(el, aiIndex) {
         }
     }, 100);
 };
-
-// 4. 渲染引擎
+// 4. 渲染引擎 (按钮切换版)
 window.renderTheaterContent = async function() {
     if (!currentTheaterId) return;
     const content = await getTheaterContent(currentTheaterId);
@@ -39759,7 +39769,7 @@ window.renderTheaterContent = async function() {
         div.className = 'novel-segment';
         
         if (segment.role === 'user') {
-            // 用户指令段落 (保留整段删除)
+            // 用户指令段落
             div.style.borderLeft = "3px solid var(--th-accent)";
             div.style.paddingLeft = "10px"; div.style.fontSize = "0.95rem"; div.style.opacity = "0.8";
             let htmlText = segment.text.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('');
@@ -39776,50 +39786,70 @@ window.renderTheaterContent = async function() {
 
             const pagesHtml = segment.pages.map((pageData, pIndex) => {
                 let displayText = "";
-                // 判定是否是预生成的 JSON 对象 (日语模式)
+                // 日语模式解析
                 if (typeof pageData === 'object' && pageData.analysis) {
                     displayText = pageData.analysis.map((s, sIndex) => {
-                        // 将 \n 替换为 <br> 以保留分段
                         let sentenceHtml = s.jp.replace(/\n/g, '<br>');
                         return `<span class="jp-sentence" onclick="showPreGenJpAnalysis(${index}, ${pIndex}, ${sIndex})">${sentenceHtml}</span>`;
                     }).join('');
                 } else {
-                    // 普通模式
                     displayText = (typeof pageData === 'string' ? pageData : pageData.text || "").replace(/\n/g, '<br>');
                 }
-                return `<div class="th-page">${displayText}</div>`;
+                
+                // 核心：只显示当前选中的页，其余直接 display:none
+                let displayStyle = (pIndex === segment.currentPage) ? "block" : "none";
+                return `<div class="th-page" style="display:${displayStyle}; width:100%; animation: fadeIn 0.3s;">${displayText}</div>`;
             }).join('');
 
+            // 新版按钮布局
             div.innerHTML = `
-                <div class="th-carousel-container">
-                    <div class="th-carousel" id="carousel-${index}" onscroll="handleThSwipe(this, ${index})">
+                <div class="th-carousel-container" style="padding-bottom: 0;">
+                    <div class="th-carousel" id="carousel-${index}">
                         ${pagesHtml}
                     </div>
                 </div>
-                <div class="th-action-bar">
-                    <button class="th-action-btn del" onclick="deleteTheaterBranch(${index})">🗑️ 删除当前分支</button>
-                    <div class="th-page-indicator" id="th-ind-${index}">${segment.currentPage + 1} / ${segment.pages.length}</div>
-                    <button class="th-action-btn" onclick="regenerateTheater(${index})">🔄 重刷分支</button>
+                
+                <div class="th-action-bar" style="display:flex; flex-direction:column; gap:10px; border-top:1px dashed rgba(128,128,128,0.2); padding-top:10px; margin-top:5px;">
+                    <!-- 上下分支导航按钮 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <button class="m-btn small" onclick="navTheaterBranch(${index}, -1)" style="background:transparent; color:var(--th-accent); border:1px solid var(--th-accent); padding:4px 12px; border-radius:12px; opacity:${segment.currentPage > 0 ? 1 : 0.3}; pointer-events:${segment.currentPage > 0 ? 'auto' : 'none'};">◀ 上一分支</button>
+                        
+                        <div class="th-page-indicator" style="position:static; transform:none;">${segment.currentPage + 1} / ${segment.pages.length}</div>
+                        
+                        <button class="m-btn small" onclick="navTheaterBranch(${index}, 1)" style="background:transparent; color:var(--th-accent); border:1px solid var(--th-accent); padding:4px 12px; border-radius:12px; opacity:${segment.currentPage < segment.pages.length - 1 ? 1 : 0.3}; pointer-events:${segment.currentPage < segment.pages.length - 1 ? 'auto' : 'none'};">下一分支 ▶</button>
+                    </div>
+                    
+                    <!-- 删除与重刷 -->
+                    <div style="display:flex; justify-content:space-between;">
+                        <button class="th-action-btn del" onclick="deleteTheaterBranch(${index})">🗑️ 删除当前分支</button>
+                        <button class="th-action-btn" onclick="regenerateTheater(${index})">🔄 重刷分支</button>
+                    </div>
                 </div>
             `;
         }
         container.appendChild(div);
     });
 
-    // 恢复位置和高度
     setTimeout(() => {
-        content.forEach((segment, index) => {
-            if (segment.role === 'ai' && segment.pages) {
-                const carousel = document.getElementById(`carousel-${index}`);
-                if(carousel) {
-                    carousel.scrollLeft = carousel.clientWidth * segment.currentPage;
-                    window.syncThCarouselHeight(carousel, segment.currentPage);
-                }
-            }
-        });
         const area = document.getElementById('theater-scroll-area');
         area.scrollTop = area.scrollHeight;
     }, 150);
+};
+
+// 新增：分支左右切换函数
+window.navTheaterBranch = async function(aiIndex, delta) {
+    const content = await getTheaterContent(currentTheaterId);
+    const segment = content[aiIndex];
+    if (!segment || !segment.pages) return;
+
+    const newPage = segment.currentPage + delta;
+    if (newPage < 0 || newPage >= segment.pages.length) return;
+
+    segment.currentPage = newPage;
+    await saveTheaterContent(currentTheaterId, content);
+    
+    // 直接刷新界面即可
+    await renderTheaterContent();
 };
 
 // 5. 【新增】删除当前分支逻辑
@@ -39938,11 +39968,26 @@ ${globalContext}
     }
     // ====================================================
 
-    let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
+        // === 标准化读取 API 配置 ===
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    if(!apiKey || !apiUrl || !model) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model; 
+        } catch(e){}
+    }
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
 
-    if (!apiKey) { loadingDiv.remove(); btn.disabled=false; btn.innerText=originalBtnText; return alert("请配置 API Key"); }
+    if (!apiKey) { 
+        loadingDiv.remove(); btn.disabled=false; btn.innerText=originalBtnText; 
+        return alert("请先在桌面的设置中配置 API Key！"); 
+    }
 
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
@@ -40034,11 +40079,27 @@ window.regenerateTheater = async function(aiIndex) {
         userPrompt = `【前文回顾】\n${recentHistory}\n\n【当前用户指令】\n${userText}\n\n请换一种完全不同的描写思路或剧情细节，重新生成这段剧情。`;
     }
     // ====================================================
+    // === 标准化读取 API 配置 ===
+    let apiKey = document.getElementById('api-key').value;
+    let apiUrl = document.getElementById('api-url').value;
+    let model = document.getElementById('model-select').value;
+    
+    if(!apiKey || !apiUrl || !model) {
+        try { 
+            const s = JSON.parse(localStorage.getItem('api_settings_draft') || '{}'); 
+            if(!apiKey) apiKey = s.key; 
+            if(!apiUrl) apiUrl = s.url; 
+            if(!model) model = s.model; 
+        } catch(e){}
+    }
+    if(!apiUrl) apiUrl = "https://api.openai.com/v1";
+    if(!model) model = "gpt-3.5-turbo";
 
-    let apiKey = document.getElementById('api-key').value || JSON.parse(localStorage.getItem('api_settings_draft')||'{}').key;
-    let apiUrl = document.getElementById('api-url').value || "https://api.openai.com/v1";
-    let model = document.getElementById('model-select').value || "gpt-3.5-turbo";
-
+    if (!apiKey) {
+        loadingToast.remove();
+        document.getElementById('th-input').value = ""; 
+        return alert("请先在桌面的设置中配置 API Key！");
+    }
     try {
         const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
