@@ -4982,7 +4982,21 @@ canvas {
         <span style="position:absolute; content:''; height:16px; width:16px; left:4px; bottom:4px; background-color:white; transition:.4s; border-radius:50%;" id="keep-alive-slider"></span>
     </label>
 </div>
-<!-- 插入结束 -->
+<!-- 插入结束 --><!-- === 新增：邮件投递引擎配置 === -->
+<div class="morandi-card" style="border: 2px solid #0984e3; background: #f0f8ff;">
+    <h3 style="color:#0984e3; margin-top:0;">💌 邮件投递引擎 (FormSubmit)</h3>
+    <p style="font-size:0.8rem; color:#666;">配置后可自动将信件、纪念日提醒发送至你的邮箱。<br><strong style="color:red;">⚠️ 第一次测试时，FormSubmit 会给你发一封激活邮件，必须去邮箱里点一下激活链接，以后的邮件才能正常收到！</strong></p>
+    
+    <div class="input-group">
+        <label>收件邮箱地址：</label>
+        <input type="email" id="setting-email-addr" placeholder="例如：yourname@qq.com" onblur="saveEmailSettings()">
+    </div>
+    
+    <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="m-btn small" onclick="testEmailEngine()" style="flex:1; background:#0984e3; color:white;">📨 1. 发送测试激活邮件</button>
+        <button class="m-btn small" onclick="openEmailCardTable()" style="flex:1; background:#6c5ce7; color:white;">🔮 2. 抽牌写一封随机信</button>
+    </div>
+</div>
 <!-- 插入结束 -->  <h3>连接配置</h3>
 <div class="morandi-card" style="border-left: 4px solid #06c755;">
     <h3>🔔 通知权限</h3>
@@ -7394,12 +7408,11 @@ function openPeriodApp() {
     renderPeriodUI(); 
 }
 
-function renderPeriodUI() {
+window.renderPeriodUI = function() {
     const data = getPeriodData();
     let statusText = "等待记录..."; 
     let predictText = "请在下方记录开始时间";
     
-    // 确保 records 是数组后再排序，防止报错
     const sortedRecords = (data.records || []).sort((a, b) => new Date(b.start) - new Date(a.start));
     const listEl = document.getElementById('p-history-list');
     
@@ -7427,7 +7440,6 @@ function renderPeriodUI() {
 
     const btn = document.getElementById('p-toggle-btn');
     if(btn) {
-        // 强制移除旧类名，确保状态刷新
         btn.classList.remove('active');
         if (data.isBleeding) {
             btn.classList.add('active');
@@ -7437,32 +7449,36 @@ function renderPeriodUI() {
         }
     }
 
+    // === 修复核心：计算真实天数 ===
+    let diffDays = 0;
     if (sortedRecords.length > 0) {
         const lastStart = new Date(sortedRecords[0].start);
         const today = new Date();
-        const diffDays = Math.floor((today - lastStart) / (1000 * 60 * 60 * 24)) + 1;
+        today.setHours(0,0,0,0);
+        diffDays = Math.floor((today - lastStart) / (1000 * 60 * 60 * 24)) + 1;
 
         if (data.isBleeding) {
-            statusText = `经期第 ${diffDays} 天`;
+            statusText = `经期 第 ${diffDays} 天`;
             predictText = "请注意保暖，多喝热水";
         } else {
-            let phase = "";
-            let emoji = "";
-            if (diffDays <= 7) { phase = "经期/恢复期"; emoji = "💧"; }
-            else if (diffDays <= 13) { phase = "卵泡期 (元气满满)"; emoji = "✨"; }
-            else if (diffDays <= 16) { phase = "排卵期 (易孕)"; emoji = "🥚"; }
-            else if (diffDays <= 28) { phase = "黄体期 (情绪波动)"; emoji = "🌙"; }
+            let phase = ""; let emoji = "";
+            if (diffDays <= 7) { phase = "恢复期"; emoji = "恢复期💧"; }
+            else if (diffDays <= 13) { phase = "卵泡期"; emoji = "卵泡期✨"; }
+            else if (diffDays <= 16) { phase = "排卵期"; emoji = "排卵期🧁"; }
+            else if (diffDays <= 28) { phase = "黄体期"; emoji = "黄体期🌙"; }
             else { phase = "周期延后"; emoji = "⚠️"; }
-            statusText = `${emoji} ${phase}`;
-            predictText = `周期第 ${diffDays} 天`;
+            statusText = `${emoji} 周期 第 ${diffDays} 天`;
+            predictText = `当前处于：${phase}`;
         }
     }
 
     const lastAI = data.lastAnalysis;
     const aiSection = document.getElementById('p-ai-section');
     if (sortedRecords.length > 0 && lastAI && aiSection) {
-        if(!data.isBleeding && lastAI.phase) statusText = lastAI.phase;
-        if(lastAI.next_prediction) predictText = lastAI.next_prediction;
+        // 【修改这里】：不再覆盖天数，而是把AI的分析加在下面
+        if(!data.isBleeding && lastAI.phase) {
+            predictText = `AI判断: ${lastAI.phase} | ${lastAI.next_prediction}`;
+        }
         
         aiSection.style.display = 'block';
         document.getElementById('p-care-msg').innerText = lastAI.care_message || "暂无信息";
@@ -7476,41 +7492,100 @@ function renderPeriodUI() {
     const predEl = document.getElementById('p-prediction-display');
     if (statusEl) statusEl.innerText = statusText;
     if (predEl) predEl.innerText = predictText;
-}
+};
+// ==========================================
+// 🌺 经期管理与邮件联动 (完整版)
+// ==========================================
 
-function addPeriodRecord() {
+window.savePeriodEmailConfig = function() {
+    const emailEl = document.getElementById('period-email-enable');
+    const aiEl = document.getElementById('period-ai-enable');
+    if (emailEl) localStorage.setItem('period_email_enable', emailEl.checked);
+    if (aiEl) localStorage.setItem('period_ai_enable', aiEl.checked);
+};
+// === 👇新增：点击按钮提前写好信件并隐藏👇 ===
+window.generatePeriodEmailNow = async function() {
+    const btn = event.target;
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ 正在生成秘密信件...";
+    btn.disabled = true;
+
+    const wb = window.BIG_MEMORY.world_book || {};
+    // 获取无占卜向全局设定
+    const globalCtx = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    let apiKey = document.getElementById('api-key')?.value;
+    let apiUrl = document.getElementById('api-url')?.value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select')?.value || "gpt-3.5-turbo";
+    
+    if(!apiKey) { 
+        try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} 
+    }
+
+    if(apiKey) {
+        const prompt = `你是小说角色。设定：${globalCtx}\n用户的生理期快到了。请写一封简短温柔的信，叮嘱她多喝热水、注意保暖。直接输出正文。这封信你现在偷偷写好，等到她快来月经的那天，就会发到她的邮箱里。`;
+        try {
+            const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: model, messages: [{role:"user", content:prompt}], temperature: 0.8 })
+            });
+            const json = await res.json();
+            const content = json.choices[0].message.content.trim();
+            
+            // 存入系统缓存，等快来月经时自动发送
+            localStorage.setItem('period_pregen_email_content', content);
+            
+            if(confirm("✅ 经期关怀信件已生成并冷藏！(信件内容只能在邮箱查看)\n\n将在预测的大姨妈前一天自动发送到您的邮箱。\n\n需要现在发送一封【测试邮件】去看看效果吗？")) {
+                window.sendFormSubmitEmail("来自Ta的经期关怀 (测试)", content);
+                alert("测试邮件已投递！请稍后检查邮箱。");
+            }
+            
+        } catch(e) { 
+            console.error(e); 
+            alert("生成失败，请检查网络或 API Key");
+        }
+    } else {
+        alert("请先配置 API Key");
+    }
+    
+    btn.innerText = oldText;
+    btn.disabled = false;
+};
+// 恢复设置
+setTimeout(() => {
+    const eConf = localStorage.getItem('period_email_enable');
+    const aConf = localStorage.getItem('period_ai_enable');
+    if(eConf !== null && document.getElementById('period-email-enable')) document.getElementById('period-email-enable').checked = (eConf === 'true');
+    if(aConf !== null && document.getElementById('period-ai-enable')) document.getElementById('period-ai-enable').checked = (aConf === 'true');
+}, 1000);
+
+
+window.addPeriodRecord = function() {
     const start = document.getElementById('p-start-date').value;
     const end = document.getElementById('p-end-date').value;
-    
     if (!start) return alert("请至少选择开始时间");
     
-    const data = getPeriodData();
+    const data = window.BIG_MEMORY.period || { records: [], isBleeding: false };
+    if(!Array.isArray(data.records)) data.records = [];
+
     data.records.push({ start, end }); 
-    if (end) data.isBleeding = false;
-    else data.isBleeding = true; 
+    if (end) {
+        data.isBleeding = false;
+        data.reminded_this_cycle = false; // 重置提醒标记
+    } else {
+        data.isBleeding = true; 
+    }
     
-    savePeriodData(data);
-    renderPeriodUI();
+    window.saveToBigDB('period', data);
+    if(typeof renderPeriodUI === 'function') renderPeriodUI();
     alert("✅ 记录已保存");
-}
+};
 
-function deletePeriodRecord(index) {
-    if(!confirm("删除这条记录？")) return;
-    const data = getPeriodData();
-    data.records.sort((a, b) => new Date(b.start) - new Date(a.start));
-    data.records.splice(index, 1);
-    savePeriodData(data);
-    renderPeriodUI();
-}
+window.togglePeriodStatus = function() {
+    const data = window.BIG_MEMORY.period || { records: [], isBleeding: false };
+    if (!Array.isArray(data.records)) data.records = [];
 
-function togglePeriodStatus() {
-    const data = getPeriodData();
     data.isBleeding = !data.isBleeding;
-    
     const today = new Date().toISOString().split('T')[0];
-    
-    // 逻辑修复：确保 records 数组存在
-    if (!data.records) data.records = [];
 
     if (data.isBleeding) {
         data.records.unshift({ start: today, end: "" });
@@ -7520,10 +7595,89 @@ function togglePeriodStatus() {
             data.records.sort((a, b) => new Date(b.start) - new Date(a.start));
             if (!data.records[0].end) data.records[0].end = today;
         }
+        // 重置提醒标记
+        data.reminded_this_cycle = false;
     }
-    savePeriodData(data);
-    renderPeriodUI(); 
-}
+    
+    window.saveToBigDB('period', data);
+    if(typeof renderPeriodUI === 'function') renderPeriodUI(); 
+};
+
+// 自动检测推算逻辑 (修改为读取预生成的信件)
+window.checkPeriodReminder = function() {
+    const data = window.BIG_MEMORY.period || {};
+    if (!data.records || data.records.length === 0 || data.isBleeding || data.reminded_this_cycle) {
+        return;
+    }
+
+    const sortedRecords = [...data.records].sort((a, b) => new Date(b.start) - new Date(a.start));
+    const lastStart = new Date(sortedRecords[0].start);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
+    
+    let avgCycle = 28; 
+    if (sortedRecords.length >= 2) {
+        let totalDays = 0;
+        let validCycles = 0;
+        for (let i = 0; i < sortedRecords.length - 1; i++) {
+            const currentStart = new Date(sortedRecords[i].start);
+            const prevStart = new Date(sortedRecords[i+1].start);
+            const diff = Math.round((currentStart - prevStart) / (1000 * 60 * 60 * 24));
+            if (diff >= 20 && diff <= 50) {
+                totalDays += diff;
+                validCycles++;
+            }
+        }
+        if (validCycles > 0) avgCycle = Math.round(totalDays / validCycles);
+    }
+
+    const diffDays = Math.floor((today - lastStart) / (1000 * 60 * 60 * 24)) + 1;
+    const targetDay = avgCycle - 1;
+
+    // 当大姨妈快来时（达到目标天数）
+    if (diffDays >= targetDay) {
+        // --- 邮件投递逻辑 ---
+        const periodEmailEnabled = localStorage.getItem('period_email_enable') !== 'false'; 
+        const periodAiEnabled = localStorage.getItem('period_ai_enable') !== 'false';
+        const todayStr = new Date().toDateString();
+        
+        // 保证今天只发一次
+        if (periodEmailEnabled && localStorage.getItem('period_email_date') !== todayStr) {
+            if (periodAiEnabled) {
+                // 👇核心修改：读取之前点击按钮提前写好的信件内容
+                const pregenContent = localStorage.getItem('period_pregen_email_content');
+                if (pregenContent) {
+                    window.sendFormSubmitEmail("来自Ta的经期关怀", pregenContent);
+                    localStorage.setItem('period_email_date', todayStr);
+                } else {
+                    // 如果用户忘了点按钮生成，退回系统默认纯净关怀
+                    window.sendFormSubmitEmail("经期提醒", "您的生理期即将到来，请注意休息，保持保暖。");
+                    localStorage.setItem('period_email_date', todayStr);
+                }
+            } else {
+                window.sendFormSubmitEmail("经期提醒", "您的生理期即将到来，请注意休息，保持保暖。");
+                localStorage.setItem('period_email_date', todayStr);
+            }
+        }
+
+        // App 内弹窗提醒
+        setTimeout(() => {
+            const msg = `🌺 贴心提醒：\n\n您的平均生理周期为 ${avgCycle} 天。\n今天已经是第 ${diffDays} 天，大姨妈可能马上就要到了。\n\n请提前准备好用品哦！\n\n(点击“确定”后，本次周期内不再打扰)`;
+            if(confirm(msg)) {
+                data.reminded_this_cycle = true;
+                window.saveToBigDB('period', data);
+            }
+        }, 3000); 
+    }
+};
+
+// 启动定时检查 (防止刚开机时数据还没加载)
+setTimeout(() => {
+    // 检查经期
+    if(typeof window.checkPeriodReminder === 'function') window.checkPeriodReminder();
+    // 检查纪念日
+    if(typeof window.checkAnniversaries === 'function') window.checkAnniversaries();
+}, 5000);
 async function analyzeCycleWithAI() {
     const aiSection = document.getElementById('p-ai-section');
     aiSection.style.display = 'block';
@@ -10795,6 +10949,7 @@ function closeAddAnniversaryView() {
     document.getElementById('anniversary-list-view').style.display = 'flex';
     document.getElementById('anniversary-add-view').style.display = 'none';
 }
+
 async function renderAnniversaries() {
     const list = await idb.getAll('anniversary_data');
     const container = document.getElementById('anniversary-list-view');
@@ -10856,44 +11011,140 @@ function calculateAnniversary(targetDateStr, isRepeat) {
         isToday: diffDays === 0       // 是否是今天
     };
 }
-async function saveAnniversary() {
+// ==========================================
+// 📅 纪念日完整逻辑 (带邮件联动)
+// ==========================================
+// === 修复：纪念日删除功能 ===
+window.deleteAnniversary = async function(id) {
+    if (!confirm("确定要删除这个纪念日吗？")) return;
+    if (typeof idb !== 'undefined') {
+        await idb.delete('anniversary_data', id);
+        // 如果有绑定的邮件任务，一并清理
+        const sentKey = `ann_email_queued_${id}`;
+        localStorage.removeItem(sentKey);
+        
+        alert("✅ 删除成功");
+        if(typeof renderAnniversaries === 'function') renderAnniversaries();
+    }
+};
+// ================= 纪念日：API 预生成邮箱提醒 =================
+
+window.saveAnniversary = async function() {
     const title = document.getElementById('ann-title').value;
     const date = document.getElementById('ann-date').value;
     const repeat = document.getElementById('ann-repeat').checked;
     const remindType = document.getElementById('ann-remind-type').value;
-    const bgInput = document.getElementById('ann-bg-input');
+    
+    const emailEnable = document.getElementById('ann-email-enable')?.checked || false;
+    const aiEnable = document.getElementById('ann-ai-enable')?.checked || false;
+    const customTemplate = document.getElementById('ann-custom-template')?.value || "";
     
     if(!title || !date) return alert("请填写完整信息");
 
-    let bgData = null;
-    if(bgInput.files[0]) {
-        bgData = await new Promise(resolve => {
+    // 禁用保存按钮，提示正在生成
+    const btn = event.target;
+    const oldText = btn.innerText;
+    
+    let generatedEmailContent = "";
+
+    // 如果开启了 AI 自动写，在保存时就提前生成好内容
+    if (emailEnable && aiEnable) {
+        btn.innerText = "⏳ 正在生成专属贺信...";
+        btn.disabled = true;
+
+        const wb = window.BIG_MEMORY.world_book || {};
+        // 根据你的要求，使用无占卜向全局
+        const globalCtx = (wb['无占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+        let apiKey = document.getElementById('api-key')?.value;
+        let apiUrl = document.getElementById('api-url')?.value || "https://api.openai.com/v1";
+        let model = document.getElementById('model-select')?.value || "gpt-3.5-turbo";
+        
+        if(!apiKey) { 
+            try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} 
+        }
+
+        if(apiKey) {
+            const prompt = `你是小说角色。设定：${globalCtx}\n今天是你和用户的纪念日：【${title}】。请写一封充满感情的庆祝信发给用户的邮箱。直接输出信件正文。这封信你现在写好，等到纪念日那天她就会在邮箱里看到。`;
+            try {
+                const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({ model: model, messages: [{role:"user", content:prompt}], temperature: 0.8 })
+                });
+                const json = await res.json();
+                generatedEmailContent = json.choices[0].message.content.trim();
+            } catch(e) { 
+                console.error("纪念日预生成贺信失败", e); 
+                alert("AI 贺信生成失败，将使用默认模板发送。");
+            }
+        } else {
+            alert("未配置 API Key，将使用默认模板。");
+        }
+    }
+
+    const newItem = {
+        id: Date.now().toString(), 
+        title, 
+        date, 
+        repeat, 
+        remindType,
+        emailEnable, 
+        aiEnable, 
+        customTemplate, 
+        bgImage: null,
+        // 保存预生成的内容
+        preGeneratedEmail: generatedEmailContent 
+    };
+    
+    const bgInput = document.getElementById('ann-bg-input');
+    if(bgInput && bgInput.files[0]) {
+        newItem.bgImage = await new Promise(resolve => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
             reader.readAsDataURL(bgInput.files[0]);
         });
     }
 
-    const newItem = {
-        id: Date.now().toString(),
-        title,
-        date,
-        repeat,
-        remindType,
-        bgImage: bgData 
-    };
-
-    await idb.put('anniversary_data', newItem);
-    closeAddAnniversaryView();
-    renderAnniversaries();
-}
-async function deleteAnniversary(id) {
-    if(confirm("删除这个纪念日？")) {
-        await idb.delete('anniversary_data', id);
-        renderAnniversaries();
+    if (typeof idb !== 'undefined') {
+        await idb.put('anniversary_data', newItem);
     }
-}
-async function checkAnniversaries() {
+    
+    btn.innerText = oldText;
+    btn.disabled = false;
+    
+    closeAddAnniversaryView();
+    if(typeof renderAnniversaries === 'function') renderAnniversaries();
+    
+    // 如果生成了内容，给用户一个测试按钮的提示
+    if (generatedEmailContent) {
+        if(confirm("✅ 纪念日已保存！AI 已为您预生成了一封秘密贺信（只有在邮箱里才能看见内容）。\n\n要不要现在发送一封【测试邮件】到您的邮箱看看效果？")) {
+            window.sendFormSubmitEmail(`[测试] 纪念日：${title}`, generatedEmailContent);
+            alert("测试邮件已发送，请去邮箱查看！");
+        }
+    } else {
+        alert("✅ 纪念日已保存！");
+    }
+};
+
+// 修改发送逻辑，使用预生成的内容
+window.sendAnniversaryEmailIfNeeded = async function(annItem) {
+    const todayStr = new Date().toDateString();
+    const sentKey = `ann_email_sent_${annItem.id}_${todayStr}`;
+    // 防止今天重复发
+    if(localStorage.getItem(sentKey)) return;
+
+    const isEnabled = annItem.emailEnable === true; 
+    const isAi = annItem.aiEnable === true;
+    // 如果有预生成的内容就用预生成的，否则用模板
+    const contentToSend = (isAi && annItem.preGeneratedEmail) ? annItem.preGeneratedEmail : (annItem.customTemplate || `今天是我们的纪念日：${annItem.title}，我很开心！`);
+
+    if (!isEnabled) return;
+
+    await window.sendFormSubmitEmail(`纪念日快乐：${annItem.title}`, contentToSend);
+    localStorage.setItem(sentKey, 'true');
+};
+
+window.checkAnniversaries = async function() {
+    if (typeof idb === 'undefined') return;
     const list = await idb.getAll('anniversary_data');
     if (!list.length) return;
 
@@ -10903,30 +11154,31 @@ async function checkAnniversaries() {
         
         const calc = calculateAnniversary(item.date, item.repeat);
         const days = calc.diffDays;
-        // 确保这一段逻辑是这样的 (尤其是 days === 0 的判断)
-if (item.remindType === 'same' && days === 0) {
-    alerts.push(`🎉 今天是【${item.title}】！`);
-}
-if (item.remindType === 'before' && days === 1) {
-    alerts.push(`⏰ 明天是【${item.title}】，记得准备哦！`);
-}
-// 有些人习惯把"提前提醒"在当天也提醒一次，可以保留这句：
-if (item.remindType === 'before' && days === 0) {
-    alerts.push(`🎉 今天是【${item.title}】！`);
-}
+        
+        if (item.remindType === 'same' && days === 0) {
+            alerts.push(`🎉 今天是【${item.title}】！`);
+            // 调用邮件发送
+            window.sendAnniversaryEmailIfNeeded(item);
+        }
+        if (item.remindType === 'before' && days === 1) {
+            alerts.push(`⏰ 明天是【${item.title}】，记得准备哦！`);
+        }
+        if (item.remindType === 'before' && days === 0) {
+            alerts.push(`🎉 今天是【${item.title}】！`);
+            // 调用邮件发送
+            window.sendAnniversaryEmailIfNeeded(item);
+        }
     });
 
-    // 在 checkAnniversaries 函数内部...
-    if (alerts.length > 0) {
-        
+    if (alerts.length > 0 && typeof NotificationManager !== 'undefined') {
         NotificationManager.send({
             title: "📅 纪念日提醒",
             body: alerts.join("\n"),
             icon: "💖",
-            onClick: () => openAnniversaryApp() 
+            onClick: () => { if(typeof openAnniversaryApp === 'function') openAnniversaryApp(); }
         });
     }
-} 
+};
 let dreamActiveDeck = [];  
 let dreamFlippedCards = [];  
 let currentDreamResult = null; 
@@ -19221,6 +19473,21 @@ window.deleteStudyPlan = function() {
                 <input type="date" id="p-end-date">
             </div>
             
+<!-- === 新增：经期邮件设置 === -->
+<!-- === 新增：经期邮件设置 === -->
+<div style="margin-top:10px; padding:10px; background:#fff0f5; border-radius:8px;">
+    <label style="display:flex; align-items:center; gap:5px; color:#d81b60; font-size:0.9rem; font-weight:bold;">
+        <input type="checkbox" id="period-email-enable" onchange="savePeriodEmailConfig()" checked> 月经快到时发邮件提醒
+    </label>
+    <label style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:0.8rem; color:#666;">
+        <input type="checkbox" id="period-ai-enable" onchange="savePeriodEmailConfig()" checked> AI 自动生成关心文案
+    </label>
+    
+    <!-- 👇这是新增的预生成按钮👇 -->
+    <button class="m-btn small" onclick="generatePeriodEmailNow()" style="width:100%; margin-top:10px; background:#f48fb1; color:white; border:none;">
+        📝 点击提前写好经期关怀信件
+    </button>
+</div>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button class="m-btn primary" onclick="addPeriodRecord()" style="background:#d81b60;">保存记录</button>
                 <button class="m-btn secondary" onclick="analyzeCycleWithAI()" style="background:#fce4ec; color:#d81b60;">🔮 AI 分析身体 & 推荐</button>
@@ -19660,6 +19927,17 @@ window.deleteStudyPlan = function() {
                     <span>每年重复 (按公历)</span>
                 </div>
                 <select id="ann-remind-type">
+
+<!-- === 新增：纪念日邮件设置 === -->
+<div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+  <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:#d63031;">
+    <input type="checkbox" id="ann-email-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 开启邮箱提醒
+</label>
+<label style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:0.85rem; color:#666;">
+    <input type="checkbox" id="ann-ai-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 让 AI 根据世界书自动写一封贺信
+</label>
+    <input type="text" id="ann-custom-template" placeholder="如果不开启AI，可在此输入自定义提醒文案..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;">
+</div>
                     <option value="none">不提醒</option>
                     <option value="same">当天提醒</option>
                     <option value="before">提前1天提醒</option>
@@ -23865,6 +24143,21 @@ window.generateGalgameEndingAPI = async function() {
     }
 };
 </script>
+<!-- === 新增：随机信件专用牌桌 === -->
+<div id="email-card-table-modal" class="modal-overlay" style="background: rgba(20, 20, 40, 0.95); z-index:40000; display:none;">
+    <div id="email-card-table-desk" style="width: 100%; height: 100%; position: relative; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; background: radial-gradient(circle, #6c5ce7 0%, #1a1a2e 100%);">
+        <div id="email-card-area" style="width: 100%; height: 100%; position: relative; transform-style: preserve-3d; perspective: 1000px;"></div>
+        <div class="card-table-ui">
+            <div style="color:#fff; font-weight:bold; text-shadow:0 1px 3px #000;">
+                抽取几张牌，写一封会在未来一个月内寄到的信... (已选: <span id="email-flipped-count">0</span> 张)
+            </div>
+            <button class="m-btn primary" onclick="finishEmailDraw()" style="background:#a29bfe; color:#fff; box-shadow:0 0 15px rgba(162,155,254,0.5);">
+                ✍️ 确认牌意并写信
+            </button>
+            <button class="m-btn secondary" onclick="document.getElementById('email-card-table-modal').style.display='none'" style="background:rgba(255,255,255,0.2); color:#ccc;">取消</button>
+        </div>
+    </div>
+</div>
 <div id="sys-toast-container" class="sys-toast-container"></div>
 <!-- 信件专用抽牌桌 (新增) -->
 <div id="letter-card-table-modal" class="modal-overlay" style="background: rgba(45, 52, 54, 0.95); backdrop-filter: blur(5px);">
@@ -40170,6 +40463,202 @@ window.showPreGenJpAnalysis = async function(aiIndex, pageIndex, sentenceIndex) 
 
     contentEl.innerHTML = html;
     modal.style.display = 'flex';
+};
+// ==========================================
+// 💌 邮件投递引擎与定时任务系统 (完整版)
+// ==========================================
+
+window.saveEmailSettings = function() {
+    const email = document.getElementById('setting-email-addr').value;
+    localStorage.setItem('target_email_addr', email);
+};
+
+// 恢复设置页邮箱显示
+setTimeout(() => {
+    const savedEmail = localStorage.getItem('target_email_addr');
+    if(savedEmail && document.getElementById('setting-email-addr')) {
+        document.getElementById('setting-email-addr').value = savedEmail;
+    }
+}, 1500);
+
+// 1. 核心发送函数
+window.sendFormSubmitEmail = async function(subject, message) {
+    const email = localStorage.getItem('target_email_addr') || document.getElementById('setting-email-addr')?.value;
+    if (!email) return console.warn("未配置收件邮箱，无法发送邮件。");
+
+    try {
+        await fetch(`https://formsubmit.co/ajax/${email}`, {
+            method: "POST",
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                _subject: `💌 ${subject}`,
+                "内容": message,
+                _template: "box"
+            })
+        });
+        console.log(`✅ 邮件已成功投递: ${subject}`);
+    } catch(e) {
+        console.error("邮件投递失败:", e);
+    }
+};
+
+// 2. 测试按钮
+window.testEmailEngine = function() {
+    const email = document.getElementById('setting-email-addr').value;
+    if(!email) return alert("请先填写邮箱地址！");
+    saveEmailSettings();
+    alert("⏳ 正在发送测试邮件...\n请务必去邮箱收件箱(或垃圾箱)检查！\nFormSubmit 第一次使用会发一封英文的【激活邮件】，你必须点里面的激活按钮，后续邮件才能收到！");
+    sendFormSubmitEmail("系统测试", "你好！当你看到这封邮件，说明你的 RetroOS 邮件引擎已配置成功！等待接收爱人的信件吧~");
+};
+
+// 3. 定时监控与发送引擎 (每5分钟检查一次)
+setInterval(async () => {
+    const email = localStorage.getItem('target_email_addr');
+    if (!email) return;
+
+    const now = Date.now();
+
+    // A. 检查随机信件队列 (时间到了就发)
+    let queue = JSON.parse(localStorage.getItem('email_send_queue') || '[]');
+    let remainingQueue = [];
+    for (let item of queue) {
+        if (now >= item.sendTime) {
+            await window.sendFormSubmitEmail(item.subject, item.content);
+        } else {
+            remainingQueue.push(item);
+        }
+    }
+    localStorage.setItem('email_send_queue', JSON.stringify(remainingQueue));
+
+    // B. 随机发词库卡片 (无每日次数限制，概率设为 1%)
+    // 因为每5分钟判定一次，1%的概率平均每天会触发 2.8 次左右
+    if (Math.random() < 0.005) {
+        const thesaurus = window.BIG_MEMORY.thesaurus_data || {};
+        const replies = thesaurus['reply'] || [];
+        if (replies.length >= 3) {
+            // 随机抽3条
+            const shuffled = [...replies].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, 3);
+            const msg = "现在忽然想对你说：\n\n" + selected.join("\n\n");
+            await window.sendFormSubmitEmail("来自Ta的留言字卡", msg);
+        }
+    }
+
+}, 5 * 60 * 1000); // 5分钟执行一次
+
+// 4. 随机信件专用牌桌与写信逻辑
+let emailDeck = [], emailFlipped = [];
+window.openEmailCardTable = function() {
+    const email = document.getElementById('setting-email-addr').value;
+    if(!email) return alert("请先填写并保存邮箱地址！");
+    
+    document.getElementById('email-card-table-modal').style.display = 'flex';
+    const area = document.getElementById('email-card-area');
+    area.innerHTML = ''; emailDeck = []; emailFlipped = [];
+    document.getElementById('email-flipped-count').innerText = '0';
+
+    for(let i=0; i<=77; i++) emailDeck.push({ type:'tarot', id:i, isReversed:Math.random()<0.3 });
+    for(let i=1; i<=36; i++) emailDeck.push({ type:'lenormand', id:i, isReversed:false });
+    emailDeck.sort(()=>Math.random()-0.5);
+
+    const deskW = window.innerWidth;
+    const cols = 4; const cardW=60, cardH=90, gap=10;
+    const startX = (deskW - (cols*(cardW+gap)))/2;
+
+    emailDeck.forEach((card, i) => {
+        const el = document.createElement('div');
+        el.className = 'playing-card';
+        el.style.left = (startX + (i%cols)*(cardW+gap)) + 'px';
+        el.style.top = (60 + Math.floor(i/cols)*(cardH+gap)) + 'px';
+        el.style.transform = `rotate(${Math.random()*4-2}deg)`;
+        
+        const front = document.createElement('div');
+        front.className = 'playing-card-front';
+        el.appendChild(front);
+        
+        el.onclick = async () => {
+            if(el.classList.contains('flipped')) {
+                el.classList.remove('flipped');
+                emailFlipped = emailFlipped.filter(c=>!(c.id===card.id && c.type===card.type));
+            } else {
+                el.classList.add('flipped');
+                emailFlipped.push(card);
+                const db = card.type==='tarot'?'tarot_deck':'lenormand_deck';
+                if(typeof idb !== 'undefined') {
+                    idb.get(db, card.id).then(res=>{ 
+                        if(res && res.data) front.style.backgroundImage=`url(${res.data})`; 
+                        else { front.style.background="#fff"; front.innerText=card.id; }
+                    });
+                }
+                front.style.transform = card.isReversed ? "rotateY(180deg) rotate(180deg)" : "rotateY(180deg)";
+            }
+            document.getElementById('email-flipped-count').innerText = emailFlipped.length;
+        };
+        area.appendChild(el);
+    });
+};
+
+window.finishEmailDraw = async function() {
+    if(emailFlipped.length === 0) return alert("请至少抽一张牌！");
+    const btn = document.querySelector('#email-card-table-modal .primary');
+    btn.disabled = true; btn.innerText = "正在写信...";
+
+    const cardsDesc = emailFlipped.map(c => (c.type==='tarot'?TAROT_NAMES[c.id]:LENORMAND_NAMES[c.id]) + (c.isReversed?"(逆)":"")).join(", ");
+    const wb = window.BIG_MEMORY.world_book || {};
+    const globalCtx = (wb['占卜向全局'] || []).filter(i=>i.enabled).map(i=>i.content).join("\n");
+    
+    let apiKey = document.getElementById('api-key')?.value;
+    let apiUrl = document.getElementById('api-url')?.value || "https://api.openai.com/v1";
+    let model = document.getElementById('model-select')?.value || "gpt-3.5-turbo";
+    if(!apiKey) { try{ const s=JSON.parse(localStorage.getItem('api_settings_draft')||'{}'); apiKey=s.key; apiUrl=s.url; model=s.model; }catch(e){} }
+
+    if(!apiKey) {
+        btn.disabled = false; btn.innerText = "✍️ 确认牌意并写信";
+        return alert("请配置API Key");
+    }
+
+    const prompt = `你是一位深爱着用户的小说人物。
+【世界观/角色】：${globalCtx}
+【此时的命运牌意】：${cardsDesc}
+
+任务：请结合牌意，给用户写一封信（约300字）。将牌意融入正文。
+这封信是在某一天突然有感而发写下的。
+直接输出信件正文，不要写标题，不要JSON，就像真的信一样。`;
+
+    try {
+        const res = await fetch(`${apiUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: model, messages: [{role:"user", content:prompt}], temperature: 0.85 })
+        });
+        const json = await res.json();
+        const letterContent = json.choices[0].message.content.trim();
+
+        // 计算未来的发送时间 (1分钟到30天内的一个随机时间)
+        const now = Date.now();
+        const randomMs = Math.floor(Math.random() * (30 * 24 * 60 * 60 * 1000)); 
+        const sendTime = now + randomMs;
+
+        // 加入队列
+        let queue = JSON.parse(localStorage.getItem('email_send_queue') || '[]');
+        queue.push({
+            type: 'random_letter',
+            subject: "一封来自未来的信",
+            content: letterContent,
+            sendTime: sendTime
+        });
+        localStorage.setItem('email_send_queue', JSON.stringify(queue));
+
+        alert(`✅ 信件已写好，并投递到时空邮箱！\n它将在未来的一个月内随机寄达到你的邮箱中。`);
+        document.getElementById('email-card-table-modal').style.display = 'none';
+
+    } catch(e) {
+        alert("写信失败: " + e.message);
+    } finally {
+        btn.disabled = false; btn.innerText = "✍️ 确认牌意并写信";
+    }
 };
 </script>
 </script>
