@@ -19926,22 +19926,22 @@ window.deleteStudyPlan = function() {
                     <input type="checkbox" id="ann-repeat" style="width:auto;"> 
                     <span>每年重复 (按公历)</span>
                 </div>
-                <select id="ann-remind-type">
-
-<!-- === 新增：纪念日邮件设置 === -->
-<div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
-  <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:#d63031;">
-    <input type="checkbox" id="ann-email-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 开启邮箱提醒
-</label>
-<label style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:0.85rem; color:#666;">
-    <input type="checkbox" id="ann-ai-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 让 AI 根据世界书自动写一封贺信
-</label>
-    <input type="text" id="ann-custom-template" placeholder="如果不开启AI，可在此输入自定义提醒文案..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;">
-</div>
+                                <select id="ann-remind-type" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 6px; outline: none; background: #fff;">
                     <option value="none">不提醒</option>
                     <option value="same">当天提醒</option>
                     <option value="before">提前1天提醒</option>
                 </select>
+
+                <!-- === 新增：纪念日邮件设置 === -->
+                <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+                    <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:#d63031;">
+                        <input type="checkbox" id="ann-email-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 开启邮箱提醒
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:0.85rem; color:#666;">
+                        <input type="checkbox" id="ann-ai-enable" checked style="width: 20px !important; height: 20px !important; padding: 0 !important; flex-shrink: 0;"> 让 AI 根据世界书自动写一封贺信
+                    </label>
+                    <input type="text" id="ann-custom-template" placeholder="如果不开启AI，可在此输入自定义提醒文案..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;">
+                </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px;">
@@ -40662,4 +40662,86 @@ window.finishEmailDraw = async function() {
 };
 </script>
 </script>
+<!-- ================= 🎴 全局牌桌模式 自动安装包 ================= -->
+<script>
+(function() {
+    console.log("🛠️ 正在自动安装【全局牌桌模式】...");
+
+    // 1. 魔法拦截：全局接管所有发牌动作 (免除繁琐的手动修改)
+    const _originalPush = Array.prototype.push;
+    Array.prototype.push = function(...args) {
+        // 检查是否是往牌库里发牌
+        if (args.length === 1 && args[0] !== null && typeof args[0] === 'object') {
+            const card = args[0];
+            // 完美避开专属塔罗牌软件：其他牌桌发牌时都带 type 属性
+            if (card.id !== undefined && (card.type === 'tarot' || card.type === 'lenormand')) {
+                const mode = localStorage.getItem('global_card_mode') || 'mixed';
+                // 根据用户的设置，自动把不需要的牌拦截在外面
+                if (mode === 'tarot' && card.type === 'lenormand') return this.length;
+                if (mode === 'lenormand' && card.type === 'tarot') return this.length;
+            }
+        }
+        return _originalPush.apply(this, args);
+    };
+
+    // 2. 核心控制函数
+    window.setGlobalDeckMode = function(mode) {
+        localStorage.setItem('global_card_mode', mode);
+        if (typeof window.updateDeckModeUI === 'function') window.updateDeckModeUI();
+        alert("✅ 全局牌桌已切换为：" + (mode === 'mixed' ? '混合 (114张)' : (mode === 'tarot' ? '仅塔罗牌 (78张)' : '仅雷诺曼 (36张)')));
+    };
+
+    // 3. UI 颜色更新函数
+    window.updateDeckModeUI = function() {
+        const mode = localStorage.getItem('global_card_mode') || 'mixed';
+        const bMixed = document.getElementById('btn-deck-mixed');
+        const bTarot = document.getElementById('btn-deck-tarot');
+        const bLen = document.getElementById('btn-deck-lenormand');
+        if(!bMixed || !bTarot || !bLen) return;
+        
+        bMixed.style.background = '#eee'; bMixed.style.color = '#333';
+        bTarot.style.background = '#eee'; bTarot.style.color = '#333';
+        bLen.style.background = '#eee'; bLen.style.color = '#333';
+        
+        if(mode === 'mixed') { bMixed.style.background = '#8e44ad'; bMixed.style.color = '#fff'; }
+        if(mode === 'tarot') { bTarot.style.background = '#8e44ad'; bTarot.style.color = '#fff'; }
+        if(mode === 'lenormand') { bLen.style.background = '#8e44ad'; bLen.style.color = '#fff'; }
+    };
+
+    // 4. 自动向设置面板植入 UI 界面
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            const settingsBody = document.querySelector('#settings-modal .modal-body');
+            if (settingsBody && !document.getElementById('btn-deck-mixed')) {
+                const deckConfigHtml = `
+                    <div class="morandi-card" style="border-left: 4px solid #8e44ad; margin-bottom: 10px;">
+                        <h3 style="color:#8e44ad; margin-top:0;">🎴 全局牌桌模式</h3>
+                        <p style="font-size:0.8rem; color:#666;">设置所有组件（塔罗App除外）抽牌时的牌库种类。</p>
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button id="btn-deck-mixed" class="m-btn small" onclick="setGlobalDeckMode('mixed')" style="flex:1;">混合 (114张)</button>
+                            <button id="btn-deck-tarot" class="m-btn small" onclick="setGlobalDeckMode('tarot')" style="flex:1;">仅塔罗 (78张)</button>
+                            <button id="btn-deck-lenormand" class="m-btn small" onclick="setGlobalDeckMode('lenormand')" style="flex:1;">仅雷诺曼</button>
+                        </div>
+                    </div>
+                `;
+                // 无痕插入到设置面板最上方
+                settingsBody.insertAdjacentHTML('afterbegin', deckConfigHtml);
+                window.updateDeckModeUI();
+            }
+        }, 1500); // 延迟执行，确保不影响系统启动
+    });
+
+    // 5. 绑定设置面板打开时的动作
+    if (typeof window.openSettings === 'function') {
+        const _origOpenSettings = window.openSettings;
+        window.openSettings = function() {
+            _origOpenSettings();
+            setTimeout(window.updateDeckModeUI, 100);
+        };
+    }
+    
+    console.log("✅ 全局牌桌模式安装完毕！");
+})();
+</script>
+<!-- ======================================================= -->
 </html> 
