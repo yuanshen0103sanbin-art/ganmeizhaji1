@@ -4635,6 +4635,127 @@ canvas {
     </style>
 </head>
 <body>
+<!-- Discord 强制登录与后台记录拦截层 -->
+<div id="discord-login-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #2c2f33; z-index: 99999999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-family: sans-serif; transition: opacity 0.5s;">
+    <div style="background: #23272a; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 4px 30px rgba(0,0,0,0.8); width: 80%; max-width: 400px;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🛡️</div>
+        <h2 style="margin-top: 0; margin-bottom: 10px;">系统访问控制</h2>
+        <p style="color: #b9bbbe; margin-bottom: 30px; font-size: 0.9rem; line-height:1.5;">系统已锁定。<br>请使用 Discord 验证身份后进入，此操作不会让您加入任何服务器。</p>
+        
+        <button id="btn-discord-oauth" onclick="loginWithDiscord()" style="background: #5865F2; color: white; border: none; padding: 14px 24px; font-size: 1rem; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; font-weight: bold; width: 100%; justify-content: center; transition: 0.2s;">
+            连接 Discord 以进入
+        </button>
+
+        <div id="discord-loading-text" style="display:none; margin-top: 15px; color: #43b581; font-weight: bold; font-size: 1.1rem;">⏳ 正在验证身份...</div>
+        <div id="discord-user-info" style="display:none; margin-top: 15px; color: #fff;"></div>
+    </div>
+</div>
+
+<script>
+// ========================================================
+// ⚠️ 必备配置区 ⚠️
+const DISCORD_CLIENT_ID = '1491691520594673716'; 
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1491694135717924894/lTgOUHqv04Lawj1by2_As8lgepKeicIsVeXqY6B5XULTYrYnJYzwqCCZuA24OjB5pz2O'; 
+// ========================================================
+
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const overlayElement = document.getElementById('discord-login-overlay');
+
+// 🔥 核心优化：刚打开网页瞬间，检查是否已经登录过
+const savedLocalUser = localStorage.getItem('discord_auth_user');
+if (savedLocalUser) {
+    // 如果这台设备已经登录过，直接瞬间隐藏拦截层！无感进入！
+    overlayElement.style.display = 'none';
+}
+
+function loginWithDiscord() {
+    if (!DISCORD_CLIENT_ID || DISCORD_CLIENT_ID.includes('这里填上')) return alert("开发者暂未配置正确的 Client ID");
+    const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=identify`;
+    window.location.href = oauthUrl;
+}
+
+function checkDiscordLogin() {
+    const btn = document.getElementById('btn-discord-oauth');
+    const loadingText = document.getElementById('discord-loading-text');
+
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+
+    // 如果是通过 Discord 刚跳转回来的
+    if (accessToken) {
+        btn.style.display = 'none';
+        loadingText.style.display = 'block';
+
+        fetch('https://discord.com/api/users/@me', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        .then(result => result.json())
+        .then(response => {
+            if (response.id) {
+                history.replaceState(null, null, window.location.pathname + window.location.search);
+                
+                const userInfo = {
+                    id: response.id,
+                    username: response.username,
+                    global_name: response.global_name || response.username
+                };
+                
+                // 将信息永久保存在这台设备的浏览器中
+                localStorage.setItem('discord_auth_user', JSON.stringify(userInfo));
+                
+                logUserToMyWebhook(userInfo); // 发送到你的后台
+                unlockSystem(userInfo); // 显示成功动画并进入
+            } else {
+                alert("❌ 验证失败，请重试");
+                btn.style.display = 'flex';
+                loadingText.style.display = 'none';
+            }
+        }).catch(err => {
+            alert("❌ 网络连接出错");
+        });
+    }
+}
+
+function logUserToMyWebhook(user) {
+    if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('这里填上')) return;
+    fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: "访问门卫", 
+            embeds: [{
+                title: "🛡️ 新设备首次登录完成",
+                color: 5814783,
+                fields: [
+                    { name: "显示名称", value: user.global_name, inline: true },
+                    { name: "用户 ID", value: "`" + user.id + "`", inline: true }
+                ]
+            }]
+        })
+    }).catch(()=>{});
+}
+
+function unlockSystem(user) {
+    const userInfoEl = document.getElementById('discord-user-info');
+    document.getElementById('btn-discord-oauth').style.display = 'none';
+    document.getElementById('discord-loading-text').style.display = 'none';
+    
+    userInfoEl.style.display = 'block';
+    userInfoEl.innerHTML = `
+        <div style="font-size:2rem; margin-bottom:10px;">✅</div>
+        验证成功：<span style="color:#00cec9; font-weight:bold;">${user.global_name || user.username}</span><br>
+        <span style="font-size:0.85rem;color:#888;margin-top:10px;display:block;">正在为您永久绑定此设备...</span>
+    `;
+
+    setTimeout(() => {
+        overlayElement.style.opacity = '0';
+        setTimeout(() => overlayElement.style.display = 'none', 500);
+    }, 1500);
+}
+
+window.addEventListener('load', checkDiscordLogin);
+</script>
 <div id="camera-modal" class="modal-overlay" style="padding:0;">
     <div id="camera-ui">
         <div style="padding:10px; display:flex; justify-content:space-between; color:white; background:#111; align-items:center;">
