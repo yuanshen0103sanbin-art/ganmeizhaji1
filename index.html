@@ -2726,7 +2726,7 @@ canvas {
     top: 20px;
     left: 50%;
     transform: translateX(-50%) translateY(-100px); 
-    z-index: 10000;
+    z-index: 999999;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -11125,22 +11125,24 @@ window.saveAnniversary = async function() {
     }
 };
 
-// 修改发送逻辑，使用预生成的内容
 window.sendAnniversaryEmailIfNeeded = async function(annItem) {
     const todayStr = new Date().toDateString();
     const sentKey = `ann_email_sent_${annItem.id}_${todayStr}`;
-    // 防止今天重复发
+    
+    // 1. 如果有标记，直接退出
     if(localStorage.getItem(sentKey)) return;
+
+    // 2. 【核心修复】：立刻打上标记！锁死并发，后面的调用看到标记就会退出
+    localStorage.setItem(sentKey, 'true');
 
     const isEnabled = annItem.emailEnable === true; 
     const isAi = annItem.aiEnable === true;
-    // 如果有预生成的内容就用预生成的，否则用模板
     const contentToSend = (isAi && annItem.preGeneratedEmail) ? annItem.preGeneratedEmail : (annItem.customTemplate || `今天是我们的纪念日：${annItem.title}，我很开心！`);
 
     if (!isEnabled) return;
 
     await window.sendFormSubmitEmail(`纪念日快乐：${annItem.title}`, contentToSend);
-    localStorage.setItem(sentKey, 'true');
+    // 删掉原本在底部的 localStorage.setItem(sentKey, 'true');
 };
 
 window.checkAnniversaries = async function() {
@@ -38972,15 +38974,15 @@ window.handleNewsWidgetClick = function() {
 
         // 如果达到了提醒时间
         if (diffDays >= targetDay) {
-            setTimeout(() => {
-                const msg = `🌺 贴心提醒：\n\n根据您过去的记录，您的平均生理周期为 ${avgCycle} 天。\n今天已经是第 ${diffDays} 天，大姨妈可能马上就要到了。\n\n请提前准备好用品，注意保暖和休息哦！\n\n(点击“确定”后，本次周期内不再重复打扰)`;
-                
-                if(confirm(msg)) {
-                    // 打上已提醒标记
-                    data.reminded_this_cycle = true;
-                    window.savePeriodData(data);
-                }
-            }, 3000); 
+                    // App 内弹窗提醒
+        setTimeout(() => {
+            // 【核心修复】：立刻打上周期提醒标记，不依赖用户去点击 Confirm
+            data.reminded_this_cycle = true;
+            window.savePeriodData(data);
+
+            const msg = `🌺 贴心提醒：\n\n根据您过去的记录，您的平均生理周期为 ${avgCycle} 天。\n今天已经是第 ${diffDays} 天，月经可能马上就要到了。\n\n请提前准备好用品，注意保暖和休息哦！\n\n(点击“确定”后，本次周期内不再重复打扰)`;
+            confirm(msg); // 只是弹个窗，不需要用 if 包裹了
+        }, 3000); 
         }
     };
 
@@ -40158,7 +40160,7 @@ window.deleteTheaterBranch = async function(aiIndex) {
 
     // 如果所有分支都被删光了，连带用户上一条的指令一起删掉
     if (segment.pages.length === 0) {
-        content.splice(aiIndex - 1, 2); 
+                content.splice(aiIndex, 1);
     } else {
         // 如果删的是最后一页，页码往前退一格
         if (segment.currentPage >= segment.pages.length) {
@@ -40521,19 +40523,25 @@ setInterval(async () => {
 
     const now = Date.now();
 
-    // A. 检查随机信件队列 (时间到了就发)
-    let queue = JSON.parse(localStorage.getItem('email_send_queue') || '[]');
-    let remainingQueue = [];
-    for (let item of queue) {
-        if (now >= item.sendTime) {
-            await window.sendFormSubmitEmail(item.subject, item.content);
-        } else {
-            remainingQueue.push(item);
-        }
-    }
-    localStorage.setItem('email_send_queue', JSON.stringify(remainingQueue));
+            // A. 检查随机信件队列 (时间到了就发)
+            let queue = JSON.parse(localStorage.getItem('email_send_queue') || '[]');
+            let toSend = [];
+            let remainingQueue = [];
+            for (let item of queue) {
+                if (now >= item.sendTime) {
+                    toSend.push(item);
+                } else {
+                    remainingQueue.push(item);
+                }
+            }
+            // 【核心修复】：在发送耗时网络请求前，先把其余邮件存回去，防覆盖丢失！
+            localStorage.setItem('email_send_queue', JSON.stringify(remainingQueue));
 
-    // B. 随机发词库卡片 (无每日次数限制，概率设为 1%)
+            // 然后再统一发送已经到时间的信件
+            for (let item of toSend) {
+                await window.sendFormSubmitEmail(item.subject, item.content);
+            }
+   // B. 随机发词库卡片 (无每日次数限制，概率设为 1%)
     // 因为每5分钟判定一次，1%的概率平均每天会触发 2.8 次左右
     if (Math.random() < 0.005) {
         const thesaurus = window.BIG_MEMORY.thesaurus_data || {};
