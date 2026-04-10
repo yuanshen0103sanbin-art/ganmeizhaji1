@@ -4658,7 +4658,14 @@ const DISCORD_CLIENT_ID = '1491691520594673716';
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1491694135717924894/lTgOUHqv04Lawj1by2_As8lgepKeicIsVeXqY6B5XULTYrYnJYzwqCCZuA24OjB5pz2O'; 
 // ========================================================
 
-const REDIRECT_URI = window.location.origin + window.location.pathname;
+const ALLOWED_URLS = [
+    "https://ganmeizhaji.pages.dev/",
+    "https://ganmeizhaji.pages.dev",
+    "https://ganmeizhaji.pages.dev//index.html",
+    "https://yuanshen0103sanbin-art.github.io/ganmeizhaji1/"
+];
+let currentUrl = window.location.origin + window.location.pathname;
+const REDIRECT_URI = ALLOWED_URLS.includes(currentUrl) ? currentUrl : ALLOWED_URLS[0];
 const overlayElement = document.getElementById('discord-login-overlay');
 
 // 🔥 核心优化：刚打开网页瞬间，检查是否已经登录过
@@ -4735,7 +4742,6 @@ function logUserToMyWebhook(user) {
         })
     }).catch(()=>{});
 }
-
 function unlockSystem(user) {
     const userInfoEl = document.getElementById('discord-user-info');
     document.getElementById('btn-discord-oauth').style.display = 'none';
@@ -4750,10 +4756,13 @@ function unlockSystem(user) {
 
     setTimeout(() => {
         overlayElement.style.opacity = '0';
-        setTimeout(() => overlayElement.style.display = 'none', 500);
+        setTimeout(() => {
+            overlayElement.style.display = 'none';
+            // 👇 把它加在这里！门卫黑屏彻底消失后，再弹天气输入框
+            if(typeof initRealWeather === 'function') initRealWeather();
+        }, 500);
     }, 1500);
 }
-
 window.addEventListener('load', checkDiscordLogin);
 </script>
 <div id="camera-modal" class="modal-overlay" style="padding:0;">
@@ -32054,7 +32063,7 @@ window.addEventListener('load', function() {
             
             // 🔥 新增：加载全局 CSS
             if(typeof applyGlobalCSS === 'function') applyGlobalCSS();
-            if(typeof initRealWeather === 'function') initRealWeather();  
+           
             // 加载游戏机皮肤
             if(typeof loadGameWidgetTheme === 'function') loadGameWidgetTheme();
             try { await idb.get('settings_heavy', 'myAvatar'); } catch(e){}
